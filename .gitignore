@@ -1,0 +1,16 @@
+models/
+.venv/
+**/.venv/
+node_modules/
+dist/
+__pycache__/
+*.pyc
+.pytest_cache/
+vendor/
+var/
+*.sqlite
+*.sqlite3
+.DS_Store
+test-results/
+playwright-report/
+tests/fixtures/audio/

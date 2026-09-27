@@ -1,0 +1,134 @@
+{
+  "scenario_id": "hotel_checkin",
+  "version": "1.0.0",
+  "title_ko": "호텔 체크인",
+  "title_en": "Hotel Check-in",
+  "ai_role": "front desk clerk",
+  "ai_role_ko": "프런트 직원",
+  "user_role_ko": "투숙객",
+  "setting_ko": "저녁 8시쯤 하버뷰 호텔 로비에 도착했습니다. 김민준(Minjun Kim) 이름으로 퀸 룸 3박(목요일~일요일)을 예약했고, 예약 번호는 HV-48213입니다.",
+  "default_voice_id": "dev_voice_b",
+  "facts": {
+    "hotel_name": "The Harborview Hotel",
+    "reservation_name": "Minjun Kim",
+    "reservation_number": "HV-48213",
+    "stay": "3 nights: check-in Thursday, check-out Sunday",
+    "room_type": "Queen room, non-smoking, city view",
+    "room_rate": "$189.00 per night before tax",
+    "room_number": "Room 1207 on the 12th floor; two key cards",
+    "deposit": "A refundable hold of $50.00 per night for incidentals is placed on a credit card",
+    "check_out": "Check-out is at 11:00 a.m.; late check-out until 1:00 p.m. costs $30.00",
+    "breakfast": "Buffet breakfast from 6:30 to 10:00 a.m. in the Lobby Cafe on the first floor; $18.00 per person, not included in the rate",
+    "wifi": "Free Wi-Fi; the network is HarborviewGuest and the password is printed on the key card sleeve",
+    "fitness_center": "Fitness center on the 3rd floor, open 24 hours with a room key; the hotel has no pool",
+    "parking": "Valet parking costs $35.00 per night",
+    "requests_available": "Extra towels and pillows are free; a quiet room away from the elevator can be arranged; wake-up calls are available at any time"
+  },
+  "opening_line": {
+    "text_id": "hotel_checkin_opening",
+    "en": "Good evening, and welcome to the Harborview Hotel. Are you checking in tonight?",
+    "ko": "안녕하세요, 하버뷰 호텔에 오신 것을 환영합니다. 오늘 체크인하시나요?"
+  },
+  "goals": [
+    { "goal_id": "confirm_reservation", "en": "Confirm your reservation details", "ko": "예약 정보 확인하기" },
+    { "goal_id": "make_request", "en": "Make a request about your room or stay", "ko": "객실이나 숙박 관련 요청하기" },
+    { "goal_id": "ask_facility", "en": "Ask about a hotel facility or service", "ko": "호텔 시설이나 서비스에 대해 묻기" }
+  ],
+  "allowed_flow": [
+    "Greet the guest and ask for the name or confirmation number on the reservation.",
+    "Confirm the reservation details from the facts: nights, dates, room type, and rate.",
+    "If the name or number does not match the facts, politely ask the guest to spell the name or check the confirmation number.",
+    "Ask for a credit card for the incidentals hold and explain it briefly.",
+    "Handle requests listed in the facts; for anything else, say you will check and offer the closest available option.",
+    "Answer questions about breakfast, Wi-Fi, the fitness center, parking, and check-out using only the facts.",
+    "Give the room number and key cards, then wish the guest a pleasant stay."
+  ],
+  "difficulty": {
+    "easy": {
+      "guidance_en": "Use short, clear sentences and simple words. Ask one yes-or-no or either-or question at a time, and state room numbers, times, and prices plainly.",
+      "silence_ms": 1200
+    },
+    "normal": {
+      "guidance_en": "Use polite, natural front desk language. Confirm details and ask one follow-up question at a time.",
+      "silence_ms": 900
+    },
+    "hard": {
+      "guidance_en": "Use fluent, professional hotel phrasing, including words like 'incidentals' and 'complimentary'. Add one small complication, such as the room needing about fifteen more minutes to be ready, and let the guest respond.",
+      "silence_ms": 700
+    }
+  },
+  "hints": [
+    {
+      "hint_id": "hotel_checkin_hint_01",
+      "goal_id": "confirm_reservation",
+      "ko": "예약자 이름이나 예약 번호를 알려 주세요.",
+      "keywords": ["reservation", "under the name", "confirmation number"],
+      "example_en": "I have a reservation under the name Minjun Kim."
+    },
+    {
+      "hint_id": "hotel_checkin_hint_02",
+      "goal_id": "confirm_reservation",
+      "ko": "숙박 기간과 객실 종류가 맞는지 확인해 보세요.",
+      "keywords": ["three nights", "queen room", "checking out", "Sunday"],
+      "example_en": "That's three nights in a queen room, checking out on Sunday, right?"
+    },
+    {
+      "hint_id": "hotel_checkin_hint_03",
+      "goal_id": "make_request",
+      "ko": "조용한 방이나 수건 추가처럼 원하는 것을 요청해 보세요.",
+      "keywords": ["Would it be possible", "quiet room", "away from the elevator", "extra towels"],
+      "example_en": "Would it be possible to get a quiet room away from the elevator?"
+    },
+    {
+      "hint_id": "hotel_checkin_hint_04",
+      "goal_id": "make_request",
+      "ko": "모닝콜이나 늦은 체크아웃을 부탁할 수도 있어요.",
+      "keywords": ["wake-up call", "late check-out"],
+      "example_en": "Could I get a wake-up call at 6:30 tomorrow morning?"
+    },
+    {
+      "hint_id": "hotel_checkin_hint_05",
+      "goal_id": "ask_facility",
+      "ko": "조식, 와이파이, 헬스장에 대해 물어보세요.",
+      "keywords": ["breakfast", "Wi-Fi", "fitness center", "What time"],
+      "example_en": "What time is breakfast served, and where?"
+    }
+  ],
+  "model_expressions": [
+    { "text_id": "hotel_checkin_expr_01", "goal_id": "confirm_reservation", "en": "Hi, I'm checking in. The reservation is under Minjun Kim.", "ko": "안녕하세요, 체크인하려고요. 김민준 이름으로 예약했어요." },
+    { "text_id": "hotel_checkin_expr_02", "goal_id": "confirm_reservation", "en": "My confirmation number is HV-48213.", "ko": "제 예약 번호는 HV-48213이에요." },
+    { "text_id": "hotel_checkin_expr_03", "goal_id": "confirm_reservation", "en": "Just to confirm, that's three nights, checking out on Sunday?", "ko": "확인차 여쭤볼게요, 3박이고 일요일에 체크아웃 맞죠?" },
+    { "text_id": "hotel_checkin_expr_04", "goal_id": "make_request", "en": "Would it be possible to have a room away from the elevator?", "ko": "엘리베이터에서 떨어진 방으로 받을 수 있을까요?" },
+    { "text_id": "hotel_checkin_expr_05", "goal_id": "make_request", "en": "Could I get a couple of extra towels sent up?", "ko": "수건 몇 장 더 올려 보내 주실 수 있나요?" },
+    { "text_id": "hotel_checkin_expr_06", "goal_id": "make_request", "en": "Is late check-out available on Sunday?", "ko": "일요일에 늦은 체크아웃이 가능한가요?" },
+    { "text_id": "hotel_checkin_expr_07", "goal_id": "ask_facility", "en": "Is breakfast included in my rate?", "ko": "조식이 요금에 포함되어 있나요?" },
+    { "text_id": "hotel_checkin_expr_08", "goal_id": "ask_facility", "en": "What's the Wi-Fi password?", "ko": "와이파이 비밀번호가 뭐예요?" }
+  ],
+  "exercises": {
+    "reading": [
+      { "text_id": "hotel_checkin_read_01", "en": "I booked a queen room for three nights.", "ko": "퀸 룸을 3박으로 예약했어요." },
+      { "text_id": "hotel_checkin_read_02", "en": "Could I get a late check-out on Sunday?", "ko": "일요일에 늦게 체크아웃할 수 있을까요?" },
+      { "text_id": "hotel_checkin_read_03", "en": "Where is the fitness center?", "ko": "헬스장은 어디에 있나요?" },
+      { "text_id": "hotel_checkin_read_04", "en": "Do you need a credit card for the deposit?", "ko": "보증금 때문에 신용카드가 필요한가요?" }
+    ],
+    "shadowing": [
+      { "text_id": "hotel_checkin_shadow_01", "en": "I have a reservation under the name Minjun Kim.", "ko": "김민준 이름으로 예약했어요." },
+      { "text_id": "hotel_checkin_shadow_02", "en": "Is there any way I could get a quieter room?", "ko": "좀 더 조용한 방으로 받을 수 있는 방법이 있을까요?" },
+      { "text_id": "hotel_checkin_shadow_03", "en": "Thanks, I'll call down if I need anything else.", "ko": "감사합니다, 다른 게 필요하면 프런트로 전화할게요." }
+    ],
+    "free_answer": [
+      {
+        "exercise_id": "hotel_checkin_free_01",
+        "question_en": "The air conditioner in your room isn't working. How would you explain the problem to the front desk?",
+        "question_ko": "객실 에어컨이 작동하지 않아요. 프런트에 어떻게 설명할까요?",
+        "sample_answer_en": "Hi, this is Minjun Kim in room 1207. The air conditioner in my room isn't working, and it's getting pretty warm. Could you send someone to take a look, or move me to another room?"
+      },
+      {
+        "exercise_id": "hotel_checkin_free_02",
+        "question_en": "What matters most to you when you choose a hotel, and why?",
+        "question_ko": "호텔을 고를 때 가장 중요하게 생각하는 것은 무엇인가요? 이유도 말해 보세요.",
+        "sample_answer_en": "For me, location matters most. I like to stay near a subway station so I can get around easily. A clean, quiet room is important too, because I need a good night's sleep."
+      }
+    ]
+  }
+}

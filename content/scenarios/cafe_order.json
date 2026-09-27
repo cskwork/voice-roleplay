@@ -1,0 +1,134 @@
+{
+  "scenario_id": "cafe_order",
+  "version": "1.0.0",
+  "title_ko": "카페에서 주문하기",
+  "title_en": "Ordering at a Cafe",
+  "ai_role": "barista",
+  "ai_role_ko": "바리스타",
+  "user_role_ko": "손님",
+  "setting_ko": "오전 9시, 동네 카페 '메이플 스트리트 커피' 계산대 앞에 섰습니다. 음료를 주문하고 옵션을 바꾼 뒤 가격을 확인해 보세요.",
+  "default_voice_id": "dev_voice_a",
+  "facts": {
+    "cafe_name": "Maple Street Coffee",
+    "sizes": "Small (12 oz) or large (16 oz); every drink can be hot or iced",
+    "menu_drip_coffee": "Drip coffee: small $2.75, large $3.25",
+    "menu_latte": "Latte: small $4.25, large $4.95",
+    "menu_cappuccino": "Cappuccino: small $4.00, large $4.60",
+    "menu_iced_tea": "Black tea: small $3.00, large $3.50",
+    "menu_blueberry_muffin": "Blueberry muffin: $3.25",
+    "menu_bagel": "Plain bagel with cream cheese: $3.75",
+    "milk_options": "Whole milk is the default; oat milk or almond milk costs $0.70 extra",
+    "extras": "Extra espresso shot $1.00; vanilla or caramel syrup $0.60; decaf at no extra charge",
+    "sold_out": "The chocolate croissant is sold out today",
+    "tax": "Menu prices already include tax",
+    "payment": "Card, phone payment, or cash",
+    "pickup": "For-here drinks come in a mug; to-go drinks in a paper cup; drinks are picked up at the end of the counter"
+  },
+  "opening_line": {
+    "text_id": "cafe_order_opening",
+    "en": "Hi there, welcome to Maple Street Coffee! What can I get started for you today?",
+    "ko": "안녕하세요, 메이플 스트리트 커피에 오신 걸 환영해요! 오늘 뭘로 준비해 드릴까요?"
+  },
+  "goals": [
+    { "goal_id": "order_drink", "en": "Order a drink and say the size", "ko": "사이즈를 말하며 음료 주문하기" },
+    { "goal_id": "customize", "en": "Change an option such as the milk, syrup, or an extra shot", "ko": "우유·시럽·샷 추가 등 옵션 바꾸기" },
+    { "goal_id": "confirm_price", "en": "Ask about or confirm the total price", "ko": "총 금액을 묻거나 확인하기" }
+  ],
+  "allowed_flow": [
+    "Greet the customer and take their drink order.",
+    "Ask about size, hot or iced, milk, and for here or to go only when the customer has not said it.",
+    "Offer menu items and options only from the facts; if something is not on the menu, say so and suggest a similar item.",
+    "If the customer asks for a chocolate croissant, say it is sold out today and suggest the blueberry muffin or the bagel.",
+    "Repeat the order back and state the total using only prices from the facts.",
+    "Take payment and tell the customer where to pick up the drink.",
+    "Stay in the cafe setting; if the customer changes the topic, answer briefly and return to the order."
+  ],
+  "difficulty": {
+    "easy": {
+      "guidance_en": "Use short, simple sentences and everyday words. Offer two choices at a time, for example 'Small or large?'. Say prices plainly in dollars and cents.",
+      "silence_ms": 1200
+    },
+    "normal": {
+      "guidance_en": "Use natural, friendly cafe language. Ask one follow-up question at a time and confirm details briefly.",
+      "silence_ms": 900
+    },
+    "hard": {
+      "guidance_en": "Talk like a busy barista with casual phrasing and contractions. Suggest one add-on or mention a sold-out item so the customer has to adjust the order.",
+      "silence_ms": 700
+    }
+  },
+  "hints": [
+    {
+      "hint_id": "cafe_order_hint_01",
+      "goal_id": "order_drink",
+      "ko": "원하는 음료와 사이즈를 말해 보세요.",
+      "keywords": ["I'd like", "small", "large", "please"],
+      "example_en": "I'd like a large latte, please."
+    },
+    {
+      "hint_id": "cafe_order_hint_02",
+      "goal_id": "order_drink",
+      "ko": "매장에서 마실지, 가져갈지도 말할 수 있어요.",
+      "keywords": ["for here", "to go"],
+      "example_en": "Can I get a small drip coffee to go?"
+    },
+    {
+      "hint_id": "cafe_order_hint_03",
+      "goal_id": "customize",
+      "ko": "우유 종류나 시럽을 바꿔 달라고 요청해 보세요.",
+      "keywords": ["instead", "oat milk", "almond milk", "syrup"],
+      "example_en": "Could I have almond milk instead of whole milk?"
+    },
+    {
+      "hint_id": "cafe_order_hint_04",
+      "goal_id": "customize",
+      "ko": "샷 추가나 디카페인을 요청할 수도 있어요.",
+      "keywords": ["extra shot", "decaf", "add"],
+      "example_en": "Could you add an extra shot?"
+    },
+    {
+      "hint_id": "cafe_order_hint_05",
+      "goal_id": "confirm_price",
+      "ko": "총 금액을 묻거나, 들은 금액이 맞는지 다시 확인해 보세요.",
+      "keywords": ["How much", "altogether", "total", "Is that"],
+      "example_en": "How much is that altogether?"
+    }
+  ],
+  "model_expressions": [
+    { "text_id": "cafe_order_expr_01", "goal_id": "order_drink", "en": "Could I get a large iced tea, please?", "ko": "라지 사이즈 아이스티 한 잔 주시겠어요?" },
+    { "text_id": "cafe_order_expr_02", "goal_id": "order_drink", "en": "I'd like a small latte for here, please.", "ko": "스몰 라테 한 잔 주세요. 매장에서 마실게요." },
+    { "text_id": "cafe_order_expr_03", "goal_id": "customize", "en": "Can I get that with oat milk instead?", "ko": "그거 오트 밀크로 바꿔 주실 수 있나요?" },
+    { "text_id": "cafe_order_expr_04", "goal_id": "customize", "en": "Could you add an extra shot of espresso?", "ko": "에스프레소 샷 하나 추가해 주시겠어요?" },
+    { "text_id": "cafe_order_expr_05", "goal_id": "customize", "en": "Actually, could you make that decaf?", "ko": "저기, 그거 디카페인으로 해 주실 수 있나요?" },
+    { "text_id": "cafe_order_expr_06", "goal_id": "confirm_price", "en": "How much is that altogether?", "ko": "전부 얼마예요?" },
+    { "text_id": "cafe_order_expr_07", "goal_id": "confirm_price", "en": "Just to check, is that $5.65 with the oat milk?", "ko": "확인차 여쭤볼게요, 오트 밀크까지 해서 5.65달러 맞나요?" },
+    { "text_id": "cafe_order_expr_08", "goal_id": "confirm_price", "en": "Does that price include tax?", "ko": "그 가격에 세금이 포함되어 있나요?" }
+  ],
+  "exercises": {
+    "reading": [
+      { "text_id": "cafe_order_read_01", "en": "I'd like a large cappuccino with oat milk, please.", "ko": "라지 카푸치노에 오트 밀크로 부탁드려요." },
+      { "text_id": "cafe_order_read_02", "en": "Could you make it a little less sweet?", "ko": "조금 덜 달게 해 주실 수 있나요?" },
+      { "text_id": "cafe_order_read_03", "en": "I'll have a blueberry muffin, too.", "ko": "블루베리 머핀도 하나 주세요." },
+      { "text_id": "cafe_order_read_04", "en": "Can I pay by card?", "ko": "카드로 계산할 수 있나요?" }
+    ],
+    "shadowing": [
+      { "text_id": "cafe_order_shadow_01", "en": "Could I get that to go, please?", "ko": "그거 포장해 주시겠어요?" },
+      { "text_id": "cafe_order_shadow_02", "en": "Actually, can I change that to a small?", "ko": "저기, 그거 스몰로 바꿀 수 있을까요?" },
+      { "text_id": "cafe_order_shadow_03", "en": "Thanks so much, have a great day!", "ko": "정말 감사해요, 좋은 하루 보내세요!" }
+    ],
+    "free_answer": [
+      {
+        "exercise_id": "cafe_order_free_01",
+        "question_en": "What do you usually order at a coffee shop, and why?",
+        "question_ko": "카페에서 보통 무엇을 주문하나요? 이유도 말해 보세요.",
+        "sample_answer_en": "I usually order an iced americano because it's refreshing and not too sweet. When I'm tired in the afternoon, I sometimes add an extra shot."
+      },
+      {
+        "exercise_id": "cafe_order_free_02",
+        "question_en": "Your drink came with the wrong milk. What would you say to the barista?",
+        "question_ko": "음료에 주문과 다른 우유가 들어갔어요. 바리스타에게 뭐라고 말할까요?",
+        "sample_answer_en": "Excuse me, I think there's been a mix-up. I asked for oat milk, but this tastes like regular milk. Could you remake it for me, please?"
+      }
+    ]
+  }
+}

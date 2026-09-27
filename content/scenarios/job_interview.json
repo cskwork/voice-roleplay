@@ -1,0 +1,138 @@
+{
+  "scenario_id": "job_interview",
+  "version": "1.0.0",
+  "title_ko": "면접 연습",
+  "title_en": "Job Interview Practice",
+  "ai_role": "interviewer",
+  "ai_role_ko": "면접관",
+  "user_role_ko": "지원자",
+  "setting_ko": "아웃도어 용품 온라인 판매 회사 '노스윈드 아웃도어'의 주니어 디지털 마케팅 담당자 자리에 지원해 1차 면접을 보고 있습니다. 면접관은 마케팅 매니저 사라 콜린스입니다.",
+  "default_voice_id": "dev_voice_b",
+  "facts": {
+    "company_name": "Northwind Outdoor Co.",
+    "company": "An online retailer of hiking and camping gear with about 120 employees, headquartered in Denver, Colorado",
+    "interviewer": "Sarah Collins, marketing manager and the hiring manager for this role",
+    "role_title": "Junior Digital Marketing Specialist",
+    "team": "A four-person growth marketing team that reports to Sarah Collins",
+    "responsibilities": "Email campaigns, the social media content calendar, and weekly performance reports using Google Analytics",
+    "requirements": "One to two years of marketing experience or an internship, basic data analysis skills, and clear writing",
+    "work_arrangement": "Hybrid: three days a week in the Denver office and two days remote",
+    "interview_format": "A 30-minute first-round interview; the next step is a take-home campaign exercise",
+    "start_date": "The target start date is early next month",
+    "salary": "Salary is discussed with HR in the next round, not in this interview"
+  },
+  "opening_line": {
+    "text_id": "job_interview_opening",
+    "en": "Thanks for coming in today. I'm Sarah, the marketing manager here at Northwind, so why don't you start by telling me a little about yourself?",
+    "ko": "오늘 와 주셔서 감사해요. 저는 노스윈드 마케팅 매니저 사라예요. 먼저 간단히 자기소개 부탁드릴게요."
+  },
+  "goals": [
+    { "goal_id": "self_intro", "en": "Introduce yourself and say why you applied", "ko": "자기소개와 지원 동기 말하기" },
+    { "goal_id": "describe_experience", "en": "Describe a relevant experience with a concrete example", "ko": "관련 경험을 구체적인 예로 설명하기" },
+    { "goal_id": "answer_followup", "en": "Answer a follow-up question clearly", "ko": "후속 질문에 명확하게 답하기" }
+  ],
+  "allowed_flow": [
+    "Welcome the candidate and ask them to introduce themselves.",
+    "Ask about relevant experience one question at a time, and follow up on what the candidate says, such as results, challenges, or tools.",
+    "Ask one behavioral question, such as a time the candidate handled a tight deadline or a mistake.",
+    "Answer the candidate's questions about the company, team, role, and next steps using only the facts.",
+    "If asked about salary, say it will be discussed with HR in the next round.",
+    "Keep a friendly, professional tone and do not judge or score the candidate during the interview.",
+    "Close by thanking the candidate and explaining the next step, a take-home campaign exercise."
+  ],
+  "difficulty": {
+    "easy": {
+      "guidance_en": "Ask short, direct questions with simple words and one idea per question. If the candidate seems unsure, rephrase the question more simply.",
+      "silence_ms": 1200
+    },
+    "normal": {
+      "guidance_en": "Ask typical first-round interview questions in natural, professional English, with one follow-up based on the candidate's answer.",
+      "silence_ms": 900
+    },
+    "hard": {
+      "guidance_en": "Ask probing follow-up questions that require specific examples and numbers, and include one challenging question, for example about a weakness or a campaign that failed.",
+      "silence_ms": 700
+    }
+  },
+  "hints": [
+    {
+      "hint_id": "job_interview_hint_01",
+      "goal_id": "self_intro",
+      "ko": "이름, 지금 하는 일이나 전공을 짧게 말해 보세요.",
+      "keywords": ["I'm", "I currently work", "I majored in"],
+      "example_en": "I'm Minji, and I currently work as a marketing intern at a small startup."
+    },
+    {
+      "hint_id": "job_interview_hint_02",
+      "goal_id": "self_intro",
+      "ko": "이 회사나 직무에 관심을 가진 이유를 덧붙여 보세요.",
+      "keywords": ["I applied because", "I love", "brand"],
+      "example_en": "I applied because I love hiking, and I'd like to help grow a brand I actually use."
+    },
+    {
+      "hint_id": "job_interview_hint_03",
+      "goal_id": "describe_experience",
+      "ko": "상황-행동-결과 순서로 구체적인 경험을 말해 보세요.",
+      "keywords": ["For example", "I was responsible for", "As a result"],
+      "example_en": "For example, I was responsible for our weekly newsletter, and as a result, our open rate went up."
+    },
+    {
+      "hint_id": "job_interview_hint_04",
+      "goal_id": "describe_experience",
+      "ko": "숫자나 사용한 도구 이름을 넣으면 더 구체적으로 들려요.",
+      "keywords": ["increased", "percent", "Google Analytics"],
+      "example_en": "I used Google Analytics to track which posts brought in the most traffic."
+    },
+    {
+      "hint_id": "job_interview_hint_05",
+      "goal_id": "answer_followup",
+      "ko": "질문이 어려우면 잠시 생각할 시간을 요청하거나 뜻을 되물어도 괜찮아요.",
+      "keywords": ["That's a good question", "Let me think", "Do you mean"],
+      "example_en": "That's a good question. Let me think for a second."
+    },
+    {
+      "hint_id": "job_interview_hint_06",
+      "goal_id": "answer_followup",
+      "ko": "답한 뒤에 팀이나 업무에 대해 질문해 보세요.",
+      "keywords": ["Could you tell me", "team", "a typical week"],
+      "example_en": "Could you tell me what a typical week looks like for this team?"
+    }
+  ],
+  "model_expressions": [
+    { "text_id": "job_interview_expr_01", "goal_id": "self_intro", "en": "I recently finished a six-month marketing internship at a travel startup.", "ko": "최근에 여행 스타트업에서 6개월간의 마케팅 인턴십을 마쳤어요." },
+    { "text_id": "job_interview_expr_02", "goal_id": "self_intro", "en": "I'm really excited about this role because it combines content and data.", "ko": "콘텐츠와 데이터를 함께 다루는 직무라서 정말 기대돼요." },
+    { "text_id": "job_interview_expr_03", "goal_id": "describe_experience", "en": "In my last role, I managed our Instagram account and posted three times a week.", "ko": "이전 직무에서 회사 인스타그램 계정을 관리하며 일주일에 세 번 게시물을 올렸어요." },
+    { "text_id": "job_interview_expr_04", "goal_id": "describe_experience", "en": "We tested two subject lines, and the better one raised our open rate by fifteen percent.", "ko": "이메일 제목 두 개를 테스트했는데, 더 나은 쪽이 오픈율을 15퍼센트 높였어요." },
+    { "text_id": "job_interview_expr_05", "goal_id": "describe_experience", "en": "The biggest challenge was working with a very small budget.", "ko": "가장 큰 어려움은 아주 적은 예산으로 일하는 것이었어요." },
+    { "text_id": "job_interview_expr_06", "goal_id": "answer_followup", "en": "That's a good question. I'd say my biggest strength is staying organized under pressure.", "ko": "좋은 질문이네요. 제 가장 큰 강점은 압박 속에서도 체계적으로 일하는 거라고 생각해요." },
+    { "text_id": "job_interview_expr_07", "goal_id": "answer_followup", "en": "Just to make sure I understand, do you mean a project I led myself?", "ko": "제가 제대로 이해했는지 확인하고 싶은데요, 제가 직접 이끈 프로젝트를 말씀하시는 건가요?" },
+    { "text_id": "job_interview_expr_08", "goal_id": "answer_followup", "en": "Could you tell me a little more about what the team is working on right now?", "ko": "팀이 지금 어떤 일을 하고 있는지 조금 더 말씀해 주실 수 있을까요?" }
+  ],
+  "exercises": {
+    "reading": [
+      { "text_id": "job_interview_read_01", "en": "I have two years of experience in digital marketing.", "ko": "디지털 마케팅 분야에서 2년의 경력이 있어요." },
+      { "text_id": "job_interview_read_02", "en": "I enjoy turning data into clear, simple reports.", "ko": "데이터를 명확하고 간단한 보고서로 만드는 일을 좋아해요." },
+      { "text_id": "job_interview_read_03", "en": "One of my strengths is that I learn new tools quickly.", "ko": "제 강점 중 하나는 새로운 도구를 빨리 익힌다는 거예요." },
+      { "text_id": "job_interview_read_04", "en": "What would success look like in the first three months?", "ko": "처음 3개월 동안 어떤 결과를 내면 성공이라고 볼 수 있을까요?" }
+    ],
+    "shadowing": [
+      { "text_id": "job_interview_shadow_01", "en": "Thank you for having me today.", "ko": "오늘 초대해 주셔서 감사합니다." },
+      { "text_id": "job_interview_shadow_02", "en": "I'd love to learn more about the team.", "ko": "팀에 대해 더 알고 싶어요." },
+      { "text_id": "job_interview_shadow_03", "en": "I'm comfortable working on my own and as part of a team.", "ko": "혼자서도, 팀의 일원으로도 편하게 일할 수 있어요." }
+    ],
+    "free_answer": [
+      {
+        "exercise_id": "job_interview_free_01",
+        "question_en": "Tell me about a time you made a mistake at work or school. What did you learn from it?",
+        "question_ko": "직장이나 학교에서 실수했던 경험을 말하고, 그로부터 배운 점을 말해 보세요.",
+        "sample_answer_en": "During my internship, I once sent a newsletter with a broken link to about two thousand subscribers. I told my manager right away, and we sent a short correction. Since then, I always test every link before I hit send."
+      },
+      {
+        "exercise_id": "job_interview_free_02",
+        "question_en": "Where do you see yourself in five years?",
+        "question_ko": "5년 후 자신의 모습은 어떨 것 같나요?",
+        "sample_answer_en": "In five years, I'd like to be leading campaigns on my own and mentoring newer team members. I also want to get much stronger at data analysis, so I can make better decisions about where to spend our budget."
+      }
+    ]
+  }
+}

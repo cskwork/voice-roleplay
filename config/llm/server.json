@@ -1,0 +1,28 @@
+{
+  "description": "llama-server launch for the roleplay/feedback LLM (PROTOCOL §1, §5). Paths are relative to the repo root.",
+  "verified_with": "llama-server version: 0.5.0 (build 11146, commit 7fe450e19), Homebrew, macOS arm64 (Apple M3 Pro)",
+  "binary": "llama-server",
+  "model": "models/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+  "args": [
+    "-m", "models/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+    "--host", "127.0.0.1",
+    "--port", "8713",
+    "-c", "8192",
+    "-np", "2",
+    "--no-kv-unified",
+    "--jinja",
+    "-ngl", "99",
+    "--no-webui",
+    "--cache-prompt"
+  ],
+  "env": {
+    "LLAMA_API_KEY": "${VR_WORKER_TOKEN}"
+  },
+  "health_url": "http://127.0.0.1:8713/health",
+  "notes": {
+    "-c 8192 -np 2 --no-kv-unified": "two slots with a fixed 4096-token context each (PRD §11 budget); slot 0 = realtime roleplay, slot 1 = feedback/jobs",
+    "-ngl 99": "all 36 layers on Metal",
+    "--cache-prompt": "default on; listed explicitly because the roleplay prefix cache depends on it",
+    "LLAMA_API_KEY": "llama-server answers CORS for any Origin, so without a key any web page could use it. /health stays open without the key."
+  }
+}

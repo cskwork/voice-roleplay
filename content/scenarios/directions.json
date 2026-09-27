@@ -1,0 +1,129 @@
+{
+  "scenario_id": "directions",
+  "version": "1.0.0",
+  "title_ko": "길 묻기",
+  "title_en": "Asking for Directions",
+  "ai_role": "local passer-by",
+  "ai_role_ko": "지나가던 현지인",
+  "user_role_ko": "길을 찾는 여행자",
+  "setting_ko": "처음 와 본 도시에서 메인 스트리트와 2번가가 만나는 모퉁이, 약국 앞에 서 있습니다. 오크 스트리트 450번지에 있는 리버사이드 공공도서관에 가려고 합니다.",
+  "default_voice_id": "dev_voice_a",
+  "facts": {
+    "current_location": "The corner of Main Street and 2nd Avenue, in front of a pharmacy",
+    "destination": "Riverside Public Library, 450 Oak Street",
+    "walking_route": "Walk two blocks north on Main Street to Oak Street, turn left onto Oak Street, and walk one more block; the library is on the right, across from Oak Street Park",
+    "walking_time": "About 10 minutes on foot",
+    "landmarks": "There is a post office on the corner of Main Street and Oak Street; the library is a red brick building with a clock tower",
+    "bus_option": "Bus 12 from the stop in front of the pharmacy goes two stops to Oak Street; the fare is $2.00",
+    "library_hours": "The library is open until 8:00 p.m. today",
+    "nearby_cafe": "A coffee shop called Bean There is next to the post office",
+    "limits": "The passer-by knows this neighborhood well but does not know other parts of the city"
+  },
+  "opening_line": {
+    "text_id": "directions_opening",
+    "en": "Hi there, you look a little lost. Can I help you find something?",
+    "ko": "안녕하세요, 길을 헤매시는 것 같네요. 뭐 찾는 거 도와드릴까요?"
+  },
+  "goals": [
+    { "goal_id": "ask_way", "en": "Ask how to get to the library", "ko": "도서관 가는 길 묻기" },
+    { "goal_id": "confirm_route", "en": "Repeat the directions back to check them", "ko": "들은 길을 다시 말하며 확인하기" },
+    { "goal_id": "ask_clarify", "en": "Ask the person to repeat or explain something", "ko": "못 알아들은 부분 되묻기" }
+  ],
+  "allowed_flow": [
+    "Offer help and ask where the traveler wants to go.",
+    "Give walking directions only from the facts, in order, using street names and landmarks.",
+    "If asked, give the walking time, the bus option, or the library hours from the facts.",
+    "If the traveler repeats the directions correctly, confirm it; if they make a mistake, gently correct only the wrong part.",
+    "When asked to repeat, say it again more simply or in smaller steps.",
+    "If asked about places not in the facts, say you are not sure and suggest checking a map or asking at the library.",
+    "End with a friendly goodbye once the traveler is confident about the route."
+  ],
+  "difficulty": {
+    "easy": {
+      "guidance_en": "Give one step per sentence with an easy landmark for each step. Say left and right instead of compass directions, and use simple words.",
+      "silence_ms": 1200
+    },
+    "normal": {
+      "guidance_en": "Give directions in two or three steps with street names and one landmark, then check whether the traveler got it.",
+      "silence_ms": 900
+    },
+    "hard": {
+      "guidance_en": "Give the route in one go with casual phrasing such as 'hang a left' or 'you can't miss it', including compass directions and landmarks. Simplify only if the traveler asks.",
+      "silence_ms": 700
+    }
+  },
+  "hints": [
+    {
+      "hint_id": "directions_hint_01",
+      "goal_id": "ask_way",
+      "ko": "가고 싶은 곳을 말하고 가는 길을 물어보세요.",
+      "keywords": ["Excuse me", "How do I get to", "library"],
+      "example_en": "Excuse me, how do I get to the Riverside Public Library?"
+    },
+    {
+      "hint_id": "directions_hint_02",
+      "goal_id": "ask_way",
+      "ko": "걸어서 갈 수 있는지, 얼마나 걸리는지 물어볼 수 있어요.",
+      "keywords": ["How far", "walk", "How long"],
+      "example_en": "Is it close enough to walk?"
+    },
+    {
+      "hint_id": "directions_hint_03",
+      "goal_id": "confirm_route",
+      "ko": "들은 길을 순서대로 다시 말해 보세요.",
+      "keywords": ["So I", "two blocks", "turn left", "on the right"],
+      "example_en": "So I go two blocks and turn left onto Oak Street, right?"
+    },
+    {
+      "hint_id": "directions_hint_04",
+      "goal_id": "ask_clarify",
+      "ko": "잘 못 들었으면 다시, 천천히 말해 달라고 부탁하세요.",
+      "keywords": ["Sorry", "say that again", "more slowly"],
+      "example_en": "Sorry, could you say that again a little more slowly?"
+    },
+    {
+      "hint_id": "directions_hint_05",
+      "goal_id": "ask_clarify",
+      "ko": "헷갈리는 방향이나 건물을 되물어 보세요.",
+      "keywords": ["Which way", "Do you mean", "look like"],
+      "example_en": "Sorry, which way is north from here?"
+    }
+  ],
+  "model_expressions": [
+    { "text_id": "directions_expr_01", "goal_id": "ask_way", "en": "Excuse me, could you tell me how to get to the Riverside Public Library?", "ko": "실례합니다, 리버사이드 공공도서관 가는 길 좀 알려 주시겠어요?" },
+    { "text_id": "directions_expr_02", "goal_id": "ask_way", "en": "Is it within walking distance?", "ko": "걸어갈 만한 거리인가요?" },
+    { "text_id": "directions_expr_03", "goal_id": "ask_way", "en": "Is there a bus that goes there?", "ko": "거기 가는 버스가 있나요?" },
+    { "text_id": "directions_expr_04", "goal_id": "confirm_route", "en": "Let me make sure I've got this: two blocks north, then left on Oak Street?", "ko": "제가 제대로 이해했는지 볼게요. 북쪽으로 두 블록, 그다음 오크 스트리트에서 왼쪽이죠?" },
+    { "text_id": "directions_expr_05", "goal_id": "confirm_route", "en": "So the library will be on my right, across from the park?", "ko": "그러니까 도서관은 공원 맞은편, 제 오른쪽에 있는 거죠?" },
+    { "text_id": "directions_expr_06", "goal_id": "ask_clarify", "en": "Sorry, could you say that one more time?", "ko": "죄송한데, 한 번만 더 말씀해 주시겠어요?" },
+    { "text_id": "directions_expr_07", "goal_id": "ask_clarify", "en": "What does the building look like?", "ko": "그 건물은 어떻게 생겼어요?" },
+    { "text_id": "directions_expr_08", "goal_id": "ask_clarify", "en": "When you say the corner, do you mean the one with the post office?", "ko": "모퉁이라고 하신 게 우체국 있는 모퉁이 말씀이세요?" }
+  ],
+  "exercises": {
+    "reading": [
+      { "text_id": "directions_read_01", "en": "Excuse me, is the library far from here?", "ko": "실례합니다, 도서관이 여기서 먼가요?" },
+      { "text_id": "directions_read_02", "en": "Go straight for two blocks and turn left.", "ko": "두 블록 직진한 다음 왼쪽으로 도세요." },
+      { "text_id": "directions_read_03", "en": "The library is across from the park.", "ko": "도서관은 공원 맞은편에 있어요." },
+      { "text_id": "directions_read_04", "en": "Which bus should I take to Oak Street?", "ko": "오크 스트리트에 가려면 어느 버스를 타야 하나요?" }
+    ],
+    "shadowing": [
+      { "text_id": "directions_shadow_01", "en": "Could you point me in the right direction?", "ko": "어느 쪽으로 가야 하는지 알려 주시겠어요?" },
+      { "text_id": "directions_shadow_02", "en": "Sorry, I didn't catch that last part.", "ko": "죄송해요, 마지막 부분을 못 알아들었어요." },
+      { "text_id": "directions_shadow_03", "en": "Thanks a lot, I really appreciate your help.", "ko": "정말 고마워요, 도와주셔서 감사합니다." }
+    ],
+    "free_answer": [
+      {
+        "exercise_id": "directions_free_01",
+        "question_en": "Explain how to get from your home to the nearest subway station or bus stop.",
+        "question_ko": "집에서 가장 가까운 지하철역이나 버스 정류장까지 가는 길을 설명해 보세요.",
+        "sample_answer_en": "When you leave my building, turn right and walk straight for about five minutes. At the convenience store, turn left. The subway entrance is right there, next to a bakery."
+      },
+      {
+        "exercise_id": "directions_free_02",
+        "question_en": "You're lost in a new city and your phone battery is dead. What would you say to someone on the street?",
+        "question_ko": "낯선 도시에서 길을 잃었는데 휴대폰 배터리가 꺼졌어요. 길에서 만난 사람에게 뭐라고 말할까요?",
+        "sample_answer_en": "Excuse me, sorry to bother you. My phone just died and I'm a little lost. Could you tell me how to get to the train station from here?"
+      }
+    ]
+  }
+}

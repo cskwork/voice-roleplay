@@ -1,0 +1,38 @@
+# Gateway configuration. Paths are relative to the repository root.
+# Environment overrides: VR_GATEWAY_PORT, VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN.
+
+[gateway]
+host = "127.0.0.1"
+port = 8710
+web_dist = "apps/web/dist"
+scenarios_dir = "content/scenarios"
+scenario_schema = "contracts/scenario.schema.json"
+data_dir = "var/data"
+cache_dir = "var/cache"
+log_dir = "var/log"
+# Recorded in feedback objects; matches models.lock.json.
+llm_model_revision = "unsloth/Qwen3-4B-Instruct-2507-GGUF@a06e946bb6b655725eafa393f4a9745d460374c9:Q4_K_M"
+
+[workers]
+asr_url = "http://127.0.0.1:8711"
+tts_url = "http://127.0.0.1:8712"
+llm_url = "http://127.0.0.1:8713"
+
+# Process supervisor. `python -m vr_gateway --manage-workers` starts these with
+# VR_WORKER_TOKEN and offline env, waits for /health, and stops them on exit.
+# Commands are the integration defaults; the launcher step owns the final values.
+[supervisor.asr]
+cmd = ["workers/asr/.venv/bin/python", "-m", "asr_worker"]
+cwd = "workers/asr"
+health_url = "http://127.0.0.1:8711/health"
+
+[supervisor.tts]
+cmd = ["workers/tts/.venv/bin/python", "-m", "tts_worker"]
+cwd = "workers/tts"
+health_url = "http://127.0.0.1:8712/health"
+
+[supervisor.llm]
+# Binary, args and env come from config/llm/server.json (owned by the LLM config).
+server_json = "config/llm/server.json"
+cwd = "."
+health_url = "http://127.0.0.1:8713/health"

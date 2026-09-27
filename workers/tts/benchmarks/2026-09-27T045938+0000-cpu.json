@@ -1,0 +1,241 @@
+{
+ "utc": "2026-09-27T04:59:38+00:00",
+ "machine": {
+  "chip": "Apple M3 Pro",
+  "ram_gb": 36,
+  "os": "macOS-26.6.2-arm64-arm-64bit",
+  "load_avg_at_end": [
+   6.5,
+   6.2,
+   5.4
+  ]
+ },
+ "torch": "2.3.1",
+ "device": "cpu",
+ "placement": {
+  "llm": "cpu",
+  "flow": "cpu",
+  "hift": "cpu"
+ },
+ "cpu_threads": 4,
+ "model_revision": "29e01c4e8d000f4bcd70751be16fa94bf3d85a18",
+ "load_s_incl_warmup": 13.3,
+ "rss_mb": 6418,
+ "mps_driver_allocated_mb": null,
+ "stream": {
+  "n": 10,
+  "rtf_p50": 3.8175,
+  "rtf_p95": 4.437,
+  "first_chunk_p50_s": 5.79,
+  "first_chunk_p95_s": 7.462
+ },
+ "non_stream": {
+  "n": 10,
+  "rtf_p50": 2.2954999999999997,
+  "rtf_p95": 4.119,
+  "first_chunk_p50_s": 7.7705,
+  "first_chunk_p95_s": 13.81
+ },
+ "runs": [
+  {
+   "voice": "dev_voice_a",
+   "stream": true,
+   "chars": 9,
+   "run": 0,
+   "first_chunk_s": 3.633,
+   "elapsed_s": 3.633,
+   "audio_s": 0.84,
+   "rtf": 4.325
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": true,
+   "chars": 48,
+   "run": 0,
+   "first_chunk_s": 5.6,
+   "elapsed_s": 15.3,
+   "audio_s": 3.76,
+   "rtf": 4.069
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": true,
+   "chars": 44,
+   "run": 0,
+   "first_chunk_s": 5.183,
+   "elapsed_s": 9.603,
+   "audio_s": 3.12,
+   "rtf": 3.078
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": true,
+   "chars": 54,
+   "run": 0,
+   "first_chunk_s": 5.249,
+   "elapsed_s": 9.672,
+   "audio_s": 3.12,
+   "rtf": 3.1
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": true,
+   "chars": 109,
+   "run": 0,
+   "first_chunk_s": 7.686,
+   "elapsed_s": 29.003,
+   "audio_s": 8.24,
+   "rtf": 3.52
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": false,
+   "chars": 9,
+   "run": 0,
+   "first_chunk_s": 3.46,
+   "elapsed_s": 3.46,
+   "audio_s": 0.84,
+   "rtf": 4.119
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": false,
+   "chars": 48,
+   "run": 0,
+   "first_chunk_s": 8.398,
+   "elapsed_s": 8.398,
+   "audio_s": 4.4,
+   "rtf": 1.909
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": false,
+   "chars": 44,
+   "run": 0,
+   "first_chunk_s": 7.674,
+   "elapsed_s": 7.674,
+   "audio_s": 3.92,
+   "rtf": 1.958
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": false,
+   "chars": 54,
+   "run": 0,
+   "first_chunk_s": 6.087,
+   "elapsed_s": 6.087,
+   "audio_s": 2.88,
+   "rtf": 2.114
+  },
+  {
+   "voice": "dev_voice_a",
+   "stream": false,
+   "chars": 109,
+   "run": 0,
+   "first_chunk_s": 13.81,
+   "elapsed_s": 13.81,
+   "audio_s": 8.2,
+   "rtf": 1.684
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": true,
+   "chars": 9,
+   "run": 0,
+   "first_chunk_s": 4.577,
+   "elapsed_s": 4.577,
+   "audio_s": 0.68,
+   "rtf": 6.731
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": true,
+   "chars": 48,
+   "run": 0,
+   "first_chunk_s": 6.409,
+   "elapsed_s": 12.54,
+   "audio_s": 3.32,
+   "rtf": 3.777
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": true,
+   "chars": 44,
+   "run": 0,
+   "first_chunk_s": 6.337,
+   "elapsed_s": 12.312,
+   "audio_s": 3.2,
+   "rtf": 3.848
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": true,
+   "chars": 54,
+   "run": 0,
+   "first_chunk_s": 5.98,
+   "elapsed_s": 11.358,
+   "audio_s": 2.56,
+   "rtf": 4.437
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": true,
+   "chars": 109,
+   "run": 0,
+   "first_chunk_s": 7.462,
+   "elapsed_s": 21.508,
+   "audio_s": 5.68,
+   "rtf": 3.787
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": false,
+   "chars": 9,
+   "run": 0,
+   "first_chunk_s": 4.918,
+   "elapsed_s": 4.918,
+   "audio_s": 1.0,
+   "rtf": 4.918
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": false,
+   "chars": 48,
+   "run": 0,
+   "first_chunk_s": 8.224,
+   "elapsed_s": 8.224,
+   "audio_s": 3.32,
+   "rtf": 2.477
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": false,
+   "chars": 44,
+   "run": 0,
+   "first_chunk_s": 6.213,
+   "elapsed_s": 6.213,
+   "audio_s": 1.92,
+   "rtf": 3.236
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": false,
+   "chars": 54,
+   "run": 0,
+   "first_chunk_s": 7.867,
+   "elapsed_s": 7.867,
+   "audio_s": 3.04,
+   "rtf": 2.588
+  },
+  {
+   "voice": "dev_voice_b",
+   "stream": false,
+   "chars": 109,
+   "run": 0,
+   "first_chunk_s": 15.332,
+   "elapsed_s": 15.332,
+   "audio_s": 8.2,
+   "rtf": 1.87
+  }
+ ]
+}

@@ -1,0 +1,295 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "voice-roleplay/scenario.schema.json",
+  "title": "Roleplay scenario",
+  "description": "Local, versioned scenario content (content/scenarios/<scenario_id>.json). English fields feed the LLM/TTS; *_ko fields are UI text.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "scenario_id",
+    "version",
+    "title_ko",
+    "title_en",
+    "ai_role",
+    "ai_role_ko",
+    "user_role_ko",
+    "setting_ko",
+    "default_voice_id",
+    "facts",
+    "opening_line",
+    "goals",
+    "allowed_flow",
+    "difficulty",
+    "hints",
+    "model_expressions",
+    "exercises"
+  ],
+  "properties": {
+    "scenario_id": {
+      "$ref": "#/$defs/id"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "title_ko": {
+      "$ref": "#/$defs/text"
+    },
+    "title_en": {
+      "$ref": "#/$defs/text"
+    },
+    "ai_role": {
+      "$ref": "#/$defs/text"
+    },
+    "ai_role_ko": {
+      "$ref": "#/$defs/text"
+    },
+    "user_role_ko": {
+      "$ref": "#/$defs/text"
+    },
+    "setting_ko": {
+      "$ref": "#/$defs/text"
+    },
+    "default_voice_id": {
+      "$ref": "#/$defs/id"
+    },
+    "facts": {
+      "description": "Authoritative scenario facts (prices, reservation data, routes, company details). The LLM must not contradict them.",
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": {
+        "$ref": "#/$defs/id"
+      },
+      "additionalProperties": {
+        "$ref": "#/$defs/text"
+      }
+    },
+    "opening_line": {
+      "$ref": "#/$defs/sentence"
+    },
+    "goals": {
+      "type": "array",
+      "minItems": 3,
+      "maxItems": 3,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "goal_id",
+          "en",
+          "ko"
+        ],
+        "properties": {
+          "goal_id": {
+            "$ref": "#/$defs/id"
+          },
+          "en": {
+            "$ref": "#/$defs/text"
+          },
+          "ko": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "allowed_flow": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/text"
+      }
+    },
+    "difficulty": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "easy",
+        "normal",
+        "hard"
+      ],
+      "properties": {
+        "easy": {
+          "$ref": "#/$defs/level"
+        },
+        "normal": {
+          "$ref": "#/$defs/level"
+        },
+        "hard": {
+          "$ref": "#/$defs/level"
+        }
+      }
+    },
+    "hints": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "hint_id",
+          "goal_id",
+          "ko",
+          "keywords",
+          "example_en"
+        ],
+        "properties": {
+          "hint_id": {
+            "$ref": "#/$defs/id"
+          },
+          "goal_id": {
+            "$ref": "#/$defs/id"
+          },
+          "ko": {
+            "$ref": "#/$defs/text"
+          },
+          "keywords": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "$ref": "#/$defs/text"
+            }
+          },
+          "example_en": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "model_expressions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "text_id",
+          "goal_id",
+          "en",
+          "ko"
+        ],
+        "properties": {
+          "text_id": {
+            "$ref": "#/$defs/id"
+          },
+          "goal_id": {
+            "$ref": "#/$defs/id"
+          },
+          "en": {
+            "$ref": "#/$defs/speakable"
+          },
+          "ko": {
+            "$ref": "#/$defs/text"
+          }
+        }
+      }
+    },
+    "exercises": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reading",
+        "shadowing",
+        "free_answer"
+      ],
+      "properties": {
+        "reading": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sentence"
+          }
+        },
+        "shadowing": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "$ref": "#/$defs/sentence"
+          }
+        },
+        "free_answer": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "exercise_id",
+              "question_en",
+              "question_ko",
+              "sample_answer_en"
+            ],
+            "properties": {
+              "exercise_id": {
+                "$ref": "#/$defs/id"
+              },
+              "question_en": {
+                "$ref": "#/$defs/text"
+              },
+              "question_ko": {
+                "$ref": "#/$defs/text"
+              },
+              "sample_answer_en": {
+                "$ref": "#/$defs/text"
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "speakable": {
+      "description": "English TTS input, <= 400 chars (PROTOCOL §4).",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 400
+    },
+    "sentence": {
+      "description": "Speakable English line with a Korean translation.",
+      "type": "object",
+      "required": [
+        "text_id",
+        "en",
+        "ko"
+      ],
+      "properties": {
+        "text_id": {
+          "$ref": "#/$defs/id"
+        },
+        "en": {
+          "$ref": "#/$defs/speakable"
+        },
+        "ko": {
+          "$ref": "#/$defs/text"
+        }
+      },
+      "additionalProperties": false
+    },
+    "level": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "guidance_en",
+        "silence_ms"
+      ],
+      "properties": {
+        "guidance_en": {
+          "$ref": "#/$defs/text"
+        },
+        "silence_ms": {
+          "type": "integer",
+          "minimum": 700,
+          "maximum": 1400
+        }
+      }
+    }
+  }
+}

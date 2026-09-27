@@ -1,0 +1,146 @@
+{
+  "benchmark": "llm_roleplay_feedback",
+  "date": "2026-09-27T13:27:18+0900",
+  "device": "arm64 26.6.2 Apple M3 Pro",
+  "llama_server": [
+    "version: 0.5.0 (build 11146, commit 7fe450e19)",
+    "built with AppleClang 21.0.0.21000334 for Darwin arm64"
+  ],
+  "model": "Qwen3-4B-Instruct-2507-Q4_K_M.gguf",
+  "server_flags": "-c 8192 -np 2 --no-kv-unified --jinja -ngl 99 --no-webui --cache-prompt",
+  "trials": 5,
+  "roleplay_cold_prefix": {
+    "ttft_ms": {
+      "median": 1584.3,
+      "min": 1550.1,
+      "max": 1712.4,
+      "n": 5
+    },
+    "total_ms": {
+      "median": 2082.5,
+      "min": 1995.6,
+      "max": 2296.4,
+      "n": 5
+    },
+    "prompt_n": {
+      "median": 697,
+      "min": 695,
+      "max": 697,
+      "n": 5
+    },
+    "cache_n": {
+      "median": 5,
+      "min": 4,
+      "max": 5,
+      "n": 5
+    }
+  },
+  "prefix_warmup_ms": {
+    "median": 1407.4,
+    "min": 1400.7,
+    "max": 1474.1,
+    "n": 5
+  },
+  "roleplay_warm_prefix_first_turn": {
+    "ttft_ms": {
+      "median": 263.8,
+      "min": 229.7,
+      "max": 276.8,
+      "n": 5
+    },
+    "total_ms": {
+      "median": 815.1,
+      "min": 691.3,
+      "max": 998.8,
+      "n": 5
+    },
+    "prompt_n": {
+      "median": 82,
+      "min": 82,
+      "max": 82,
+      "n": 5
+    },
+    "cache_n": {
+      "median": 619,
+      "min": 619,
+      "max": 620,
+      "n": 5
+    }
+  },
+  "roleplay_second_turn": {
+    "ttft_ms": {
+      "median": 316.2,
+      "min": 313.7,
+      "max": 331.6,
+      "n": 5
+    },
+    "total_ms": {
+      "median": 982.7,
+      "min": 816.3,
+      "max": 1129.7,
+      "n": 5
+    },
+    "prompt_n": {
+      "median": 102,
+      "min": 102,
+      "max": 102,
+      "n": 5
+    },
+    "cache_n": {
+      "median": 641,
+      "min": 641,
+      "max": 642,
+      "n": 5
+    }
+  },
+  "roleplay_reply_tokens": {
+    "median": 19,
+    "min": 17,
+    "max": 24,
+    "n": 15
+  },
+  "roleplay_decode_tok_s": {
+    "median": 34.7,
+    "min": 25.1,
+    "max": 39.8,
+    "n": 15
+  },
+  "cold_prompt_eval_tok_s": {
+    "median": 442.5,
+    "min": 421.0,
+    "max": 453.1,
+    "n": 5
+  },
+  "decode_128_tokens": {
+    "tok_s": {
+      "median": 35.0,
+      "min": 27.1,
+      "max": 36.3,
+      "n": 5
+    },
+    "total_ms": {
+      "median": 3760.0,
+      "min": 3609.1,
+      "max": 4859.0,
+      "n": 5
+    }
+  },
+  "feedback_json_ms": {
+    "median": 3041.8,
+    "min": 2639.2,
+    "max": 3922.0,
+    "n": 5
+  },
+  "goals_eval_ms": {
+    "median": 4186.5,
+    "min": 4000.8,
+    "max": 4379.7,
+    "n": 5
+  },
+  "session_summary_ms": {
+    "median": 5478.5,
+    "min": 4509.1,
+    "max": 5748.2,
+    "n": 5
+  }
+}
