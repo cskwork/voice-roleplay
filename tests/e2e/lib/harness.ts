@@ -1,11 +1,14 @@
 import { execFileSync, spawn } from 'node:child_process'
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { expect, type APIRequestContext, type Page } from '@playwright/test'
 
 export const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '../../..')
 export const FIXTURES = join(ROOT, 'tests/fixtures/audio')
+/** Spec-specific fixtures made on demand by `makeFixture` (gitignored). */
+export const GEN_FIXTURES = join(ROOT, 'tests/e2e/.out/fixtures')
 export const BASE_URL = process.env.VR_E2E_URL ?? 'http://127.0.0.1:8710'
 const INIT_SCRIPT = join(dirname(fileURLToPath(import.meta.url)), 'fakeMic.js')
 
@@ -24,8 +27,26 @@ export interface MicPlay {
   endPerf: number
 }
 
+const fixturePath = (file: string) => [join(FIXTURES, file), join(GEN_FIXTURES, file)].find((p) => existsSync(p))
+
 export function fixtureText(name: string): string {
-  return readFileSync(join(FIXTURES, `${name}.txt`), 'utf8').trim()
+  return readFileSync(fixturePath(`${name}.txt`) ?? join(FIXTURES, `${name}.txt`), 'utf8').trim()
+}
+
+/** FAKE-MIC-SOURCE fixture made like tests/fixtures/make_fixtures.sh (macOS `say` Samantha → 16 kHz mono PCM16). */
+export function makeFixture(name: string, text: string): void {
+  const wavFile = join(GEN_FIXTURES, `${name}.wav`)
+  const txtFile = join(GEN_FIXTURES, `${name}.txt`)
+  if (existsSync(wavFile) && existsSync(txtFile) && readFileSync(txtFile, 'utf8').trim() === text) return
+  mkdirSync(GEN_FIXTURES, { recursive: true })
+  const tmp = mkdtempSync(join(tmpdir(), 'vr-e2e-fx-'))
+  try {
+    execFileSync('say', ['-v', process.env.FIXTURE_VOICE ?? 'Samantha', '-o', join(tmp, 'a.aiff'), text])
+    execFileSync('ffmpeg', ['-loglevel', 'error', '-y', '-i', join(tmp, 'a.aiff'), '-ar', '16000', '-ac', '1', '-sample_fmt', 's16', wavFile])
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
+  writeFileSync(txtFile, `${text}\n`)
 }
 
 /** Instrument a page: fake mic source, worklet/WS logging, fixture route, off-host request tracking. */
@@ -34,8 +55,8 @@ export async function preparePage(page: Page): Promise<{ offHost: string[] }> {
   await page.addInitScript({ path: INIT_SCRIPT })
   await page.route('**/__e2e/fixtures/*.wav', async (route) => {
     const name = decodeURIComponent(new URL(route.request().url()).pathname.split('/').pop()!)
-    const file = join(FIXTURES, name)
-    if (!existsSync(file)) return route.fulfill({ status: 404, body: 'missing fixture' })
+    const file = fixturePath(name)
+    if (!file) return route.fulfill({ status: 404, body: 'missing fixture' })
     return route.fulfill({ status: 200, contentType: 'audio/wav', body: readFileSync(file) })
   })
   page.on('request', (r) => {
@@ -272,7 +293,7 @@ export const fixtureWav = (name: string) => readFileSync(join(FIXTURES, `${name}
 export function stackPids(): number[] {
   const run = join(ROOT, 'var/run')
   const roots: number[] = []
-  for (const name of ['gateway', 'asr', 'tts', 'llm']) {
+  for (const name of ['gateway', 'asr', 'tts', 'llm', 'pron']) {
     const f = join(run, `${name}.pid`)
     if (existsSync(f)) roots.push(Number(readFileSync(f, 'utf8').split(/\s/)[0]))
   }

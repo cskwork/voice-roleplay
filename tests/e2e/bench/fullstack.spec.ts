@@ -66,14 +66,30 @@ function rss(pids: number[]): Record<number, number> {
   return out
 }
 
+/** macOS phys_footprint (what Activity Monitor calls "Memory"; includes Metal/GPU buffers RSS misses), MB. */
+function footprint(pids: number[]): Record<number, { mb: number; peak_mb: number }> {
+  const out: Record<number, { mb: number; peak_mb: number }> = {}
+  try {
+    const text = execFileSync('footprint', ['--noCategories', '-f', 'bytes', ...pids.flatMap((p) => ['-p', String(p)])], { encoding: 'utf8' })
+    for (const m of text.matchAll(/\[(\d+)\]: [\s\S]*?phys_footprint: (\d+) B\s+phys_footprint_peak: (\d+) B/g)) {
+      out[Number(m[1])] = { mb: Number(m[2]) / 2 ** 20, peak_mb: Number(m[3]) / 2 ** 20 }
+    }
+  } catch {
+    /* tool missing or process gone */
+  }
+  return out
+}
+
 test('full-stack benchmark', async ({ page, browser }) => {
   test.setTimeout(4 * 60 * 60 * 1000)
   await preparePage(page)
   await waitRealtimeFree(page.request)
   const pids = stackPids()
-  const names = ['gateway', 'asr', 'tts', 'llm']
-  const memory: { t: number; rss: Record<number, number> }[] = [{ t: Date.now(), rss: rss(pids) }]
-  const sampler = setInterval(() => memory.push({ t: Date.now(), rss: rss(pids) }), 5000)
+  const names = ['gateway', 'asr', 'tts', 'llm', 'pron']
+  const memory: { t: number; rss: Record<number, number>; footprint?: ReturnType<typeof footprint> }[] = [
+    { t: Date.now(), rss: rss(pids), footprint: footprint(pids) }]
+  let tick = 0
+  const sampler = setInterval(() => memory.push({ t: Date.now(), rss: rss(pids), ...(++tick % 6 === 0 ? { footprint: footprint(pids) } : {}) }), 5000)
 
   const turns: Record<string, unknown>[] = []
   const bargeIns: Record<string, unknown>[] = []
@@ -177,12 +193,15 @@ test('full-stack benchmark', async ({ page, browser }) => {
       const res = await (await a.get(`/api/attempts/${id}/result`)).json()
       recorded.push({ input_s: seconds, rep: r, state, upload_ms: u1 - u0, submit_to_transcript_ms: transcribed == null ? null : transcribed - t0,
         submit_to_full_result_ms: done - t0, feedback_items: res.feedback?.length ?? 0, feedback_status: res.feedback_status ?? null,
-        model_audio: res.model_audio?.length ?? 0, transcript_words: String(res.transcript ?? '').split(/\s+/).filter(Boolean).length })
+        model_audio: res.model_audio?.length ?? 0, transcript_words: String(res.transcript ?? '').split(/\s+/).filter(Boolean).length,
+        attempt_id: id, pronunciation_status: res.pronunciation?.status ?? null, pronunciation_reason: res.pronunciation?.reason ?? null,
+        pronunciation_words: res.pronunciation?.words?.length ?? 0, pronunciation_score: res.pronunciation_score ?? null,
+        prosody_learner_frames: res.pronunciation?.prosody?.learner?.f0_hz?.length ?? 0 })
     }
   }
   clearInterval(sampler)
-  memory.push({ t: Date.now(), rss: rss(pids) })
-  const pidNames = Object.fromEntries(pids.slice(0, 4).map((p, k) => [p, names[k]!]))
+  memory.push({ t: Date.now(), rss: rss(pids), footprint: footprint(pids) })
+  const pidNames = Object.fromEntries(pids.slice(0, names.length).map((p, k) => [p, names[k]!]))
   writeFileSync(OUT, JSON.stringify({
     started_at: new Date(memory[0]!.t).toISOString(), finished_at: new Date().toISOString(),
     config: { turns: N, barge_every: BARGE_EVERY, session_turns: SESSION_TURNS, rec30: REC30, rec120: REC120 },

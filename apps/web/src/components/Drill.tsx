@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useCallback, useState } from 'react'
 import { useAttemptRunner } from '../hooks/attempt'
 import type { AttemptResult } from '../lib/types'
 import { useApp } from '../state'
@@ -28,6 +28,9 @@ export function Drill({
 }) {
   const { health, micDeviceId } = useApp()
   const [result, setResult] = useState<AttemptResult | null>(null)
+  // Stable: Recorder calls onTakeChange from an effect keyed on it, so a new function each render would clear
+  // the result right after it arrives (the drill result never showed).
+  const clearResult = useCallback(() => setResult(null), [])
   const runner = useAttemptRunner((r) => {
     setResult(r)
     onDone?.(r)
@@ -47,7 +50,7 @@ export function Drill({
         maxMs={30000}
         submitting={runner.busy}
         submitDisabledReason={recordedReady ? null : (health?.modes.recorded.reason_ko ?? '녹음형 분석을 지금 사용할 수 없어요')}
-        onTakeChange={() => setResult(null)}
+        onTakeChange={clearResult}
         onSubmit={(take) =>
           void runner.submit(take, {
             exercise_type: 'drill',

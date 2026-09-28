@@ -51,6 +51,10 @@ test('AT-15 realtime + recorded + retry + review run with no non-loopback connec
     expect((await a.put(`/api/attempts/${id}/audio`, fixtureWav('e2e_cafe_01'))).status()).toBe(200)
     const job = await (await a.post(`/api/attempts/${id}/submit`, {}, { 'Idempotency-Key': `at15-${Date.now()}` })).json()
     expect((await a.waitJob(job.job_id)).state).toBe('completed')
+    // The optional pronunciation worker (in `pids` when running) took part: word timings came back.
+    if ((await (await a.get('/api/health')).json()).workers.pron?.ready) {
+      expect((await (await a.get(`/api/attempts/${id}/result`)).json()).pronunciation.status).toBe('timing_only')
+    }
     const re = await (await a.patch(`/api/attempts/${id}/transcript`, { text: 'Hi, can I get a large latte, please?' }, { 'Idempotency-Key': `at15-re-${Date.now()}` })).json()
     expect((await a.waitJob(re.job_id)).state).toBe('completed')
     // Model sentence playback and review endpoints.

@@ -62,6 +62,19 @@ def tts_requests(response_ids: set[str]) -> dict[str, list[dict]]:
     return out
 
 
+def pron_log(attempt_ids: set[str]) -> dict[str, dict]:
+    """Gateway log lines of the pronunciation step per recorded attempt (learner side and model side, elapsed ms)."""
+    out: dict[str, dict] = {}
+    log = ROOT / "var/log/gateway.log"
+    pat = re.compile(r"(pron_done|pron_unavailable|pron_model_done) attempt=(\S+) .*ms=(\d+)")
+    for line in log.read_text(errors="ignore").splitlines() if log.exists() else []:
+        m = pat.search(line)
+        if m and m.group(2) in attempt_ids:
+            key = "model_ms" if m.group(1) == "pron_model_done" else "learner_ms"
+            out.setdefault(m.group(2), {})[key] = int(m.group(3))
+    return out
+
+
 def tts_config() -> str:
     log = ROOT / "var/log/tts.log"
     lines = [ln for ln in log.read_text(errors="ignore").splitlines() if "model_loaded" in ln] if log.exists() else []
@@ -92,6 +105,8 @@ def environment(raw: dict) -> dict:
         "browser": raw.get("browser"),
         "active_workers": {k: {x: workers.get(k, {}).get(x) for x in ("model_id", "revision", "device", "backend")}
                            for k in ("asr", "tts")},
+        "pron_worker": {x: workers.get("pron", {}).get(x) for x in ("device", "models", "bands_enabled", "calibration_version")},
+        "pronunciation_assessment": health.get("pronunciation_assessment"),
         "llm": workers.get("llm", {}).get("model_revision"),
         "tts_engine": tts_config(),
         "models_lock": models,
@@ -100,6 +115,7 @@ def environment(raw: dict) -> dict:
             "gateway": app_tool.pkg_versions("gateway", ["onnxruntime", "fastapi", "uvicorn"]),
             "asr": app_tool.pkg_versions("asr", ["torch", "transformers", "qwen-asr"]),
             "tts": app_tool.pkg_versions("tts", ["mlx", "mlx-audio-plus", "torch", "onnxruntime"]),
+            "pron": app_tool.pkg_versions("pron", ["torch", "transformers", "qwen-asr", "pyworld"]),
         },
         "voice": "dev_voice_a (development voice, see content/voices)",
         "audio_devices": "input: FAKE-MIC-SOURCE (fixture WAVs via MediaStream, 48 kHz context); output: Chromium --mute-audio",
@@ -128,6 +144,10 @@ def main(raw_path: str, out_base: str) -> None:
                 per_request_rtf.append(r["elapsed_ms"] / r["audio_ms"])
             first_chunk.append(r["first_chunk_ms"])
     rec = raw["recorded"]
+    pron = pron_log({r["attempt_id"] for r in rec if r.get("attempt_id")})
+    for r in rec:
+        r.update({"pron_learner_ms": pron.get(r.get("attempt_id"), {}).get("learner_ms"),
+                  "pron_model_ms": pron.get(r.get("attempt_id"), {}).get("model_ms")})
     metrics = {
         "last_voiced_to_first_played_ms": stats([t["last_voiced_to_first_played_ms"] for t in turns]),
         "speech_start_to_first_partial_ms": stats([t["speech_start_to_first_partial_ms"] for t in turns]),
@@ -147,7 +167,13 @@ def main(raw_path: str, out_base: str) -> None:
         "rec30_submit_to_full_result_ms": stats([r["submit_to_full_result_ms"] for r in rec if r["input_s"] == 30]),
         "rec120_submit_to_transcript_ms": stats([r["submit_to_transcript_ms"] for r in rec if r["input_s"] == 120]),
         "rec120_submit_to_full_result_ms": stats([r["submit_to_full_result_ms"] for r in rec if r["input_s"] == 120]),
+        "rec30_pron_learner_ms": stats([r["pron_learner_ms"] for r in rec if r["input_s"] == 30]),
+        "rec120_pron_learner_ms": stats([r["pron_learner_ms"] for r in rec if r["input_s"] == 120]),
     }
+    pron_status = {}
+    for r in rec:
+        key = f"{r['input_s']} s: {r.get('pronunciation_status')}" + (f" ({r['pronunciation_reason']})" if r.get("pronunciation_reason") else "")
+        pron_status[key] = pron_status.get(key, 0) + 1
     stale = sum(b["stale_playback_after_stop"] for b in raw["barge_ins"])
     stalls = [t["stall_ms"] for t in turns if t.get("stall_ms") is not None]
     replies_with_stall = sum(1 for s in stalls if s > 50)
@@ -156,7 +182,11 @@ def main(raw_path: str, out_base: str) -> None:
     first, last = raw["memory"][0]["rss"], raw["memory"][-1]["rss"]
     for pid, name in raw["pids"].items():
         peak = max((m["rss"].get(pid, 0) for m in raw["memory"]), default=0)
-        mem[name] = {"start_mb": first.get(pid), "end_mb": last.get(pid), "peak_mb": peak}
+        fps = [m["footprint"][pid] for m in raw["memory"] if pid in m.get("footprint", {})]
+        mem[name] = {"start_mb": first.get(pid), "end_mb": last.get(pid), "peak_mb": peak,
+                     "footprint_start_mb": fps[0]["mb"] if fps else None, "footprint_end_mb": fps[-1]["mb"] if fps else None,
+                     "footprint_peak_sampled_mb": max((f["mb"] for f in fps), default=None),
+                     "footprint_lifetime_peak_mb": fps[-1]["peak_mb"] if fps else None}
 
     verdicts = []
     for key, label, stat, limit, unit in TARGETS:
@@ -166,7 +196,7 @@ def main(raw_path: str, out_base: str) -> None:
     env = environment(raw)
     result = {"summary": verdicts, "metrics": metrics, "stale_playback_after_barge_in": stale,
               "replies_with_stall_over_50ms": replies_with_stall, "turns_without_partial": no_partial,
-              "memory_rss_mb": mem, "environment": env, "raw": raw}
+              "memory_mb": mem, "pronunciation_status_counts": pron_status, "environment": env, "raw": raw}
     out_json, out_md = Path(out_base + ".json"), Path(out_base + ".md")
     out_json.write_text(json.dumps(result, indent=1, ensure_ascii=False))
 
@@ -183,7 +213,9 @@ def main(raw_path: str, out_base: str) -> None:
         f"- One reply in every {cfg['barge_every']} is interrupted 600 ms into its playback by another utterance "
         f"({len(raw['barge_ins'])} barge-ins). Interrupted turns still count for response start; the reply to the "
         "interrupting utterance is reported separately (`post_barge_*`).",
-        f"- Recorded practice: free answer (ASR + LLM feedback + model audio), 30 s × {cfg['rec30']}, 120 s × {cfg['rec120']}, one job at a time.",
+        f"- Recorded practice: free answer (ASR + LLM feedback + pronunciation word timings/pitch + model audio), 30 s × {cfg['rec30']}, "
+        f"120 s × {cfg['rec120']}, one job at a time. Pronunciation status per job: "
+        + (", ".join(f"{k} × {v}" for k, v in pron_status.items()) or "not recorded") + ".",
         "- Learner audio: FAKE-MIC-SOURCE — macOS `say` (Samantha) fixtures scheduled into a 48 kHz AudioContext and handed to the app "
         "as its microphone MediaStream, so the app's capture worklet, resampler, WebSocket envelope, gateway VAD, ASR, LLM, TTS and "
         "playback worklet are all real. Clean synthetic speech, not learner speech: ASR/turn-taking numbers are best case.",
@@ -221,14 +253,23 @@ def main(raw_path: str, out_base: str) -> None:
         "- `response_started_to_first_frame_ms` = LLM time to the first segment + TTS first chunk (+ WebSocket); "
         "`last_voiced_to_final_ms` includes the 900 ms end-of-turn silence.",
         "",
-        "## Memory (RSS)",
+        "- `rec*_pron_learner_ms` = gateway time for the learner-side pronunciation step (align + prosody on the pronunciation "
+        "worker); it runs in parallel with the LLM feedback call, so it is inside, not added to, the full-result time.",
         "",
-        "| Process | start | end | peak (5 s samples) |",
-        "|---|---|---|---|",
+        "## Memory",
+        "",
+        "| Process | RSS start | RSS end | RSS peak (5 s samples) | phys_footprint start | end | peak (30 s samples) | lifetime peak |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for name, m in mem.items():
-        lines.append(f"| {name} | {fmt(m['start_mb'], 'MB')} | {fmt(m['end_mb'], 'MB')} | {fmt(m['peak_mb'], 'MB')} |")
-    lines += ["", "RSS only; MLX/Metal buffers of the TTS and LLM processes are partly outside RSS.", "", "## Environment", ""]
+        lines.append(f"| {name} | {fmt(m['start_mb'], 'MB')} | {fmt(m['end_mb'], 'MB')} | {fmt(m['peak_mb'], 'MB')} | "
+                     f"{fmt(m['footprint_start_mb'], 'MB')} | {fmt(m['footprint_end_mb'], 'MB')} | "
+                     f"{fmt(m['footprint_peak_sampled_mb'], 'MB')} | {fmt(m['footprint_lifetime_peak_mb'], 'MB')} |")
+    total = {k: sum(m[k] or 0 for m in mem.values()) for k in ("end_mb", "footprint_end_mb")}
+    lines += ["", f"Sum at the end: RSS {fmt(total['end_mb'], 'MB')}, phys_footprint {fmt(total['footprint_end_mb'], 'MB')}. "
+              "RSS misses most Metal/MLX/MPS buffers; phys_footprint (`footprint`, what Activity Monitor shows as Memory) "
+              "includes them. Lifetime peak = the kernel's `phys_footprint_peak` since the process started (includes model loading).",
+              "", "## Environment", ""]
     lines += [f"- Machine: {env['machine']}, {env['memory_gb']} GB, {env['os']}, {env['gpu']}",
               f"- Browser: Chromium {raw['browser'].get('version')} (Playwright, headless), AudioContext {raw['browser'].get('context_sample_rate')} Hz",
               f"- Audio devices: {env['audio_devices']}",
@@ -236,8 +277,9 @@ def main(raw_path: str, out_base: str) -> None:
               f"- ASR worker: {env['active_workers']['asr']}",
               f"- TTS worker: {env['active_workers']['tts']}; engine `{env['tts_engine']}`",
               f"- LLM: {env['llm']}; {env['llm_context']}",
+              f"- Pronunciation worker: {env['pron_worker']}; gateway mode `{env['pronunciation_assessment']}`",
               f"- Runtimes: llama-server `{env['runtimes']['llama-server']}`; gateway `{env['runtimes']['gateway']}`; "
-              f"asr `{env['runtimes']['asr']}`; tts `{env['runtimes']['tts']}`",
+              f"asr `{env['runtimes']['asr']}`; tts `{env['runtimes']['tts']}`; pron `{env['runtimes']['pron']}`",
               "- Model files (models.lock.json; `./app doctor` verifies every file's SHA-256):", ""]
     lines += [f"  - `{m['id']}` {m['repo']}@{m['revision'][:12]} — `{m['largest_file']}` sha256 `{m['sha256'][:16]}…`" for m in env["models_lock"]]
     out_md.write_text("\n".join(lines) + "\n")
