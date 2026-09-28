@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import dataclasses
 import json
 import struct
 
@@ -406,7 +407,7 @@ async def test_session_end_summary_with_opt_in(gw):
     assert summary["state"] == "ended"
     hist = (await asyncio.to_thread(gw.http.get, "/api/history")).json()
     turns = hist["sessions"][0]["turns"]
-    assert [t["role"] for t in turns] == ["assistant", "user", "assistant"] or [t["role"] for t in turns][:2] == ["user", "assistant"]
+    assert [t["role"] for t in turns] == ["assistant", "user", "assistant"]  # spoken order (CO-7)
     user = next(t for t in turns if t["role"] == "user")
     assert user["text"] == "Can I have an oat latte" and user["metrics"]["metrics_version"] == "m1"
     ai = [t for t in turns if t["role"] == "assistant" and t["turn_id"] == resp["response_id"]][0]
@@ -493,13 +494,18 @@ async def test_rolling_summary_after_six_turns(gw):
     await full_turn(rt, "Turn6 words here please")
     await rt.drain(0.1)
     first = gw.record["summary_updates"][0]
-    assert [t["role"] for t in first["turns"]] == ["assistant", "user"] and first["previous"] == ""
+    # The summary starts once the 7th reply is in history and covers exactly what the next prompt's verbatim
+    # window (the last 12 entries) no longer has: opening, Turn0 and its reply (CO-7: no entry falls in between).
+    assert [t["role"] for t in first["turns"]] == ["assistant", "user", "assistant"] and first["previous"] == ""
+    assert first["turns"][1]["text"] == "Turn0 words here please"
     await full_turn(rt, "Turn7 words here please")
     state = gw.llm.calls[-1][-1]["content"]
-    assert "Earlier in this conversation: Summary 1 of 2 entries." in state
+    assert "Earlier in this conversation: Summary 1 of 3 entries." in state
+    verbatim = [m["content"] for m in gw.llm.calls[-1][:-1] if m["role"] == "user" and "Turn" in m["content"]]
+    assert "Turn1 words" in verbatim[0]
     assert "- drink_order: order v1" in state
     engine_session = gw.svc.sessions.sessions[session["session_id"]]
-    assert engine_session.summarized_upto >= 2 and len(engine_session.learner_facts) == 1
+    assert engine_session.summarized_upto == 5 and len(engine_session.learner_facts) == 1
     await rt.ws.close()
 
 
@@ -512,4 +518,77 @@ async def test_rolling_summary_never_blocks_a_reply(gw):
     assert len(gw.record["summary_updates"]) == 1  # started, still running
     await full_turn(rt, "Turn7 words here please")  # full_turn waits at most 3 s per event
     assert "Earlier in this conversation" not in gw.llm.calls[-1][-1]["content"]
+    await rt.ws.close()
+
+
+async def test_hint_reply_echoes_request_id(gw):
+    """CO-6: a slow level-1 reply (it waits on the LLM translation) can arrive after the reply to a newer
+    request; the echoed request_id lets the client drop it. The slow translation is a FAKE delay."""
+    fast = gw.svc.brain.build_hint
+
+    async def slow_level_1(scenario, difficulty, level, goals_state, last_ai_text, llm=None):
+        if level == 1:
+            await asyncio.sleep(0.4)
+        return await fast(scenario, difficulty, level, goals_state, last_ai_text, llm)
+
+    gw.svc.brain = dataclasses.replace(gw.svc.brain, build_hint=slow_level_1)
+    _, rt = await start(gw)
+    await rt.event("hint.request", level=1, request_id="h1")
+    await rt.event("hint.request", level=2, request_id="h2")
+    first = await rt.until("hint")
+    second = await rt.until("hint")
+    assert (first["request_id"], first["level"]) == ("h2", 2)
+    assert (second["request_id"], second["level"]) == ("h1", 1)
+    await rt.event("hint.request", level=3)  # the id is optional
+    assert "request_id" not in await rt.until("hint")
+    for bad in (7, "x" * 65):
+        await rt.event("hint.request", level=1, request_id=bad)
+        assert (await rt.until("error"))["code"] == "EVENT_INVALID"
+    await rt.ws.close()
+
+
+async def test_ai_line_enters_history_when_playback_completes(gw):
+    """CO-7: the reply joins the LLM history and the transcript as soon as its playback is confirmed, before the
+    learner's next turn, so the recorded transcript keeps the spoken order."""
+    session, rt = await start(gw)
+    s = gw.svc.sessions.sessions[session["session_id"]]
+    opening = s.scenario["opening_line"]["en"]
+    await rt.drain(0.1)  # start() may have matched the LISTENING state sent before the opening line
+    assert s.history == [{"role": "assistant", "text": opening}]
+    await speak_turn(rt)
+    resp = await rt.until("response.started")
+    await rt.until("response.done")
+    assert s.history[-1]["role"] == "user"  # not heard yet
+    rt.mark_seen()
+    await confirm_playback(rt, resp["response_id"])
+    await rt.until("session.state", state="LISTENING")
+    assert s.history[-1] == {"role": "assistant", "text": gw.llm.reply}
+    await speak_turn(rt)
+    await rt.until("response.started")
+    assert [(t["role"], t["turn_index"]) for t in s.turns] == [("assistant", 1), ("user", 2), ("assistant", 3),
+                                                                ("user", 4)]
+    assert s.turns[2]["playback_status"] == "completed"
+    await rt.ws.close()
+
+
+async def test_interrupted_reply_keeps_only_heard_segments_in_order(gw):
+    gw.tts.chunks = 30
+    gw.tts.chunk_delay = 0.03
+    session, rt = await start(gw)
+    s = gw.svc.sessions.sessions[session["session_id"]]
+    await speak_turn(rt, ms=800)
+    resp = await rt.until("response.started")
+    first = await rt.until("response.text", response_id=resp["response_id"])
+    await rt.until("response.text", response_id=resp["response_id"], segment_id=1)  # still being synthesized
+    await rt.event("playback.completed", response_id=resp["response_id"], segment_id=first["segment_id"])
+    await rt.event("response.cancel", response_id=resp["response_id"])
+    await rt.until("response.cancelled", response_id=resp["response_id"])
+    assert s.history[-1] == {"role": "assistant", "text": first["text"]}
+    ai = s.turns[-1]
+    assert ai["turn_id"] == resp["response_id"] and ai["playback_status"] == "interrupted"
+    assert ai["spoken_segments"][0]["status"] == "played"
+    assert all(x["status"] == "interrupted" for x in ai["spoken_segments"][1:])
+    await speak_turn(rt)
+    await rt.until("response.started", timeout=10)
+    assert [t["role"] for t in s.turns] == ["assistant", "user", "assistant", "user"]
     await rt.ws.close()

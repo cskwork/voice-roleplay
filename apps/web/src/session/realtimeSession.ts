@@ -83,6 +83,8 @@ export class RealtimeSession {
   // Source-rate audio of the current and last heard response, kept in memory for 다시 듣기.
   private replay: ReplayBuffer | null = null
   private lastReplay: ReplayBuffer | null = null
+  // Id of the newest hint.request; the gateway echoes it so an older, slower reply can be recognised.
+  private hintSeq = 0
 
   constructor(
     readonly sessionId: string,
@@ -240,7 +242,8 @@ export class RealtimeSession {
   }
 
   requestHint(level: 1 | 2 | 3): void {
-    this.socket.send('hint.request', { level })
+    this.hintSeq += 1
+    this.socket.send('hint.request', { level, request_id: `h${this.hintSeq}` })
   }
 
   /** Plays the last AI reply again from memory (no new synthesis, not reported to the gateway). */
@@ -354,9 +357,14 @@ export class RealtimeSession {
       case 'hint': {
         const level = (e.level as 1 | 2 | 3) ?? 1
         const responseId = typeof e.response_id === 'string' ? e.response_id : undefined
+        // Only the reply to the newest request counts: a slow level-1 reply (it waits on the LLM translation)
+        // must not replace the answer to a later request.
         const cur = this.snap.hint
-        // Replies can overtake each other (level 1 may wait on the LLM): never step back to a lower level.
-        if (cur && cur.level > level && (!responseId || cur.response_id === responseId)) break
+        if (typeof e.request_id === 'string') {
+          if (e.request_id !== `h${this.hintSeq}`) break
+        } else if (cur && cur.level > level && (!responseId || cur.response_id === responseId)) {
+          break // no request id (older gateway): replies can still overtake each other, never step back a level
+        }
         this.set({
           hint: {
             level,

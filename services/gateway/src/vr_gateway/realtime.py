@@ -481,6 +481,7 @@ class RealtimeEngine:
             return
         voiced = [(a * WINDOW / 16000, b * WINDOW / 16000) for a, b in utt.spans]
         metrics = self.brain.compute_metrics(voiced, text)
+        self._fold_all()  # the AI line this turn answers is recorded before it (playback end unconfirmed)
         self.s.record_turn(self.svc, {
             "turn_id": tid, "turn_index": self.s.next_turn_index(), "role": "user", "text": text,
             "transcript_revision": 1, "metrics": metrics, "created_at": time.time(),
@@ -511,7 +512,9 @@ class RealtimeEngine:
     # ------------------------------------------------------------------ responses
 
     def _fold(self, resp: Response) -> None:
-        """Move what the learner actually heard (or saw, if TTS failed) into history once."""
+        """Move what the learner actually heard (or saw, if TTS failed) into history once. Called as soon as
+        the reply's playback has ended (completed, stopped or cancelled), so goal checks, the rolling summary
+        and hints see the line without waiting for the next reply, and the transcript keeps the spoken order."""
         if resp.folded:
             return
         resp.folded = True
@@ -519,6 +522,7 @@ class RealtimeEngine:
         heard = " ".join(seg.text for seg in ordered if seg.status in ("played", "text_only"))
         if heard:
             self.s.history.append({"role": "assistant", "text": heard})
+            self._maybe_summarize()
         if ordered:
             status = "completed" if all(s.status in ("played", "text_only") for s in ordered) else "interrupted"
             self.s.record_turn(self.svc, {
@@ -532,6 +536,11 @@ class RealtimeEngine:
         for r in self.responses:
             if r.cancelled or r.playback_finished():
                 self._fold(r)
+
+    def _fold_if_finished(self, resp: Response) -> None:
+        # A failed reply stays out until the next turn: response.retry expects the learner's line last in history.
+        if not resp.failed and resp.playback_finished():
+            self._fold(resp)
 
     async def _start_response(self, turn_id: str, user_text: str, retry: bool = False) -> None:
         self._fold_all()
@@ -589,6 +598,7 @@ class RealtimeEngine:
         if resp.cancelled:
             return
         await self.send("response.done", resp)
+        self._fold_if_finished(resp)  # e.g. every segment text_only after a TTS failure
         await self._set_state(output_state="playing" if not resp.playback_finished() else "idle")
         log.info("response_done session=%s segments=%d audio_ms=%d first_audio_ms=%s total_ms=%d question_stop=%s",
                  self.s.session_id, len(resp.segments), resp.audio_ms, first_audio_ms,
@@ -681,6 +691,7 @@ class RealtimeEngine:
         for seg in resp.segments.values():
             if seg.status in ("pending", "sent"):
                 seg.status = "interrupted"
+        self._fold(resp)
         if resp.tts_request:
             self._spawn(self.tts.cancel(resp.tts_request))
         await self._set_state(state="INTERRUPTING", output_state="idle")
@@ -699,14 +710,14 @@ class RealtimeEngine:
 
     def _after_response(self, resp: Response) -> None:
         """Background LLM work (llama-server slot 1) starts once the reply is generated, while it plays:
-        goal tracking, the rolling summary, and optional per-turn feedback. None of it blocks a reply."""
+        goal tracking (it reads the learner's turns only) and optional per-turn feedback. The rolling summary
+        starts when a reply enters history (_fold). None of it blocks a reply."""
         if resp.turn_id is None or resp.turn_id == "opening":
             return
         if any(g["status"] != "done" for g in self.s.goals):
             self.goals_due = resp
             if self.goals_task is None or self.goals_task.done():
                 self.goals_task = self._spawn(self._update_goals())
-        self._maybe_summarize()
         if self.s.feedback_policy == "per_turn":
             self._spawn(self._turn_feedback(resp.turn_id))
 
@@ -737,9 +748,15 @@ class RealtimeEngine:
 
     def _maybe_summarize(self) -> None:
         """PRD §11: once history is longer than the prompt window, fold the older entries into a bounded
-        summary. The reply always uses whatever summary exists; this never waits on the LLM."""
+        summary. The reply always uses whatever summary exists; this never waits on the LLM. Runs when a reply
+        enters history, so the cutoff matches the verbatim window of the next prompt. Entries older than the
+        window with no learner line (only the opening, which the prompt prefix already has) are not summarized."""
+        if self.closed:
+            return
         cutoff = len(self.s.history) - HISTORY_WINDOW
-        if cutoff > self.s.summarized_upto and (self.summary_task is None or self.summary_task.done()):
+        older = self.s.history[self.s.summarized_upto:max(cutoff, 0)]
+        if (any(h["role"] == "user" for h in older)
+                and (self.summary_task is None or self.summary_task.done())):
             self.summary_task = self._spawn(self._summarize(cutoff))
 
     async def _summarize(self, cutoff: int) -> None:
@@ -927,6 +944,7 @@ class RealtimeEngine:
                 if self.playing == (resp.response_id, seg_id) or not resp.stopped_text:
                     resp.stopped_text = seg.text  # the segment that was audible
         if resp.playback_finished():
+            self._fold_if_finished(resp)
             if resp is self.response and self.state == "RESPONDING":
                 await self._set_state(state="LISTENING", output_state="idle")
             elif resp is self.response:
@@ -942,7 +960,10 @@ class RealtimeEngine:
         level = int(ev["level"])
         if level not in (1, 2, 3):
             raise ValueError("level")
-        # The line on the learner's screen is the newest response; history only gains it when the next one starts.
+        request_id = ev.get("request_id")
+        if request_id is not None and (not isinstance(request_id, str) or len(request_id) > 64):
+            raise ValueError("request_id")
+        # The line on the learner's screen is the newest response; history only gains it once its playback ends.
         last_ai, about = "", None
         resp = next((r for r in reversed(self.responses) if r.segments), None)
         if resp is not None:
@@ -952,13 +973,15 @@ class RealtimeEngine:
             about = resp.response_id if last_ai else None
         if not last_ai:
             last_ai = next((h["text"] for h in reversed(self.s.history) if h["role"] == "assistant"), "")
-        self._spawn(self._hint(level, last_ai, about))
+        self._spawn(self._hint(level, last_ai, about, request_id))
 
-    async def _hint(self, level: int, last_ai: str, about: str | None) -> None:
+    async def _hint(self, level: int, last_ai: str, about: str | None, request_id: str | None) -> None:
         hint = await self.brain.build_hint(self.s.scenario, self.s.difficulty, level, self.s.goals, last_ai,
                                            llm=self.svc.llm_bg if level == 1 else None)
         if about is not None:
             hint["response_id"] = about  # which AI line the hint (and its level-1 translation) belongs to
+        if request_id is not None:
+            hint["request_id"] = request_id  # replies can overtake each other (level 1 may wait on the LLM)
         await self.send("hint", **hint)
 
     async def h_settings_update(self, ev: dict) -> None:
