@@ -2,6 +2,8 @@
 
 Used in-process by `python -m vr_gateway --manage-workers` (the ./app launcher). Worker output goes to
 var/log/<name>.log; workers themselves are responsible for not logging text or audio (PROTOCOL §2).
+Each worker runs in its own process group; its pid is written to var/run/<name>.pid so `./app stop` can
+clean up if the gateway itself died without stopping them.
 """
 
 from __future__ import annotations
@@ -57,11 +59,17 @@ class Supervisor:
             stdin=subprocess.DEVNULL, start_new_session=True,
         )
         logfile.close()
+        self.config.run_dir.mkdir(parents=True, exist_ok=True)
+        (self.config.run_dir / f"{name}.pid").write_text(f"{self.procs[name].pid}\n")
         log.info("worker_started name=%s pid=%d", name, self.procs[name].pid)
 
     def start_all(self) -> None:
-        for name in self.specs:
-            self.start(name)
+        try:
+            for name in self.specs:
+                self.start(name)
+        except Exception:
+            self.stop_all()  # never leave half a stack running
+            raise
 
     async def wait_ready(self, timeout_s: float = 600.0) -> dict[str, bool]:
         """Poll each worker's /health until ready, a process exits, or the timeout passes."""
@@ -97,15 +105,17 @@ class Supervisor:
 
     def stop(self, name: str, grace_s: float = 10.0) -> None:
         proc = self.procs.pop(name, None)
-        if proc is None or proc.poll() is not None:
-            return
-        os.killpg(proc.pid, signal.SIGTERM)
-        try:
-            proc.wait(grace_s)
-        except subprocess.TimeoutExpired:
-            os.killpg(proc.pid, signal.SIGKILL)
-            proc.wait(5)
-        log.info("worker_stopped name=%s exit=%s", name, proc.returncode)
+        if proc is not None and proc.poll() is None:
+            try:
+                os.killpg(proc.pid, signal.SIGTERM)
+                proc.wait(grace_s)
+            except subprocess.TimeoutExpired:
+                os.killpg(proc.pid, signal.SIGKILL)
+                proc.wait(5)
+            except ProcessLookupError:
+                pass
+            log.info("worker_stopped name=%s exit=%s", name, proc.returncode)
+        (self.config.run_dir / f"{name}.pid").unlink(missing_ok=True)
 
     def stop_all(self) -> None:
         for name in list(self.procs):

@@ -40,7 +40,6 @@ function DueCard({ item, onGraded }: { item: ReviewItem; onGraded(): void }) {
       {practicing ? (
         <Drill
           target={item.text_en}
-          scenarioId={app.scenarios[0]?.scenario_id ?? ''}
           voiceId={voiceId}
           historyOptIn
           onDone={() => setTried(true)}

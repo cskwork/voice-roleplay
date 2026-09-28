@@ -1,4 +1,5 @@
 import { MicCapture, Player, type PlaybackEvent } from '../audio/engine'
+import { BACKLOG_WARN_MS } from '../lib/backlog'
 import { captionsReducer, type Caption, type CaptionAction } from '../lib/captions'
 import type { OutputAudioHeader } from '../lib/envelope'
 import { messageFor } from '../lib/errors'
@@ -41,6 +42,8 @@ export interface Snapshot {
   pttPressed: boolean
   slow: boolean
   echoCount: number
+  /** More than 2 s of mic audio is waiting to be sent (PRD §10.2). Nothing is dropped; the UI warns. */
+  backlogged: boolean
   warning: string | null
   error: { code?: string; message: string; recoverable: boolean } | null
   summary: SessionSummary | null
@@ -96,6 +99,7 @@ export class RealtimeSession {
       pttPressed: false,
       slow: false,
       echoCount: 0,
+      backlogged: false,
       warning: null,
       error: null,
       summary: null,
@@ -160,13 +164,14 @@ export class RealtimeSession {
   // --- mic -----------------------------------------------------------------
   private onMicFrame(pcm: Int16Array, level: number): void {
     const s = this.snap
+    const backlogged = this.socket.backlogMs > BACKLOG_WARN_MS
+    if (backlogged !== s.backlogged) this.set({ backlogged })
     if (s.paused || s.muted) return
     // Local barge-in: stop the speaker at once, without waiting for the gateway.
     if (this.vad.update(level) && s.aiSpeaking && s.autoBargeIn && !s.pushToTalk) this.interrupt()
     if (s.pushToTalk && !s.pttPressed) return
     this.socket.sendAudio(pcm)
-    if (!s.canCommit && this.socket.turnFrames > 0) this.set({ canCommit: true })
-    if (this.socket.backlogged && !s.warning) this.set({ warning: '전송이 밀리고 있어요. 연결 상태를 확인해 주세요.' })
+    if (!this.snap.canCommit && this.socket.turnFrames > 0) this.set({ canCommit: true })
   }
 
   setMuted(muted: boolean): void {

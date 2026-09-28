@@ -68,6 +68,9 @@ class Services:
     tts: Any
     llm: Any
     vad_model: Any
+    # Background LLM work during a realtime session (goals, hints, per-turn feedback, rolling summary) is
+    # pinned to llama-server slot 1 so it never evicts the roleplay prefix cached in slot 0 (PROTOCOL §5).
+    llm_bg: Any = None
     auth: LocalAuth = None
     health: HealthMonitor = None
     sessions: SessionManager = None
@@ -110,7 +113,8 @@ class SessionIn(Strict):
 
 class AttemptIn(Strict):
     exercise_type: str
-    scenario_id: str = Field(max_length=64)
+    scenario_id: str | None = Field(None, max_length=64)  # required except for drill
+    target_text: str | None = Field(None, min_length=1, max_length=400)  # drill only
     text_id: str | None = Field(None, max_length=128)
     exercise_id: str | None = Field(None, max_length=128)
     session_id: str | None = Field(None, max_length=64)
@@ -180,7 +184,7 @@ class WsTransport:
 # ---------------------------------------------------------------- factory
 
 
-def build_services(config: Config, *, asr=None, tts=None, llm=None, brain=None, vad_model=None) -> Services:
+def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None, brain=None, vad_model=None) -> Services:
     if not config.worker_token:
         config.worker_token = secrets.token_urlsafe(32)
     if asr is None or tts is None:
@@ -191,7 +195,9 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, brain=None, 
     if llm is None:
         from vr_feedback.llm import LlmClient
 
+        # llama-server runs with LLAMA_API_KEY = the worker token (config/llm/server.json).
         llm = LlmClient(config.llm_url, timeout_s=60, api_key=config.worker_token)
+        llm_bg = llm_bg or LlmClient(config.llm_url, timeout_s=60, api_key=config.worker_token, default_slot=1)
     if brain is None:
         from .brain import default_brain
 
@@ -203,7 +209,7 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, brain=None, 
     svc = Services(
         config=config, db=Database(config.db_path),
         scenarios=ScenarioStore.load(config.scenarios_dir, config.scenario_schema),
-        brain=brain, asr=asr, tts=tts, llm=llm, vad_model=vad_model,
+        brain=brain, asr=asr, tts=tts, llm=llm, llm_bg=llm_bg or llm, vad_model=vad_model,
     )
     svc.auth = LocalAuth(config)
     svc.health = HealthMonitor(svc)
@@ -244,7 +250,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
                 if session.engine is not None:
                     await session.engine.shutdown("gateway_stop")
             await svc.jobs.stop()
-            for client in (svc.asr, svc.tts, svc.llm):
+            for client in {id(c): c for c in (svc.asr, svc.tts, svc.llm, svc.llm_bg)}.values():
                 close = getattr(client, "aclose", None)
                 if close:
                     await close()
@@ -288,7 +294,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     @app.get("/api/health")
     async def health():
-        return await svc.health.snapshot()
+        return {**await svc.health.snapshot(), "tts_cache": svc.tts_cache.progress()}
 
     @app.get("/api/bootstrap")
     async def bootstrap(request: Request):
@@ -383,6 +389,8 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
     @app.post("/api/attempts", status_code=201)
     async def create_attempt(request: Request):
         body = await read_model(request, AttemptIn, svc)
+        if body.target_text is not None and not ENGLISH_TEXT.match(body.target_text):
+            raise ApiError("INVALID_REQUEST", message_ko="영어 문장만 연습할 수 있습니다.")
         attempt = svc.jobs.create_attempt(body.model_dump(exclude_none=True))
         return {"attempt_id": attempt.attempt_id, "attempt_index": attempt.attempt_index,
                 "exercise_type": attempt.exercise_type, "target_en": attempt.target_en,

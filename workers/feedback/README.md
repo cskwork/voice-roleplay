@@ -12,6 +12,7 @@ This package handles text for voice-roleplay. It is used by the gateway, needs n
 | `llm` | Async llama-server client: streaming with cancel, prefix warm-up, JSON schema output |
 | `prompts` | Roleplay messages with a byte-stable scenario prefix |
 | `feedback`, `goals`, `hints` | Evidence-checked feedback, goal status and 3-level hints |
+| `summary` | Rolling summary of turns older than the 6-turn prompt window, plus learner-stated facts with exact quotes (PRD §11) |
 
 ```sh
 uv venv --python 3.12 .venv && uv pip install -p .venv/bin/python -e . pytest pytest-asyncio
@@ -21,4 +22,5 @@ uv venv --python 3.12 .venv && uv pip install -p .venv/bin/python -e . pytest py
 ```
 
 Set `VR_LLM_URL` and `VR_LLM_API_KEY` when the server runs somewhere else or has `LLAMA_API_KEY` set.
+`LlmClient(default_slot=1)` pins every request without an explicit `slot_id` to one llama-server slot.
 If the server is unreachable, the integration tests skip.

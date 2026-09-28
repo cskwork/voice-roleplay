@@ -37,6 +37,11 @@ class Session:
     turn_counter: int = 0
     turns: list[dict] = field(default_factory=list)  # user + assistant records in order
     history: list[dict] = field(default_factory=list)  # [{role, text}] for the LLM
+    # PRD §11 rolling summary of history[:summarized_upto] (turns older than the prompt window) and details
+    # the learner stated there. The facts are separate state: a new summary never overwrites them.
+    context_summary: str = ""
+    summarized_upto: int = 0
+    learner_facts: dict[str, dict] = field(default_factory=dict)
     goals: list[dict] = field(default_factory=list)
     summary: dict | None = None
     ended_at: float | None = None
@@ -84,9 +89,9 @@ class Session:
 
 
 def merge_goals(old: list[dict], new: list[dict]) -> list[dict]:
-    """Goals only move pending -> done within a session."""
-    done = {g["goal_id"]: g for g in old if g.get("status") == "done"}
-    return [done.get(g["goal_id"], g) for g in new]
+    """Goals only move pending -> done within a session. `new` may cover only some goals (the pending ones)."""
+    done = {g["goal_id"]: g for g in new if g.get("status") == "done"}
+    return [g if g.get("status") == "done" else done.get(g["goal_id"], g) for g in old]
 
 
 class SessionManager:

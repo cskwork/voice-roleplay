@@ -33,7 +33,7 @@ def main() -> None:
     app = create_app(config, supervisor=supervisor)
     # Access logs would include URLs with ids; the app logs route templates itself.
     uvicorn.run(app, host=config.host, port=config.port, access_log=False, ws_max_size=128 * 1024,
-                log_level="info", proxy_headers=False, server_header=False)
+                log_level="info", proxy_headers=False, server_header=False, timeout_graceful_shutdown=10)
 
 
 if __name__ == "__main__":

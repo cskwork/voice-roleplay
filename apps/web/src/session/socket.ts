@@ -1,3 +1,4 @@
+import { queuedAudioMs } from '../lib/backlog'
 import { decodeFrame, encodeFrame, FrameError, type OutputAudioHeader } from '../lib/envelope'
 
 export interface ServerEvent {
@@ -15,8 +16,6 @@ export interface SocketHandlers {
   onClose(clean: boolean): void
 }
 
-const BACKLOG_WARN_BYTES = 2 * 16000 * 2 // ~2 s of 16 kHz PCM16
-
 /** Realtime WebSocket (PROTOCOL §6.3): JSON control events + binary audio envelopes. */
 export class RealtimeSocket {
   private ws: WebSocket | null = null
@@ -26,6 +25,8 @@ export class RealtimeSocket {
   turnId: string | null = null
   turnFrames = 0
   closedByClient = false
+  private frameBytes = 0
+  private frameMs = 20
 
   constructor(
     readonly sessionId: string,
@@ -71,9 +72,9 @@ export class RealtimeSocket {
     return this.ws?.readyState === WebSocket.OPEN
   }
 
-  /** True when more than ~2 s of audio is waiting to be sent (PRD §10.2). */
-  get backlogged(): boolean {
-    return (this.ws?.bufferedAmount ?? 0) > BACKLOG_WARN_BYTES
+  /** Milliseconds of microphone audio still waiting in the send buffer (PRD §10.2). */
+  get backlogMs(): number {
+    return queuedAudioMs(this.ws?.bufferedAmount ?? 0, this.frameBytes, this.frameMs)
   }
 
   send(type: string, fields: Record<string, unknown> = {}): void {
@@ -101,21 +102,22 @@ export class RealtimeSocket {
       this.turnFrames = 0
     }
     const seq = ++this.audioSeq
-    this.ws!.send(
-      encodeFrame(
-        {
-          v: 1,
-          kind: 'input_audio',
-          session_id: this.sessionId,
-          turn_id: this.turnId,
-          epoch: this.epoch,
-          seq,
-          sample_rate: 16000,
-          sample_count: pcm.length,
-        },
-        pcm,
-      ),
+    const frame = encodeFrame(
+      {
+        v: 1,
+        kind: 'input_audio',
+        session_id: this.sessionId,
+        turn_id: this.turnId,
+        epoch: this.epoch,
+        seq,
+        sample_rate: 16000,
+        sample_count: pcm.length,
+      },
+      pcm,
     )
+    this.frameBytes = frame.byteLength
+    this.frameMs = (pcm.length * 1000) / 16000
+    this.ws!.send(frame)
     this.turnFrames++
   }
 

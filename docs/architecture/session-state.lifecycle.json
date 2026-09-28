@@ -1,0 +1,195 @@
+{
+  "schema_version": 1,
+  "diagram_type": "lifecycle",
+  "meta": {
+    "title": "실시간 세션 상태",
+    "output": "session-state.html",
+    "viewBox": [
+      1300,
+      580
+    ],
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "turn-loop",
+        "label": "기본 턴 반복",
+        "focus": [
+          "ready",
+          "listening",
+          "finalizing",
+          "responding",
+          "closed"
+        ],
+        "note": "듣기 → 전사 확정 → 답변을 반복하고 종료로 끝남"
+      },
+      {
+        "id": "interrupt",
+        "label": "끼어들기",
+        "focus": [
+          "responding",
+          "interrupting",
+          "listening"
+        ],
+        "note": "AI가 말하는 중 사용자 발화가 감지되면 응답을 취소하고 다시 듣기"
+      },
+      {
+        "id": "recovery",
+        "label": "오류 복구",
+        "focus": [
+          "responding",
+          "error"
+        ],
+        "note": "LLM·TTS 실패 시 전사는 보존하고 답변만 한 번 다시 생성"
+      }
+    ]
+  },
+  "lanes": [
+    {
+      "id": "main",
+      "label": "기본 흐름"
+    },
+    {
+      "id": "interrupt",
+      "label": "끼어들기"
+    },
+    {
+      "id": "exceptions",
+      "label": "복구"
+    }
+  ],
+  "states": [
+    {
+      "id": "ready",
+      "type": "start",
+      "label": "READY",
+      "sublabel": "첫 대사 재생",
+      "lane": "main",
+      "col": 0,
+      "step": "01"
+    },
+    {
+      "id": "listening",
+      "type": "active",
+      "label": "LISTENING",
+      "sublabel": "VAD·임시 자막",
+      "lane": "main",
+      "col": 1,
+      "step": "02"
+    },
+    {
+      "id": "finalizing",
+      "type": "active",
+      "label": "FINALIZING",
+      "sublabel": "최종 전사",
+      "lane": "main",
+      "col": 2,
+      "step": "03"
+    },
+    {
+      "id": "responding",
+      "type": "active",
+      "label": "RESPONDING",
+      "sublabel": "LLM·TTS·재생",
+      "lane": "main",
+      "col": 3,
+      "step": "04"
+    },
+    {
+      "id": "closed",
+      "type": "success",
+      "label": "CLOSED",
+      "sublabel": "세션 요약",
+      "lane": "main",
+      "col": 4,
+      "step": "05"
+    },
+    {
+      "id": "interrupting",
+      "type": "decision",
+      "label": "INTERRUPTING",
+      "sublabel": "epoch 증가",
+      "lane": "interrupt",
+      "col": 1
+    },
+    {
+      "id": "error",
+      "type": "failure",
+      "label": "RECOVERABLE_ERROR",
+      "sublabel": "응답 재시도 1회",
+      "lane": "exceptions",
+      "col": 2
+    }
+  ],
+  "transitions": [
+    {
+      "id": "reply-done",
+      "from": "responding",
+      "to": "listening",
+      "label": "재생 완료",
+      "variant": "emphasis",
+      "route": "top-channel"
+    },
+    {
+      "id": "barge-in",
+      "from": "responding",
+      "to": "interrupting",
+      "label": "사용자 발화",
+      "variant": "security",
+      "fromSide": "bottom",
+      "toSide": "top",
+      "route": "straight",
+      "labelDy": 24
+    },
+    {
+      "id": "back-to-listen",
+      "from": "interrupting",
+      "to": "listening",
+      "variant": "emphasis",
+      "fromSide": "left",
+      "toSide": "bottom"
+    },
+    {
+      "id": "worker-failed",
+      "from": "responding",
+      "to": "error",
+      "variant": "security"
+    },
+    {
+      "id": "retry",
+      "from": "error",
+      "to": "responding",
+      "label": "다시 시도",
+      "variant": "emphasis",
+      "labelDx": 44
+    }
+  ],
+  "cards": [
+    {
+      "dot": "emerald",
+      "title": "기본 흐름",
+      "items": [
+        "일시정지(PAUSED) 중에는 마이크와 생성 작업을 멈춤",
+        "AI가 말하는 중에도 VAD는 계속 동작",
+        "무음만 들어오면 LLM을 호출하지 않음"
+      ]
+    },
+    {
+      "dot": "amber",
+      "title": "끼어들기",
+      "items": [
+        "브라우저가 즉시 재생을 멈춤",
+        "이전 epoch 음성은 도착해도 버림",
+        "에코가 두 번 의심되면 눌러 말하기 제안"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "복구",
+      "items": [
+        "일시적 추론 실패만 1회 재시도",
+        "전사는 보존하고 답변만 다시 생성",
+        "연결이 끊기면 재생·마이크·작업 정리"
+      ]
+    }
+  ]
+}

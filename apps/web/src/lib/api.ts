@@ -110,12 +110,13 @@ export const api = {
 
   createAttempt: (body: {
     exercise_type: ExerciseType
-    scenario_id: string
+    /** Required except for drill (a saved review expression may have no scenario). */
+    scenario_id?: string
     history_opt_in: boolean
     text_id?: string
     exercise_id?: string
     session_id?: string
-    /** drill only — see contract_changes: not yet accepted by the gateway. */
+    /** drill only: the English sentence to say again (≤ 400 chars); handled like reading, never sent to ASR. */
     target_text?: string
   }) => json<{ attempt_id: string; attempt_index?: number }>('POST', '/api/attempts', body),
   uploadAudio: (id: string, wav: ArrayBuffer) =>

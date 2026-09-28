@@ -24,7 +24,8 @@ if TYPE_CHECKING:
 
 log = logging.getLogger("vr_gateway.jobs")
 
-EXERCISE_TYPES = ("reading", "shadowing", "free_answer", "roleplay_turn")
+EXERCISE_TYPES = ("reading", "shadowing", "free_answer", "roleplay_turn", "drill")
+TARGET_TYPES = ("reading", "shadowing", "drill")  # the learner says a given sentence; never sent to ASR
 TERMINAL = ("completed", "failed", "cancelled", "expired")
 MIN_SPEECH_S = 0.25
 DIFF_LABEL_KO = "다르게 인식된 부분"
@@ -34,7 +35,7 @@ DIFF_LABEL_KO = "다르게 인식된 부분"
 class Attempt:
     attempt_id: str
     exercise_type: str
-    scenario_id: str
+    scenario_id: str | None
     exercise_ref: str | None
     session_id: str | None
     history_opt_in: bool
@@ -121,13 +122,24 @@ class JobManager:
         etype = body.get("exercise_type")
         if etype not in EXERCISE_TYPES:
             raise ApiError("UNSUPPORTED_MODE")
-        scenario = self.svc.scenarios.get(body.get("scenario_id", ""))
-        if scenario is None:
-            raise ApiError("NOT_FOUND")
+        if etype == "drill" and not body.get("scenario_id"):
+            scenario = None  # a saved review expression may not belong to any scenario
+        else:
+            scenario = self.svc.scenarios.get(body.get("scenario_id") or "")
+            if scenario is None:
+                raise ApiError("NOT_FOUND")
+        if (etype == "drill") != ("target_text" in body):
+            raise ApiError("INVALID_REQUEST")  # target_text is required for drill and only allowed there
         ref = body.get("text_id") or body.get("exercise_id")
         target = question = sample = None
         session_id = None
-        if etype in ("reading", "shadowing"):
+        if etype == "drill":
+            # "다시 말하기": a suggestion or saved expression, handled like reading (PROTOCOL §7).
+            target = " ".join(body["target_text"].split())
+            if body.get("session_id"):
+                session_id = self.svc.sessions.get(body["session_id"]).session_id
+            ref = None
+        elif etype in ("reading", "shadowing"):
             entry = self.svc.scenarios.text(ref or "")
             if entry is None or entry["scenario_id"] != scenario["scenario_id"]:
                 raise ApiError("NOT_FOUND")
@@ -143,10 +155,11 @@ class JobManager:
                 raise ApiError("INVALID_STATE")
             session_id = session.session_id
         settings = self.svc.settings()
-        key = (scenario["scenario_id"], etype, ref or session_id)
+        scenario_id = scenario["scenario_id"] if scenario else None
+        key = (scenario_id, etype, target if etype == "drill" else ref or session_id)
         self._index[key] = self._index.get(key, 0) + 1
         attempt = Attempt(
-            attempt_id="a_" + uuid.uuid4().hex[:16], exercise_type=etype, scenario_id=scenario["scenario_id"],
+            attempt_id="a_" + uuid.uuid4().hex[:16], exercise_type=etype, scenario_id=scenario_id,
             exercise_ref=ref, session_id=session_id,
             history_opt_in=bool(body.get("history_opt_in", settings.get("history_opt_in", False))),
             attempt_index=self._index[key], target_en=target, question_en=question, sample_answer_en=sample,
@@ -345,8 +358,8 @@ class JobManager:
             job.audio = None
             return
         scenario = svc.scenarios.get(attempt.scenario_id)
-        # Reading/shadowing targets are never given to ASR as context (PROTOCOL §7).
-        context = None if attempt.exercise_type in ("reading", "shadowing") else asr_context(scenario)
+        # Reading/shadowing/drill targets are never given to ASR as context (PROTOCOL §7).
+        context = None if attempt.exercise_type in TARGET_TYPES else asr_context(scenario)
         pcm = audio.pcm16k.tobytes()
         try:
             result = await svc.asr.transcribe(pcm, context)
@@ -454,7 +467,8 @@ class JobManager:
             "exercise_ref": attempt.exercise_ref, "attempt_index": attempt.attempt_index,
             "result_version": attempt.latest_revision(), "metrics": attempt.metrics,
             "target_diff": attempt.target_diff, "created_at": attempt.created_at,
-            "extra": {"no_speech": attempt.no_speech, "next_ai": attempt.next_ai},
+            "extra": {"no_speech": attempt.no_speech, "next_ai": attempt.next_ai,
+                      **({"target_en": attempt.target_en} if attempt.exercise_type == "drill" else {})},
         }, conn=conn)
         for rev in attempt.revisions:
             db.insert_revision("attempt", attempt.attempt_id, rev["revision"], rev["text"], rev["source"], conn)

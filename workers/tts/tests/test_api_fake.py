@@ -25,6 +25,7 @@ class FakeEngine:
 
     ready = True
     sample_rate = SR
+    model_id = "FunAudioLLM/Fun-CosyVoice3-0.5B-2512"
     revision = "fake-rev"
     device = "cpu"
     placement = {"llm": "cpu", "flow": "cpu", "hift": "cpu"}

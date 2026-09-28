@@ -25,9 +25,13 @@ class LlmError(Exception):
 
 
 class LlmClient:
-    def __init__(self, base_url: str = "http://127.0.0.1:8713", timeout_s: float = 60, api_key: str | None = None):
+    def __init__(self, base_url: str = "http://127.0.0.1:8713", timeout_s: float = 60, api_key: str | None = None,
+                 default_slot: int | None = None):
+        """`default_slot` pins requests that pass no `slot_id` to one llama-server slot (id_slot), so
+        background work (feedback, goals, summaries) never evicts the roleplay prefix cached in another slot."""
         headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
         self._http = httpx.AsyncClient(base_url=base_url, timeout=httpx.Timeout(timeout_s, connect=5.0), headers=headers)
+        self.default_slot = default_slot
         # llama-server "timings" of the last completed request (token counts and ms only, no text).
         self.last_timings: dict | None = None
 
@@ -40,9 +44,9 @@ class LlmClient:
     async def __aexit__(self, *exc) -> None:
         await self.aclose()
 
-    @staticmethod
-    def _body(messages: list[dict], max_tokens: int, slot_id: int | None, **extra) -> dict:
+    def _body(self, messages: list[dict], max_tokens: int, slot_id: int | None, **extra) -> dict:
         body = {"messages": messages, "max_tokens": max_tokens, "cache_prompt": True, **extra}
+        slot_id = self.default_slot if slot_id is None else slot_id
         if slot_id is not None:
             body["id_slot"] = slot_id
         return body

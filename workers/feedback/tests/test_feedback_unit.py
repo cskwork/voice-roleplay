@@ -147,3 +147,48 @@ async def test_hint_levels(scenario):
     fake = FakeLlm({"ko": "어떤 사이즈로 드릴까요?"})
     h1_llm = await build_hint(scenario, "normal", 1, state, "What size?", llm=fake)
     assert "어떤 사이즈로 드릴까요?" in h1_llm["text_ko"] and "사이즈나 우유" in h1_llm["text_ko"]
+
+
+async def test_update_summary_keeps_only_quoted_learner_facts(scenario):
+    from vr_feedback.summary import MAX_SUMMARY_CHARS, update_summary
+
+    turns = [
+        {"role": "user", "text": "Can I get a large latte with oat milk?"},
+        {"role": "assistant", "text": "Sure, a large oat latte is $5.75."},
+    ]
+    fake = FakeLlm(LlmError("invalid_json"), {"summary": "word " * 200, "learner_facts": [
+        {"name": "Drink Order", "value": "large latte, oat milk", "evidence_quote": "a large latte with oat milk"},
+        {"name": "price", "value": "$5.75", "evidence_quote": "a large oat latte is $5.75"},  # the barista's words
+        {"name": "size", "value": "small", "evidence_quote": "small please"},  # never said
+    ]})
+    out = await update_summary(fake, scenario, "", turns)
+    assert fake.calls == 2  # one retry after invalid JSON
+    assert out["facts"] == [{"name": "drink_order", "value": "large latte, oat milk", "evidence_quote": "a large latte with oat milk"}]
+    assert len(out["summary"]) <= MAX_SUMMARY_CHARS + 1
+
+
+async def test_update_summary_raises_when_unusable(scenario):
+    import pytest
+
+    from vr_feedback.summary import update_summary
+
+    with pytest.raises(LlmError):
+        await update_summary(FakeLlm(LlmError("invalid_json"), LlmError("invalid_json")), scenario, "old", [{"role": "user", "text": "hi"}])
+
+
+def test_learner_facts_and_summary_in_state_block(scenario):
+    facts = [{"name": "drink_order", "value": "large latte <b>", "evidence_quote": "large latte"}]
+    msgs = build_roleplay_messages(scenario, "normal", [], [], "now", summary="They ordered.", learner_facts=facts)
+    last = msgs[-1]["content"]
+    assert "- drink_order: large latte b" in last and "Earlier in this conversation: They ordered." in last
+    assert last.index("drink_order") < last.index("Earlier in this conversation")
+    # The stable prefix is untouched by per-turn state.
+    assert msgs[:2] == build_opening_warmup(scenario, "normal")
+
+
+def test_default_slot_pins_requests():
+    from vr_feedback.llm import LlmClient
+
+    pinned, free = LlmClient(default_slot=1), LlmClient()
+    assert pinned._body([], 8, None)["id_slot"] == 1 and pinned._body([], 8, 0)["id_slot"] == 0
+    assert "id_slot" not in free._body([], 8, None)

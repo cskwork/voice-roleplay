@@ -41,7 +41,7 @@ def real_stack(tmp_path_factory):
     tmp = tmp_path_factory.mktemp("integration")
     config = load_config()
     config.worker_token = secrets.token_urlsafe(32)
-    config.data_dir, config.cache_dir, config.log_dir = tmp / "data", tmp / "cache", tmp / "log"
+    config.data_dir, config.cache_dir, config.log_dir, config.run_dir = tmp / "data", tmp / "cache", tmp / "log", tmp / "run"
     with socket.socket() as s:
         s.bind(("127.0.0.1", 0))
         config.port = s.getsockname()[1]

@@ -280,6 +280,30 @@ async def test_echo_detection_switches_to_push_to_talk(gw):
     await rt.ws.close()
 
 
+async def test_echo_detected_after_client_side_stop(gw):
+    """The browser stops AI audio on its own level detector (playback.stopped) before the gateway's VAD
+    announces the speech; the reply was already fully generated, so there is nothing to cancel. The utterance
+    is still a barge-in and must go through the echo check (found by the browser E2E run)."""
+    session, rt = await start(gw)
+    gw.asr.finals = ["I would like a large latte please"]
+    await speak_turn(rt, ms=800)
+    resp = await rt.until("response.started")
+    seg = await rt.until("response.text", response_id=resp["response_id"])
+    await rt.until("response.done", response_id=resp["response_id"])
+    await rt.event("playback.started", response_id=resp["response_id"], segment_id=seg["segment_id"])
+    await rt.event("playback.stopped", response_id=resp["response_id"], segment_id=seg["segment_id"], played_ms=300)
+    for later in sorted({h["segment_id"] for h, _ in rt.frames if h["response_id"] == resp["response_id"]} - {0}):
+        await rt.event("playback.stopped", response_id=resp["response_id"], segment_id=later, played_ms=0)
+    gw.asr.finals = [seg["text"]]  # the mic heard the AI's own voice
+    await rt.audio(np.concatenate([tone(700), silence(1100)]))
+    echo = await rt.until("echo.suspected")
+    assert echo["count"] == 1
+    await rt.drain(0.3)
+    assert len(gw.llm.calls) == 1  # the echo never reached the LLM
+    assert "response.cancelled" not in rt.types()  # nothing was left to cancel
+    await rt.ws.close()
+
+
 async def test_pause_resume_and_mute(gw):
     gw.tts.chunks = 30
     gw.tts.chunk_delay = 0.03
@@ -399,3 +423,87 @@ async def test_logs_never_contain_transcripts(gw, caplog):
     text = caplog.text
     assert "Supercalifragilistic" not in text and "Kaleidoscopic" not in text
     assert "turn_ended" in text and "response_done" in text
+
+
+async def full_turn(rt, final: str | None = None) -> dict:
+    """One learner turn whose reply is fully played (playback confirmed)."""
+    if final is not None:
+        rt.gw.asr.finals.append(final)
+    await speak_turn(rt)
+    resp = await rt.until("response.started")
+    await rt.until("response.done")
+    await confirm_playback(rt, resp["response_id"])
+    await rt.until("session.state", state="LISTENING")
+    await rt.drain(0.05)
+    rt.mark_seen()
+    return resp
+
+
+async def test_reply_stops_after_first_question(gw):
+    gw.llm.reply = "Sure, one large latte. Would you like it hot? Or maybe iced instead? We also have muffins today."
+    session, rt = await start(gw)
+    await speak_turn(rt)
+    resp = await rt.until("response.started")
+    await rt.until("response.done")
+    texts = [e["text"] for e in rt.events if e["type"] == "response.text" and e["response_id"] == resp["response_id"]]
+    assert texts == ["Sure, one large latte.", "Would you like it hot?"]
+    assert not any("iced" in r["text"] or "muffins" in r["text"] for r in gw.tts.requests)
+    # The LLM stream was closed right after the question instead of running to the end.
+    assert gw.llm.closed == 1 and gw.llm.yielded < len(gw.llm.reply.split(" "))
+    await rt.ws.close()
+
+
+async def test_goals_check_only_pending_goals(gw):
+    session, rt = await start(gw)
+    rt.gw = gw
+    await full_turn(rt)
+    await full_turn(rt)
+    await rt.drain(0.1)
+    assert [e["goals"][0]["status"] for e in rt.events if e["type"] == "goal.update"] == ["done", "done"]
+    assert gw.record["goal_ids"] == [["order", "option", "price"], ["option", "price"]]
+    await rt.ws.close()
+
+
+async def test_goal_check_skipped_when_newer_turn_started(gw):
+    gw.record["goal_delay"] = 1.0
+    session, rt = await start(gw)
+    rt.gw = gw
+    await full_turn(rt)  # first check starts and takes 1 s
+    await full_turn(rt)  # its check waits behind the first one
+    await rt.audio(tone(600))  # the learner is already talking again
+    await rt.until("speech.started")
+    await rt.drain(1.3)
+    assert len([e for e in rt.events if e["type"] == "goal.update"]) == 1
+    assert len(gw.record["goal_ids"]) == 1  # the queued check for turn 2 was skipped
+    await rt.ws.close()
+
+
+async def test_rolling_summary_after_six_turns(gw):
+    session, rt = await start(gw)
+    rt.gw = gw
+    for i in range(6):
+        await full_turn(rt, f"Turn{i} words here please")
+    assert "summary_updates" not in gw.record  # still inside the 6-turn window
+    await full_turn(rt, "Turn6 words here please")
+    await rt.drain(0.1)
+    first = gw.record["summary_updates"][0]
+    assert [t["role"] for t in first["turns"]] == ["assistant", "user"] and first["previous"] == ""
+    await full_turn(rt, "Turn7 words here please")
+    state = gw.llm.calls[-1][-1]["content"]
+    assert "Earlier in this conversation: Summary 1 of 2 entries." in state
+    assert "- drink_order: order v1" in state
+    engine_session = gw.svc.sessions.sessions[session["session_id"]]
+    assert engine_session.summarized_upto >= 2 and len(engine_session.learner_facts) == 1
+    await rt.ws.close()
+
+
+async def test_rolling_summary_never_blocks_a_reply(gw):
+    gw.record["summary_delay"] = 30
+    session, rt = await start(gw)
+    rt.gw = gw
+    for i in range(7):
+        await full_turn(rt, f"Turn{i} words here please")
+    assert len(gw.record["summary_updates"]) == 1  # started, still running
+    await full_turn(rt, "Turn7 words here please")  # full_turn waits at most 3 s per event
+    assert "Earlier in this conversation" not in gw.llm.calls[-1][-1]["content"]
+    await rt.ws.close()

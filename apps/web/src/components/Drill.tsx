@@ -21,7 +21,7 @@ export function Drill({
 }: {
   target: string
   before?: string
-  scenarioId: string
+  scenarioId?: string
   voiceId: string
   historyOptIn: boolean
   onDone?(r: AttemptResult): void
@@ -51,7 +51,7 @@ export function Drill({
         onSubmit={(take) =>
           void runner.submit(take, {
             exercise_type: 'drill',
-            scenario_id: scenarioId,
+            ...(scenarioId ? { scenario_id: scenarioId } : {}),
             history_opt_in: historyOptIn,
             target_text: target,
           })

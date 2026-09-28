@@ -1,0 +1,276 @@
+{
+  "schema_version": 1,
+  "diagram_type": "architecture",
+  "meta": {
+    "title": "voice-roleplay 로컬 시스템 구조",
+    "output": "system.html",
+    "quality_profile": "showcase",
+    "views": [
+      {
+        "id": "realtime-path",
+        "label": "실시간 회화 경로",
+        "focus": [
+          "browser",
+          "gateway",
+          "vad",
+          "asr",
+          "llm",
+          "tts"
+        ],
+        "note": "마이크 음성이 VAD·ASR을 거쳐 LLM 답변이 되고 TTS 음성으로 돌아오는 경로"
+      },
+      {
+        "id": "recorded-path",
+        "label": "녹음형 연습 경로",
+        "focus": [
+          "browser",
+          "gateway",
+          "asr",
+          "llm",
+          "tts",
+          "db"
+        ],
+        "note": "녹음 제출 → 전체 전사 → 텍스트 피드백 → 모범 음성"
+      },
+      {
+        "id": "storage",
+        "label": "저장 위치",
+        "focus": [
+          "gateway",
+          "db",
+          "cache"
+        ],
+        "note": "음성은 디스크에 쓰지 않음. 기록은 동의한 경우만 SQLite에 저장"
+      }
+    ],
+    "viewBox": [
+      1250,
+      600
+    ]
+  },
+  "components": [
+    {
+      "id": "browser",
+      "type": "frontend",
+      "label": "브라우저 웹앱",
+      "sublabel": "React + AudioWorklet",
+      "pos": [
+        40,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "16 kHz PCM16"
+    },
+    {
+      "id": "gateway",
+      "type": "backend",
+      "label": "게이트웨이",
+      "sublabel": "FastAPI :8710",
+      "pos": [
+        300,
+        300
+      ],
+      "size": [
+        150,
+        64
+      ],
+      "tag": "세션·턴·취소"
+    },
+    {
+      "id": "vad",
+      "type": "backend",
+      "label": "Silero VAD",
+      "sublabel": "ONNX · CPU",
+      "pos": [
+        300,
+        120
+      ],
+      "size": [
+        150,
+        60
+      ]
+    },
+    {
+      "id": "db",
+      "type": "database",
+      "label": "SQLite",
+      "sublabel": "동의한 기록만",
+      "pos": [
+        220,
+        490
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "cache",
+      "type": "database",
+      "label": "TTS 캐시",
+      "sublabel": "첫 대사 음성",
+      "pos": [
+        400,
+        490
+      ],
+      "size": [
+        140,
+        60
+      ]
+    },
+    {
+      "id": "asr",
+      "type": "backend",
+      "label": "ASR 워커",
+      "sublabel": "Qwen3-ASR-0.6B · MPS",
+      "pos": [
+        620,
+        130
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "tag": ":8711"
+    },
+    {
+      "id": "llm",
+      "type": "backend",
+      "label": "llama-server",
+      "sublabel": "Qwen3-4B Q4_K_M · Metal",
+      "pos": [
+        620,
+        300
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "tag": ":8713"
+    },
+    {
+      "id": "tts",
+      "type": "backend",
+      "label": "TTS 워커",
+      "sublabel": "CosyVoice3 0.5B · MLX",
+      "pos": [
+        620,
+        470
+      ],
+      "size": [
+        190,
+        64
+      ],
+      "tag": ":8712"
+    }
+  ],
+  "boundaries": [
+    {
+      "kind": "region",
+      "label": "로컬 Mac · 127.0.0.1 전용 · 외부 통신 없음",
+      "wraps": [
+        "gateway",
+        "vad",
+        "db",
+        "cache",
+        "asr",
+        "llm",
+        "tts"
+      ]
+    },
+    {
+      "kind": "security-group",
+      "label": "X-Worker-Token 인증",
+      "wraps": [
+        "asr",
+        "llm",
+        "tts"
+      ]
+    }
+  ],
+  "connections": [
+    {
+      "id": "browser-gateway",
+      "from": "browser",
+      "to": "gateway",
+      "label": "WS + HTTP",
+      "variant": "emphasis"
+    },
+    {
+      "id": "gateway-vad",
+      "from": "gateway",
+      "to": "vad",
+      "label": "발화 감지",
+      "fromSide": "top",
+      "toSide": "bottom"
+    },
+    {
+      "id": "gateway-asr",
+      "from": "gateway",
+      "to": "asr",
+      "label": "음성 스트림"
+    },
+    {
+      "id": "gateway-llm",
+      "from": "gateway",
+      "to": "llm",
+      "label": "토큰 스트림",
+      "variant": "emphasis",
+      "labelDx": 45
+    },
+    {
+      "id": "gateway-tts",
+      "from": "gateway",
+      "to": "tts",
+      "label": "문장 합성"
+    },
+    {
+      "id": "gateway-db",
+      "from": "gateway",
+      "to": "db",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    },
+    {
+      "id": "gateway-cache",
+      "from": "gateway",
+      "to": "cache",
+      "variant": "dashed",
+      "fromSide": "bottom",
+      "toSide": "top"
+    }
+  ],
+  "cards": [
+    {
+      "dot": "cyan",
+      "title": "실시간 회화",
+      "items": [
+        "VAD로 턴 종료·끼어들기 판단",
+        "ASR 부분 재디코딩으로 임시 자막",
+        "첫 절부터 TTS 스트리밍 재생"
+      ]
+    },
+    {
+      "dot": "emerald",
+      "title": "지연 최적화",
+      "items": [
+        "시나리오 프롬프트 KV 캐시 예열",
+        "첫 대사 음성 미리 합성",
+        "TTS는 Apple Silicon용 MLX 변환"
+      ]
+    },
+    {
+      "dot": "rose",
+      "title": "개인정보",
+      "items": [
+        "음성은 메모리에만 보관",
+        "기록은 동의 시에만 SQLite 저장",
+        "로그에 전사·문장 미기록"
+      ]
+    }
+  ]
+}

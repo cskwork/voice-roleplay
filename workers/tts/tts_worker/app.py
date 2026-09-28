@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse, Response
 
+from .backend import create_engine
 from .engine import MAX_SPEED, MIN_SPEED, MODEL_ID, Engine, SetupError
 from .textnorm import TextRejected, normalize
 
@@ -86,8 +87,7 @@ def create_app(engine: Engine | None = None, token: str | None = None, load_in_b
 
     def _load():
         try:
-            eng = state["engine"] or Engine(device=os.environ.get("VR_TTS_DEVICE", "auto"),
-                                            cpu_threads=int(os.environ.get("VR_TTS_CPU_THREADS", "4")))
+            eng = state["engine"] or create_engine()
             state["engine"] = eng
             if not eng.ready:
                 eng.load()
@@ -118,7 +118,7 @@ def create_app(engine: Engine | None = None, token: str | None = None, load_in_b
         ready = bool(eng and eng.ready)
         body = {
             "ready": ready,
-            "model_id": MODEL_ID,
+            "model_id": eng.model_id if eng else MODEL_ID,
             "revision": eng.revision if eng else None,
             "device": eng.device if ready else None,
             "placement": eng.placement if ready else None,

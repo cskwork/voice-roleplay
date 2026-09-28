@@ -71,9 +71,9 @@ def load_voices(voices_dir: Path) -> dict[str, Voice]:
     return voices
 
 
-def model_revision(model_dir: Path) -> str | None:
+def model_revision(model_dir: Path, filename: str = "cosyvoice3.yaml") -> str | None:
     """Commit recorded by huggingface_hub when the snapshot was downloaded."""
-    meta = model_dir / ".cache" / "huggingface" / "download" / "cosyvoice3.yaml.metadata"
+    meta = model_dir / ".cache" / "huggingface" / "download" / f"{filename}.metadata"
     return meta.read_text().split()[0] if meta.exists() else None
 
 
@@ -82,6 +82,8 @@ def to_pcm16(speech) -> np.ndarray:
 
 
 class Engine:
+    model_id = MODEL_ID
+
     def __init__(self, model_dir: Path = DEFAULT_MODEL_DIR, voices_dir: Path = DEFAULT_VOICES_DIR,
                  device: str = "auto", cpu_threads: int = 4):
         self.model_dir = Path(model_dir)

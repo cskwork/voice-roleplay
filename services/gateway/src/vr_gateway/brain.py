@@ -20,10 +20,11 @@ class Brain:
     session_summary: Callable[..., Any]
     evaluate_goals: Callable[..., Any]
     build_hint: Callable[..., Any]
+    update_summary: Callable[..., Any]
 
 
 def default_brain() -> Brain:
-    from vr_feedback import echo, feedback, goals, hints, metrics, prompts, reading, segmenter, tts_text
+    from vr_feedback import echo, feedback, goals, hints, metrics, prompts, reading, segmenter, summary, tts_text
 
     return Brain(
         segmenter_factory=segmenter.SpeechSegmenter,
@@ -37,4 +38,5 @@ def default_brain() -> Brain:
         session_summary=feedback.session_summary,
         evaluate_goals=goals.evaluate_goals,
         build_hint=hints.build_hint,
+        update_summary=summary.update_summary,
     )

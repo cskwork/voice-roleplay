@@ -40,6 +40,10 @@ dependencies = [
     "pydantic>=2.7,<3",
     # lightning 2.2 / matcha import pkg_resources at runtime (removed in setuptools>=81)
     "setuptools<81",
+    # MLX backend (Apple Silicon only): mlx-audio-plus holds the CosyVoice3 MLX port that
+    # mlx-community/Fun-CosyVoice3-0.5B-2512-* were converted with. Upstream mlx-audio has no CosyVoice3.
+    "mlx-audio-plus==0.1.8; sys_platform == 'darwin' and platform_machine == 'arm64'",
+    "mlx-lm==0.29.1; sys_platform == 'darwin' and platform_machine == 'arm64'",  # mlx-audio-plus needs <0.30
 ]
 
 [dependency-groups]
@@ -52,6 +56,14 @@ dev = [
 
 [tool.uv]
 package = false
+# mlx-audio-plus ships its own `mlx_audio` package but also declares `mlx-audio[all]` (Blaizzy), which installs
+# into the same `mlx_audio` directory and needs transformers>=5; drop it. Its librosa/soundfile pins are only
+# used by code paths we do not call, so keep the CosyVoice pins.
+override-dependencies = [
+    "mlx-audio; sys_platform == 'never'",
+    "librosa==0.10.2",
+    "soundfile==0.12.1",
+]
 
 [tool.uv.extra-build-dependencies]
 # openai-whisper 20231117 setup.py imports pkg_resources (removed in setuptools>=81)

@@ -325,3 +325,33 @@ def test_turn_based_roleplay_attempt(gw):
     assert {m["kind"] for m in result["model_audio"]} >= {"next_ai"}
     summary = gw.call("POST", f"/api/sessions/{session['session_id']}/end").json()
     assert summary["summary"]["status"] == "ok"
+
+
+def test_drill_attempt_behaves_like_reading(gw):
+    target = "Could I get a large latte with oat milk?"
+    aid = new_attempt(gw, "drill", target_text=target, history_opt_in=False)
+    job = upload_and_submit(gw, aid).json()
+    assert gw.wait_job(job["job_id"])["state"] == "completed"
+    assert gw.asr.transcribe_calls[-1]["context"] is None  # the target never reaches ASR
+    result = gw.call("GET", f"/api/attempts/{aid}/result").json()
+    assert result["exercise_type"] == "drill" and result["target_en"] == target
+    assert result["target_diff_label_ko"] == "다르게 인식된 부분" and result["target_diff"]
+    assert result["feedback"] == [] and "feedback_calls" not in gw.record and result["pronunciation_score"] is None
+
+
+def test_drill_without_scenario_and_validation(gw):
+    resp = gw.call("POST", "/api/attempts", json={"exercise_type": "drill", "target_text": "See you tomorrow."})
+    assert resp.status_code == 201 and resp.json()["target_en"] == "See you tomorrow."
+    bad = [
+        {"exercise_type": "drill", "scenario_id": "cafe_order"},  # no target
+        {"exercise_type": "drill", "target_text": "안녕하세요"},  # not English
+        {"exercise_type": "drill", "target_text": "x" * 401},
+        {"exercise_type": "reading", "scenario_id": "cafe_order", "text_id": "cafe_order.read1", "target_text": "Hi."},
+    ]
+    for body in bad:
+        r = gw.call("POST", "/api/attempts", json=body)
+        assert r.status_code == 422 and r.json()["error"]["code"] == "INVALID_REQUEST", body
+    r = gw.call("POST", "/api/attempts", json={"exercise_type": "drill", "target_text": "Hi.", "scenario_id": "nope"})
+    assert r.status_code == 404
+    r = gw.call("POST", "/api/attempts", json={"exercise_type": "reading", "text_id": "cafe_order.read1"})
+    assert r.status_code == 404  # scenario_id is still required for the other types

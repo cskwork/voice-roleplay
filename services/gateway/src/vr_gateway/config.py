@@ -13,6 +13,8 @@ REPO_ROOT = GATEWAY_DIR.parents[1]
 ASSETS_DIR = GATEWAY_DIR / "assets"
 
 MIB = 1024 * 1024
+# Port overrides for a machine where a default port is taken: gateway env var -> (worker env var it sets).
+WORKER_PORT_ENV = {"asr": ("VR_ASR_PORT", "ASR_PORT"), "tts": ("VR_TTS_PORT", "VR_TTS_PORT"), "llm": ("VR_LLM_PORT", None)}
 
 
 @dataclass
@@ -34,6 +36,7 @@ class Config:
     data_dir: Path = REPO_ROOT / "var/data"
     cache_dir: Path = REPO_ROOT / "var/cache"
     log_dir: Path = REPO_ROOT / "var/log"
+    run_dir: Path = REPO_ROOT / "var/run"  # worker pidfiles, used by `./app stop` to clean up leftovers
     vad_model: Path = ASSETS_DIR / "silero_vad.onnx"
     llm_model_revision: str = "unknown"
     asr_url: str = "http://127.0.0.1:8711"
@@ -78,7 +81,7 @@ def load_config(path: Path | None = None) -> Config:
     cfg = Config()
     cfg.host = gw.get("host", cfg.host)
     cfg.port = int(os.environ.get("VR_GATEWAY_PORT", gw.get("port", cfg.port)))
-    for key in ("web_dist", "scenarios_dir", "scenario_schema", "data_dir", "cache_dir", "log_dir"):
+    for key in ("web_dist", "scenarios_dir", "scenario_schema", "data_dir", "cache_dir", "log_dir", "run_dir"):
         if key in gw:
             setattr(cfg, key, _repo_path(gw[key]))
     if os.environ.get("VR_DATA_DIR"):
@@ -105,6 +108,19 @@ def load_config(path: Path | None = None) -> Config:
         if "/" in cmd[0] and not Path(cmd[0]).is_absolute():
             cmd[0] = str(REPO_ROOT / cmd[0])
         cmd = [str(REPO_ROOT / a) if a.startswith("models/") else a for a in cmd]
+        health_url = spec["health_url"]
+        gw_var, worker_var = WORKER_PORT_ENV.get(name, (None, None))
+        if gw_var and os.environ.get(gw_var):
+            port = str(int(os.environ[gw_var]))
+            health_url = f"http://127.0.0.1:{port}/health"
+            setattr(cfg, f"{name}_url", f"http://127.0.0.1:{port}")
+            if worker_var:
+                env[worker_var] = port
+            elif "--port" in cmd:
+                cmd[cmd.index("--port") + 1] = port
         cfg.processes.append(WorkerProcess(name=name, cmd=cmd, cwd=_repo_path(spec.get("cwd", ".")),
-                                           health_url=spec["health_url"], env=env))
+                                           health_url=health_url, env=env))
+    for name, (gw_var, _) in WORKER_PORT_ENV.items():  # also without a supervisor entry
+        if os.environ.get(gw_var):
+            setattr(cfg, f"{name}_url", f"http://127.0.0.1:{int(os.environ[gw_var])}")
     return cfg

@@ -1,0 +1,12 @@
+{
+  "name": "voice-roleplay-e2e",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "playwright test",
+    "bench": "node bench/realtime-bench.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0"
+  }
+}

@@ -43,8 +43,11 @@ ECHO_OVERLAP = 0.6
 ECHO_LIMIT = 2
 OUTPUT_CHUNK_MS = 100
 PLAYBACK_GRACE_S = 2.0
+CLIENT_STOP_WINDOW_S = 2.0  # speech this soon after the browser stopped AI audio still counts as a barge-in
 COMMIT_WAIT_S = 0.5
 FILLERS = ("um", "uh", "and", "but", "because", "so", "or", "the", "a", "to", "like", "i mean")
+HISTORY_WINDOW = 12  # history entries the roleplay prompt keeps verbatim (vr_feedback.prompts: 6 turns)
+MAX_LEARNER_FACTS = 8
 
 COMMIT = object()
 CANCEL = object()
@@ -53,6 +56,10 @@ CANCEL = object()
 class Transport(Protocol):
     async def send_text(self, data: str) -> None: ...
     async def send_bytes(self, data: bytes) -> None: ...
+
+
+def ends_with_question(text: str) -> bool:
+    return text.rstrip().rstrip("\"'”’)]").endswith("?")
 
 
 def ends_with_filler(text: str) -> bool:
@@ -110,9 +117,12 @@ class Response:
     audio_ms: int = 0
     folded: bool = False
     failed: bool = False
+    asked: bool = False  # a segment ended in "?": the rest of the reply is not generated or spoken
     tts_request: str | None = None
     tts_error_sent: bool = False
     task: asyncio.Task | None = None
+    stopped_at: float = 0.0  # the client reported playback.stopped (its own barge-in trigger)
+    stopped_text: str = ""
 
     def playback_finished(self) -> bool:
         if self.cancelled:
@@ -162,6 +172,8 @@ class RealtimeEngine:
         self.carry_turn: str | None = None
         self.tasks: set[asyncio.Task] = set()
         self.goals_task: asyncio.Task | None = None
+        self.goals_due: Response | None = None  # latest reply whose turn still needs a goal check
+        self.summary_task: asyncio.Task | None = None
 
     # ------------------------------------------------------------------ sending
 
@@ -367,6 +379,12 @@ class RealtimeEngine:
             utt.barge_in = True
             utt.echo_ref = self._playing_text(resp)
             await self._cancel_response(resp, "barge_in")
+        elif resp is not None and time.monotonic() - resp.stopped_at < CLIENT_STOP_WINDOW_S:
+            # The browser's level detector stopped the AI audio before our VAD announced the speech (usual
+            # when the reply was already fully generated): nothing left to cancel, but it is still a barge-in,
+            # so the echo check below must see what was playing.
+            utt.barge_in = True
+            utt.echo_ref = resp.stopped_text
         utt.turn_id = utt.turn_id or self._new_turn_id(self.client_turn_id)
         utt.announced = True
         utt.queue = asyncio.Queue()
@@ -521,7 +539,8 @@ class RealtimeEngine:
         if retry and history and history[-1]["role"] == "user":
             history.pop()
         messages = self.brain.build_roleplay_messages(
-            self.s.scenario, self.s.difficulty, self.s.goals, history, user_text
+            self.s.scenario, self.s.difficulty, self.s.goals, history, user_text,
+            summary=self.s.context_summary, learner_facts=list(self.s.learner_facts.values()),
         )
         if not retry:
             self.s.history.append({"role": "user", "text": user_text})
@@ -571,23 +590,34 @@ class RealtimeEngine:
             return
         await self.send("response.done", resp)
         await self._set_state(output_state="playing" if not resp.playback_finished() else "idle")
-        log.info("response_done session=%s segments=%d audio_ms=%d first_audio_ms=%s total_ms=%d",
+        log.info("response_done session=%s segments=%d audio_ms=%d first_audio_ms=%s total_ms=%d question_stop=%s",
                  self.s.session_id, len(resp.segments), resp.audio_ms, first_audio_ms,
-                 int((time.perf_counter() - started) * 1000))
+                 int((time.perf_counter() - started) * 1000), resp.asked)
         await self._maybe_listening(resp)
         self._after_response(resp)
 
     async def _produce(self, resp: Response, messages: list[dict], queue: asyncio.Queue) -> None:
+        """Stream the reply into segments. At most one question per reply (the system prompt asks for it):
+        once a segment ends in "?", the LLM stream is closed and nothing after it is spoken."""
         segmenter = self.brain.segmenter_factory()
+        stream = self.svc.llm.stream_chat(messages, max_tokens=128, slot_id=0, cancel=resp.cancel_event)
         try:
-            async for delta in self.svc.llm.stream_chat(messages, max_tokens=128, slot_id=0, cancel=resp.cancel_event):
-                if resp.cancelled:
-                    break
-                for seg in segmenter.feed(delta):
-                    queue.put_nowait(seg)
-            if not resp.cancelled:
+            async with aclosing(stream):
+                async for delta in stream:
+                    if resp.cancelled:
+                        break
+                    for seg in segmenter.feed(delta):
+                        queue.put_nowait(seg)
+                        if ends_with_question(seg):
+                            resp.asked = True
+                            break
+                    if resp.asked:
+                        break  # closing the stream makes llama-server stop generating
+            if not resp.cancelled and not resp.asked:
                 for seg in segmenter.flush():
                     queue.put_nowait(seg)
+                    if ends_with_question(seg):
+                        break
         finally:
             queue.put_nowait(None)
 
@@ -668,29 +698,73 @@ class RealtimeEngine:
         return sent[-1] if sent else ""
 
     def _after_response(self, resp: Response) -> None:
-        """Goal tracking and optional per-turn feedback run after the audio pipeline is done."""
+        """Background LLM work (llama-server slot 1) starts once the reply is generated, while it plays:
+        goal tracking, the rolling summary, and optional per-turn feedback. None of it blocks a reply."""
         if resp.turn_id is None or resp.turn_id == "opening":
             return
-        if any(g["status"] != "done" for g in self.s.goals) and (self.goals_task is None or self.goals_task.done()):
-            self.goals_task = self._spawn(self._update_goals())
+        if any(g["status"] != "done" for g in self.s.goals):
+            self.goals_due = resp
+            if self.goals_task is None or self.goals_task.done():
+                self.goals_task = self._spawn(self._update_goals())
+        self._maybe_summarize()
         if self.s.feedback_policy == "per_turn":
             self._spawn(self._turn_feedback(resp.turn_id))
 
+    def _newer_turn_started(self, resp: Response) -> bool:
+        return self.response is not resp or (self.utt is not None and self.utt.announced)
+
     async def _update_goals(self) -> None:
+        """Evaluate only the goals still pending, one evaluation at a time. A check is skipped when the
+        learner has already started a newer turn: that turn's reply schedules one that includes it."""
+        while self.goals_due is not None:
+            resp, self.goals_due = self.goals_due, None
+            pending = [g for g in self.s.scenario.get("goals", [])
+                       if any(x["goal_id"] == g["goal_id"] and x["status"] != "done" for x in self.s.goals)]
+            if not pending or self._newer_turn_started(resp):
+                log.info("goals_skipped session=%s pending=%d", self.s.session_id, len(pending))
+                continue
+            started = time.perf_counter()
+            goals = await self.brain.evaluate_goals(self.svc.llm_bg, {**self.s.scenario, "goals": pending},
+                                                    self.s.user_turns())
+            merged = merge_goals(self.s.goals, goals)
+            changed = merged != self.s.goals
+            self.s.goals = merged
+            await self.send("goal.update", goals=[
+                {k: g[k] for k in ("goal_id", "status", "evidence_turn_id") if g.get(k)} for g in merged
+            ], changed=changed)
+            log.info("goals_evaluated session=%s pending=%d ms=%d", self.s.session_id, len(pending),
+                     int((time.perf_counter() - started) * 1000))
+
+    def _maybe_summarize(self) -> None:
+        """PRD §11: once history is longer than the prompt window, fold the older entries into a bounded
+        summary. The reply always uses whatever summary exists; this never waits on the LLM."""
+        cutoff = len(self.s.history) - HISTORY_WINDOW
+        if cutoff > self.s.summarized_upto and (self.summary_task is None or self.summary_task.done()):
+            self.summary_task = self._spawn(self._summarize(cutoff))
+
+    async def _summarize(self, cutoff: int) -> None:
         started = time.perf_counter()
-        goals = await self.brain.evaluate_goals(self.svc.llm, self.s.scenario, self.s.user_turns())
-        merged = merge_goals(self.s.goals, goals)
-        changed = merged != self.s.goals
-        self.s.goals = merged
-        await self.send("goal.update", goals=[
-            {k: g[k] for k in ("goal_id", "status", "evidence_turn_id") if g.get(k)} for g in merged
-        ], changed=changed)
-        log.info("goals_evaluated session=%s ms=%d", self.s.session_id, int((time.perf_counter() - started) * 1000))
+        older = self.s.history[self.s.summarized_upto:cutoff]
+        try:
+            result = await self.brain.update_summary(self.svc.llm_bg, self.s.scenario, self.s.context_summary, older)
+        except Exception as exc:  # keep the previous summary; the next reply retries
+            log.warning("summary_failed session=%s error=%s", self.s.session_id, type(exc).__name__)
+            return
+        self.s.context_summary = result["summary"]
+        facts = self.s.learner_facts
+        for fact in result["facts"]:
+            facts.pop(fact["name"], None)  # re-insert: newest statement wins and moves to the end
+            facts[fact["name"]] = fact
+        while len(facts) > MAX_LEARNER_FACTS:
+            facts.pop(next(iter(facts)))
+        self.s.summarized_upto = cutoff
+        log.info("summary_updated session=%s entries=%d facts=%d ms=%d", self.s.session_id, len(older), len(facts),
+                 int((time.perf_counter() - started) * 1000))
 
     async def _turn_feedback(self, turn_id: str) -> None:
         text = self.finals.get(turn_id, "")
         result = await self.brain.generate_feedback(
-            self.svc.llm, transcript=text, transcript_revision=1, source={"source_turn_id": turn_id},
+            self.svc.llm_bg, transcript=text, transcript_revision=1, source={"source_turn_id": turn_id},
             context={"exercise_type": "roleplay", "scenario_title_en": self.s.scenario.get("title_en")},
             max_items=3, model_revision=self.svc.config.llm_model_revision,
         )
@@ -844,9 +918,14 @@ class RealtimeEngine:
         resp = self._find_response(ev.get("response_id"))
         if resp is None:
             return
-        seg = resp.segments.get(int(ev.get("segment_id", -1)))
+        seg_id = int(ev.get("segment_id", -1))
+        seg = resp.segments.get(seg_id)
         if seg is not None and seg.status in ("sent", "pending", "text_only"):
             seg.status = status
+            if status == "interrupted":
+                resp.stopped_at = time.monotonic()
+                if self.playing == (resp.response_id, seg_id) or not resp.stopped_text:
+                    resp.stopped_text = seg.text  # the segment that was audible
         if resp.playback_finished():
             if resp is self.response and self.state == "RESPONDING":
                 await self._set_state(state="LISTENING", output_state="idle")
@@ -870,7 +949,7 @@ class RealtimeEngine:
 
     async def _hint(self, level: int, last_ai: str) -> None:
         hint = await self.brain.build_hint(self.s.scenario, self.s.difficulty, level, self.s.goals, last_ai,
-                                           llm=self.svc.llm if level == 1 else None)
+                                           llm=self.svc.llm_bg if level == 1 else None)
         await self.send("hint", **hint)
 
     async def h_settings_update(self, ev: dict) -> None:

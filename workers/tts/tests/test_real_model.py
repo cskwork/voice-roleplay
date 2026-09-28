@@ -1,6 +1,7 @@
 """Real-model tests: start the worker exactly as in production (``python -m tts_worker``) and talk to it.
 
-Skipped when the model files are missing. Takes a few minutes on an M3 Pro.
+Every test runs once per backend (``VR_TTS_BACKEND=torch`` and ``mlx``); a backend whose model files (or, for
+mlx, Apple Silicon + the mlx package) are missing is skipped. Takes a few minutes on an M3 Pro.
 """
 
 import io
@@ -20,24 +21,31 @@ import pytest
 from websockets.sync.client import connect
 
 from conftest import TOKEN
+from tts_worker.backend import resolve_backend
 from tts_worker.engine import DEFAULT_MODEL_DIR, REQUIRED_MODEL_FILES
-
-pytestmark = pytest.mark.skipif(
-    any(not (DEFAULT_MODEL_DIR / f).exists() for f in REQUIRED_MODEL_FILES), reason="model files not downloaded")
 
 WORKER_DIR = Path(__file__).resolve().parents[1]
 H = {"X-Worker-Token": TOKEN}
 SECRET_PHRASE = "Quibbling zephyr marmalade forty-seven"  # must never appear in logs
 
 
-@pytest.fixture(scope="module")
-def worker(tmp_path_factory):
+def backend_available(backend: str) -> bool:
+    if backend == "mlx":
+        return resolve_backend("auto", "fp16") == "mlx"
+    return all((DEFAULT_MODEL_DIR / f).exists() for f in REQUIRED_MODEL_FILES)
+
+
+@pytest.fixture(scope="module", params=["torch", "mlx"])
+def worker(request, tmp_path_factory):
+    backend = request.param
+    if not backend_available(backend):
+        pytest.skip(f"{backend} backend: model files or runtime missing")
     log_path = tmp_path_factory.mktemp("tts") / "worker.log"
     sock = socket.socket()
     sock.bind(("127.0.0.1", 0))
     port = sock.getsockname()[1]
     sock.close()
-    env = {**os.environ, "VR_WORKER_TOKEN": TOKEN, "VR_TTS_PORT": str(port)}
+    env = {**os.environ, "VR_WORKER_TOKEN": TOKEN, "VR_TTS_PORT": str(port), "VR_TTS_BACKEND": backend}
     with open(log_path, "wb") as log:
         proc = subprocess.Popen([sys.executable, "-m", "tts_worker"], cwd=WORKER_DIR, env=env,
                                 stdout=log, stderr=subprocess.STDOUT)
@@ -54,7 +62,8 @@ def worker(tmp_path_factory):
             assert proc.poll() is None, log_path.read_text(errors="replace")[-3000:]
             time.sleep(1)
         assert body["ready"], body
-        yield {"base": base, "proc": proc, "log": log_path, "health": body, "ready_s": time.time() - t0}
+        yield {"backend": backend, "base": base, "proc": proc, "log": log_path, "health": body,
+               "ready_s": time.time() - t0}
     finally:
         proc.terminate()
         proc.wait(timeout=30)
@@ -83,10 +92,17 @@ def post(worker, text, voice="dev_voice_a", speed=1.0):
     return wav_to_array(r.content)
 
 
+REVISIONS = {  # pinned in models.lock.json
+    "torch": ("FunAudioLLM/Fun-CosyVoice3-0.5B-2512", "29e01c4e8d000f4bcd70751be16fa94bf3d85a18"),
+    "mlx": ("mlx-community/Fun-CosyVoice3-0.5B-2512-fp16", "18ccb7fbd7246e8cd3420d02f5dd28595cc0fcd9"),
+}
+
+
 def test_health(worker):
     h = worker["health"]
     assert h["sample_rate"] == 24000
-    assert h["revision"] == "29e01c4e8d000f4bcd70751be16fa94bf3d85a18"
+    assert (h["model_id"], h["revision"]) == REVISIONS[worker["backend"]]
+    assert (h["device"] == "mlx") == (worker["backend"] == "mlx")
     assert {v["voice_id"] for v in h["voices"]} == {"dev_voice_a", "dev_voice_b"}
     assert all("출시 전 권리 확인된 음성으로 교체 필요" in v["license_note"] for v in h["voices"])
     print(f"\n[measure] health={json.dumps(h)} process_ready_s={worker['ready_s']:.1f}")
@@ -102,10 +118,10 @@ def test_post_sentences(worker, audio_dir, name, voice, text, n_words):
     pcm, sr = post(worker, text, voice)
     elapsed = time.perf_counter() - t
     dur = assert_speech_like(pcm, sr, n_words)
-    out = audio_dir / f"tts_{name}_{voice}.wav"
+    out = audio_dir / f"tts_{worker['backend']}_{name}_{voice}.wav"
     with wave.open(str(out), "wb") as w:
         w.setnchannels(1), w.setsampwidth(2), w.setframerate(sr), w.writeframes(pcm.tobytes())
-    print(f"\n[measure] POST {name} voice={voice} audio_s={dur:.2f} elapsed_s={elapsed:.2f} rtf={elapsed / dur:.2f} -> {out}")
+    print(f"\n[measure] {worker['backend']} POST {name} voice={voice} audio_s={dur:.2f} elapsed_s={elapsed:.2f} rtf={elapsed / dur:.2f} -> {out}")
 
 
 def test_slower_speed_is_longer(worker):
@@ -114,7 +130,7 @@ def test_slower_speed_is_longer(worker):
     slow, _ = post(worker, text, speed=0.7)
     assert_speech_like(slow, sr, 10)
     ratio = len(slow) / len(normal)
-    print(f"\n[measure] speed 0.7 duration ratio={ratio:.2f}")
+    print(f"\n[measure] {worker['backend']} speed 0.7 duration ratio={ratio:.2f}")
     assert ratio > 1.2
 
 
@@ -146,7 +162,7 @@ def test_ws_streams_first_chunk_before_done(worker):
     audio = np.frombuffer(bytes(pcm), "<i2")
     dur = assert_speech_like(audio, 24000, 30)
     assert done["audio_ms"] == len(audio) * 1000 // 24000
-    print(f"\n[measure] WS stream first_frame_s={first_frame_at:.2f} done_s={done_at:.2f} audio_s={dur:.2f} "
+    print(f"\n[measure] {worker['backend']} WS stream first_frame_s={first_frame_at:.2f} done_s={done_at:.2f} audio_s={dur:.2f} "
           f"rtf={done_at / dur:.2f} server_first_chunk_ms={done['first_chunk_ms']} frames={len(arrivals)}")
 
 
@@ -175,7 +191,7 @@ def test_ws_cancel_mid_stream(worker):
             if isinstance(m, str):
                 assert json.loads(m)["type"] == "done"
                 break
-    print(f"\n[measure] cancel ack_ms={ack_ms:.0f} next_request_start_ms={next_start_ms:.0f}")
+    print(f"\n[measure] {worker['backend']} cancel ack_ms={ack_ms:.0f} next_request_start_ms={next_start_ms:.0f}")
 
 
 def test_no_text_in_logs_and_no_external_connections(worker):
@@ -193,4 +209,4 @@ def test_no_text_in_logs_and_no_external_connections(worker):
     for conn in proc.net_connections(kind="inet"):
         assert conn.laddr.ip == "127.0.0.1", conn
         assert not conn.raddr or conn.raddr.ip == "127.0.0.1", conn
-    print(f"\n[measure] worker rss_mb={proc.memory_info().rss / 2**20:.0f}")
+    print(f"\n[measure] {worker['backend']} worker rss_mb={proc.memory_info().rss / 2**20:.0f}")

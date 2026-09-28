@@ -1,5 +1,6 @@
 # Gateway configuration. Paths are relative to the repository root.
-# Environment overrides: VR_GATEWAY_PORT, VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN.
+# Environment overrides: VR_GATEWAY_PORT, VR_ASR_PORT, VR_TTS_PORT, VR_LLM_PORT (worker ports, e.g. when a
+# default port is taken; also passed to the workers), VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN.
 
 [gateway]
 host = "127.0.0.1"
@@ -10,6 +11,7 @@ scenario_schema = "contracts/scenario.schema.json"
 data_dir = "var/data"
 cache_dir = "var/cache"
 log_dir = "var/log"
+run_dir = "var/run"
 # Recorded in feedback objects; matches models.lock.json.
 llm_model_revision = "unsloth/Qwen3-4B-Instruct-2507-GGUF@a06e946bb6b655725eafa393f4a9745d460374c9:Q4_K_M"
 
@@ -20,7 +22,8 @@ llm_url = "http://127.0.0.1:8713"
 
 # Process supervisor. `python -m vr_gateway --manage-workers` starts these with
 # VR_WORKER_TOKEN and offline env, waits for /health, and stops them on exit.
-# Commands are the integration defaults; the launcher step owns the final values.
+# Verified with `./app start` (see README): asr_worker, tts_worker (backend via VR_TTS_BACKEND, default
+# chosen by the worker) and llama-server all start from these commands.
 [supervisor.asr]
 cmd = ["workers/asr/.venv/bin/python", "-m", "asr_worker"]
 cwd = "workers/asr"

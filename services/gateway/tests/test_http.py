@@ -220,3 +220,41 @@ def test_tts_endpoints(gw):
 def test_unknown_api_route_uses_error_envelope(gw):
     resp = gw.http.get("/api/nope")
     assert resp.status_code == 404 and resp.json()["error"]["code"] == "NOT_FOUND"
+
+
+def test_worker_port_overrides(monkeypatch):
+    from vr_gateway.config import load_config
+
+    monkeypatch.setenv("VR_ASR_PORT", "18711")
+    monkeypatch.setenv("VR_LLM_PORT", "18713")
+    cfg = load_config()
+    procs = {p.name: p for p in cfg.processes}
+    assert cfg.asr_url == "http://127.0.0.1:18711" and procs["asr"].env["ASR_PORT"] == "18711"
+    assert procs["asr"].health_url == "http://127.0.0.1:18711/health"
+    assert cfg.llm_url == "http://127.0.0.1:18713" and procs["llm"].cmd[procs["llm"].cmd.index("--port") + 1] == "18713"
+    assert cfg.tts_url == "http://127.0.0.1:8712" and "VR_TTS_PORT" not in procs["tts"].env
+    # The supervisor commands start the real workers.
+    assert procs["asr"].cmd[-2:] == ["-m", "asr_worker"] and procs["tts"].cmd[-2:] == ["-m", "tts_worker"]
+    assert procs["llm"].cmd[0] == "llama-server" and procs["llm"].env == {"LLAMA_API_KEY": "${VR_WORKER_TOKEN}"}
+    assert {"--no-kv-unified", "--cache-prompt"} <= set(procs["llm"].cmd)
+    from vr_gateway.supervisor import Supervisor
+
+    cfg.worker_token = "tok"
+    sup = Supervisor(cfg)
+    assert sup.env_for("llm")["LLAMA_API_KEY"] == "tok" and sup.env_for("asr")["VR_WORKER_TOKEN"] == "tok"
+    assert sup.env_for("tts")["HF_HUB_OFFLINE"] == "1" and sup.env_for("asr")["TRANSFORMERS_OFFLINE"] == "1"
+
+
+def test_tts_cache_warmup_waits_during_realtime_session(gw):
+    import time
+
+    session = create_session(gw)
+    fut = asyncio.run_coroutine_threadsafe(gw.svc.tts_cache.warm(), gw.server_loop())
+    time.sleep(0.5)
+    assert gw.tts.wav_calls == []  # nothing competes with the live session
+    assert gw.call("GET", "/api/health").json()["tts_cache"]["status"] == "paused"
+    assert gw.call("POST", f"/api/sessions/{session['session_id']}/end").status_code == 200
+    fut.result(10)
+    assert len(gw.tts.wav_calls) == 4  # opening + model expression + reading + shadowing
+    assert gw.call("GET", "/api/health").json()["tts_cache"] == {
+        "status": "done", "openings_total": 1, "openings_ready": 1, "openings_failed": 0}

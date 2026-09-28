@@ -28,6 +28,15 @@ class TtsCache:
         self.svc = services
         self.dir = directory
         self._locks: dict[str, asyncio.Lock] = {}
+        # Warm-up progress for /api/health; `./app start` waits for the opening lines (PRD §14.3 예열).
+        self.status = "idle"  # idle | warming | paused | done
+        self.openings_total = 0
+        self.openings_ready = 0
+        self.openings_failed = 0
+
+    def progress(self) -> dict:
+        return {"status": self.status, "openings_total": self.openings_total,
+                "openings_ready": self.openings_ready, "openings_failed": self.openings_failed}
 
     def _path(self, voice_id: str, text_id: str, speed: float, text: str) -> Path:
         digest = hashlib.sha256(text.encode()).hexdigest()[:12]
@@ -66,7 +75,11 @@ class TtsCache:
             return wav
 
     async def warm(self) -> None:
-        """Opening lines first (instant first AI turn), then the rest of the reviewed texts."""
+        """Opening lines first (instant first AI turn), then the rest of the reviewed texts.
+
+        The TTS worker is far from real time on this machine and shares the GPU with ASR and the LLM, so warming
+        pauses while a realtime session is active (PRD §14.2: no background work competing with a live
+        conversation). A session's own opening line is synthesized on demand if it is not cached yet."""
         jobs: list[tuple[str, str]] = []
         scenarios = self.svc.scenarios.summaries()
         for sc in scenarios:
@@ -77,12 +90,20 @@ class TtsCache:
                 key = (sc["default_voice_id"], entry["text_id"])
                 if key not in jobs:
                     jobs.append(key)
+        self.openings_total = openings = sum(1 for sc in scenarios if sc.get("opening_line"))
         done = failed = 0
-        for voice_id, text_id in jobs:
+        for i, (voice_id, text_id) in enumerate(jobs):
+            while self.svc.sessions.active_realtime() is not None:
+                self.status = "paused"
+                await asyncio.sleep(2)
+            self.status = "warming"
             try:
                 await self.ensure(voice_id, text_id)
                 done += 1
+                self.openings_ready += i < openings
             except Exception as exc:
                 failed += 1
+                self.openings_failed += i < openings
                 log.warning("tts_cache_warm_failed text_id=%s error=%s", text_id, type(exc).__name__)
+        self.status = "done"
         log.info("tts_cache_warm done=%d failed=%d", done, failed)

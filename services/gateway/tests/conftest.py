@@ -212,6 +212,9 @@ class FakeLlm:
         self.calls: list[list[dict]] = []
         self.warm_calls = 0
         self.cancelled = 0
+        self.yielded = 0  # deltas actually handed to the gateway
+        self.closed = 0  # streams closed by the gateway before the reply ended
+        self.slots: list[int | None] = []
         self.fail = False
 
     async def health(self):
@@ -224,15 +227,23 @@ class FakeLlm:
         from vr_feedback.llm import LlmError
 
         self.calls.append(messages)
+        self.slots.append(slot_id)
         if self.fail:
             raise LlmError("unreachable")
         words = self.reply.split(" ")
-        for i, w in enumerate(words):
-            if cancel is not None and cancel.is_set():
-                self.cancelled += 1
-                return
-            await asyncio.sleep(self.token_delay)
-            yield (w if i == 0 else " " + w)
+        finished = False
+        try:
+            for i, w in enumerate(words):
+                if cancel is not None and cancel.is_set():
+                    self.cancelled += 1
+                    return
+                await asyncio.sleep(self.token_delay)
+                self.yielded += 1
+                yield (w if i == 0 else " " + w)
+            finished = True
+        finally:
+            if not finished and not (cancel is not None and cancel.is_set()):
+                self.closed += 1
 
     async def json_chat(self, messages, schema, *, max_tokens=768):
         raise AssertionError("FakeLlm.json_chat should not be reached; brain LLM functions are faked")
@@ -293,14 +304,25 @@ def fake_brain(record: dict):
 
     async def evaluate_goals(llm, scenario, turns):
         record.setdefault("goal_calls", []).append(len(turns))
-        return [{"goal_id": "order", "status": "done", "evidence_turn_id": turns[0]["turn_id"]},
-                {"goal_id": "option", "status": "pending"}, {"goal_id": "price", "status": "pending"}]
+        record.setdefault("goal_ids", []).append([g["goal_id"] for g in scenario["goals"]])
+        await asyncio.sleep(record.get("goal_delay", 0))
+        out = {"order": {"goal_id": "order", "status": "done", "evidence_turn_id": turns[0]["turn_id"]},
+               "option": {"goal_id": "option", "status": "pending"}, "price": {"goal_id": "price", "status": "pending"}}
+        return [out[g["goal_id"]] for g in scenario["goals"]]
+
+    async def update_summary(llm, scenario, previous, turns):
+        record.setdefault("summary_updates", []).append({"previous": previous, "turns": list(turns)})
+        await asyncio.sleep(record.get("summary_delay", 0))
+        n = len(record["summary_updates"])
+        user = next(t["text"] for t in turns if t["role"] == "user")
+        return {"summary": f"Summary {n} of {len(turns)} entries.",
+                "facts": [{"name": "drink_order", "value": f"order v{n}", "evidence_quote": user.split()[0]}]}
 
     async def build_hint(scenario, difficulty, level, goals_state, last_ai_text, llm=None):
         return {"level": level, "text_ko": "음료를 주문해 보세요"}
 
     return dataclasses.replace(default_brain(), generate_feedback=generate_feedback, session_summary=session_summary,
-                               evaluate_goals=evaluate_goals, build_hint=build_hint)
+                               evaluate_goals=evaluate_goals, build_hint=build_hint, update_summary=update_summary)
 
 
 # ---------------------------------------------------------------- live server

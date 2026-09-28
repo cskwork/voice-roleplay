@@ -368,6 +368,16 @@ export function LiveTalk({
             </Notice>
           )}
           {s.warning && <Notice tone="warn">{s.warning}</Notice>}
+          {s.backlogged && (
+            <Notice tone="warn" icon="alert">
+              음성 전송이 2초 넘게 밀리고 있어요. 말한 내용이 늦게 전달돼요. 잠시 멈춘 뒤 다시 시작하거나, 계속되면 회화를 끝내고 녹음 연습을 이용해 주세요.{' '}
+              {!s.paused && (
+                <button type="button" className="link" onClick={() => session.setPaused(true)}>
+                  일시정지
+                </button>
+              )}
+            </Notice>
+          )}
           {s.echoCount > 0 && !s.pushToTalk && (
             <Notice tone="warn" icon="headset">
               {s.echoCount >= 2 ? 'AI 목소리가 계속 마이크로 들어와서 자동 끼어들기를 껐어요. ' : 'AI 목소리가 마이크로 다시 들어간 것 같아요. 헤드셋을 권장해요. '}

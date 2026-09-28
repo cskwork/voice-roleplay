@@ -19,7 +19,7 @@ The flags were checked against `llama-server --help` of the installed Homebrew b
 | Flag | Why |
 |---|---|
 | `--host 127.0.0.1 --port 8713` | Local only (PROTOCOL §1). |
-| `-c 8192 -np 2 --no-kv-unified` | Two slots, each with its own 4096-token context (PRD §11 budget). The server log confirms `n_slots = 2, n_ctx_slot = 4096, kv_unified = 'false'`. Suggested use: slot 0 for the live roleplay, slot 1 for feedback, goals and jobs. |
+| `-c 8192 -np 2 --no-kv-unified` | Two slots, each with its own 4096-token context (PRD §11 budget). The server log confirms `n_slots = 2, n_ctx_slot = 4096, kv_unified = 'false'`. The gateway pins slot 0 to live roleplay replies and slot 1 to background work during a session (goals, hints, per-turn feedback, rolling summary). |
 | `--jinja` | Uses the GGUF's embedded chat template. This is the default, but it is listed so the setting is explicit. |
 | `-ngl 99` | Puts all 36 layers on Metal. |
 | `--no-webui` | No bundled web UI. |

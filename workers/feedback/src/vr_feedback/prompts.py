@@ -74,7 +74,7 @@ def build_opening_warmup(scenario: dict, difficulty: str) -> list[dict]:
     ]
 
 
-def _state_block(scenario: dict, goals_state: list[dict], summary: str) -> str:
+def _state_block(scenario: dict, goals_state: list[dict], summary: str, learner_facts: list[dict]) -> str:
     status = {g.get("goal_id"): g.get("status", "pending") for g in goals_state}
     done = [g["goal_id"] for g in scenario.get("goals", []) if status.get(g["goal_id"]) == "done"]
     pending = [g["goal_id"] for g in scenario.get("goals", []) if status.get(g["goal_id"]) != "done"]
@@ -83,6 +83,10 @@ def _state_block(scenario: dict, goals_state: list[dict], summary: str) -> str:
         f"Goals done: {', '.join(done) or 'none'}",
         f"Goals pending: {', '.join(pending) or 'none'}",
     ]
+    if learner_facts:
+        # Stated by the learner earlier; kept apart from the summary so a summary can never change them.
+        lines.append("The learner said earlier (these override the summary below):")
+        lines += [f"- {_clean_user_text(f['name'])}: {_clean_user_text(f['value'])}" for f in learner_facts]
     if summary:
         lines.append(f"Earlier in this conversation: {_clean_user_text(summary)}")
     lines.append("</state>")
@@ -96,6 +100,7 @@ def build_roleplay_messages(
     history: list[dict],
     user_text: str,
     summary: str = "",
+    learner_facts: list[dict] | None = None,
 ) -> list[dict]:
     messages = build_opening_warmup(scenario, difficulty)
     opening = scenario["opening_line"]["en"]
@@ -117,7 +122,7 @@ def build_roleplay_messages(
         {
             "role": "user",
             "content": (
-                f"{_state_block(scenario, goals_state, summary)}\n"
+                f"{_state_block(scenario, goals_state, summary, learner_facts or [])}\n"
                 f"{_learner_said(user_text)}\n"
                 f"Reply as the {scenario['ai_role']}."
             ),

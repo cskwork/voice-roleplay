@@ -13,10 +13,14 @@ uv sync
 .venv/bin/python -m vr_gateway --manage-workers   # generates a token, starts asr/tts/llm, stops them on exit
 ```
 
+Normally started by `./app start` (repo root), which runs `--manage-workers` in the background.
 `config.toml` holds ports, paths and the worker commands (`[supervisor.*]`; the LLM command is read from
-`config/llm/server.json`). Env overrides: `VR_GATEWAY_PORT`, `VR_DATA_DIR`, `VR_CACHE_DIR`, `VR_WORKER_TOKEN`.
+`config/llm/server.json`). Env overrides: `VR_GATEWAY_PORT`, `VR_ASR_PORT`, `VR_TTS_PORT`, `VR_LLM_PORT` (a worker
+port override is also passed to that worker), `VR_DATA_DIR`, `VR_CACHE_DIR`, `VR_WORKER_TOKEN`.
 Workers get `VR_WORKER_TOKEN` plus `HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1`; llama-server gets the token as
-`LLAMA_API_KEY`. Worker output goes to `var/log/<name>.log`.
+`LLAMA_API_KEY` and the gateway's LLM clients send it as a bearer token. Worker output goes to `var/log/<name>.log`,
+worker pids to `var/run/<name>.pid` (used by `./app stop` to clean up after a crash). On SIGTERM the gateway cancels
+jobs, closes realtime sessions and stops the workers (graceful shutdown timeout 10 s).
 
 Silero VAD: `assets/silero_vad.onnx` from PyPI `silero-vad` 6.2.3 (MIT, see `assets/SILERO_VAD_SOURCE.md`).
 
@@ -27,7 +31,7 @@ allowed `Origin`. Every `/api` route except `/api/health` needs the cookie. Erro
 
 | Route | Notes |
 |---|---|
-| `GET /api/health` | per-worker readiness, `modes.realtime.available` (ASR+TTS+LLM+VAD), `modes.recorded.available` (ASR+VAD) |
+| `GET /api/health` | per-worker readiness, `modes.realtime.available` (ASR+TTS+LLM+VAD), `modes.recorded.available` (ASR+VAD), `tts_cache` warm-up progress (`status`, `openings_total/ready/failed`) |
 | `GET /api/bootstrap` | `{csrf_token, protocol_version: 1}` |
 | `GET /api/scenarios`, `GET /api/scenarios/{id}` | full scenario files |
 | `GET/PUT /api/settings` | `difficulty, silence_ms (700–1400 or null), history_opt_in, voice_id, slow, auto_barge_in, feedback_policy, input_device_id, output_device_id, profile`; PUT is a partial update |
@@ -35,7 +39,7 @@ allowed `Origin`. Every `/api` route except `/api/health` needs the cookie. Erro
 | `GET /api/sessions/{id}` | state, goals, turns (in memory), summary |
 | `POST /api/sessions/{id}/end` | stops the realtime engine, returns `{summary: {items ≤3, goals, turns, status, pronunciation_score: null}}`; unsaved summaries expire after 15 min |
 | `WS /api/sessions/{id}/realtime` | see below |
-| `POST /api/attempts` | `{exercise_type: reading\|shadowing\|free_answer\|roleplay_turn, scenario_id, text_id \| exercise_id \| session_id, history_opt_in?}` |
+| `POST /api/attempts` | `{exercise_type: reading\|shadowing\|free_answer\|roleplay_turn\|drill, scenario_id, text_id \| exercise_id \| session_id, history_opt_in?}`; `drill` takes `target_text` (English ≤ 400) and optional `scenario_id`/`session_id`, and is analysed like reading (no ASR context, `target_diff`, no LLM feedback) |
 | `PUT /api/attempts/{id}/audio` | raw WAV body (PCM16, 1–2 ch, 16/24/44.1/48 kHz, ≤120 s, ≤32 MiB), read into memory; one take per attempt once submitted |
 | `POST /api/attempts/{id}/submit` | header `Idempotency-Key`; 202 new job, 200 same job again; 409 `IDEMPOTENCY_CONFLICT`, 429 `QUEUE_FULL`, 409 `LOCAL_BUSY` |
 | `GET /api/jobs/{id}`, `DELETE /api/jobs/{id}` | `queued, transcribing, analyzing, synthesizing, completed, failed, cancelled, expired` |
@@ -64,6 +68,18 @@ As PROTOCOL §6.3, plus:
 - Error codes on the socket: `FRAME_INVALID, EVENT_INVALID, ASR_FAILED, LLM_FAILED, TTS_FAILED, INVALID_STATE`.
 - A client that never sends `playback.completed` keeps no AI lines in the LLM history; after
   `audio length + 2 s` the reply counts as finished for barge-in and state purposes.
+- Speech announced within 2 s after the client reported `playback.stopped` is a barge-in for the echo check even when
+  the reply had nothing left to cancel (the browser's level trigger stops the audio before the gateway's VAD fires).
+- **At most one question per reply**: after the first segment ending in `?` the LLM stream is closed and nothing
+  after it is spoken (`response_done ... question_stop=True` in the log).
+- **LLM slots**: roleplay replies and the prefix warm-up use llama-server slot 0; goal checks, hints, per-turn feedback
+  and the rolling summary use slot 1 (`Services.llm_bg`), so they never evict the cached roleplay prefix. Jobs and
+  the session-end summary are unpinned (no realtime session runs at the same time).
+- **Background work after each reply** (never blocks the next reply): goal checks for pending goals only, one at a
+  time, skipped when the learner already started a newer turn; the rolling summary (PRD §11) once history exceeds the
+  6-turn prompt window, with learner-stated facts kept as separate state the summary cannot overwrite.
+- **TTS cache warm-up** (`var/cache/tts/`, service assets) synthesizes opening lines first, then the other reviewed
+  texts, and pauses while a realtime session is active. `./app start` waits for the opening lines.
 
 ## Tests
 
