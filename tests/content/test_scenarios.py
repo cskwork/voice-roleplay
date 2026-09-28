@@ -17,10 +17,10 @@ SCENARIO_DIR = ROOT / "content" / "scenarios"
 
 EXPECTED_IDS = {"cafe_order", "hotel_checkin", "directions", "job_interview"}
 EXPECTED_VOICES = {
-    "cafe_order": "dev_voice_a",
-    "directions": "dev_voice_a",
-    "hotel_checkin": "dev_voice_b",
-    "job_interview": "dev_voice_b",
+    "cafe_order": "libritts_r_4992_f",
+    "directions": "libritts_r_4992_f",
+    "hotel_checkin": "libritts_r_1188_m",
+    "job_interview": "libritts_r_1188_m",
 }
 DEFAULT_SILENCE_MS = {"easy": 1200, "normal": 900, "hard": 700}
 
@@ -105,6 +105,8 @@ def test_file_name_matches_id_and_voice(path):
     data = load(path)
     assert data["scenario_id"] == path.stem
     assert data["default_voice_id"] == EXPECTED_VOICES[path.stem]
+    voice_dir = ROOT / "content" / "voices" / data["default_voice_id"]
+    assert all((voice_dir / f).is_file() for f in ("voice.json", "prompt.wav", "prompt.txt", "SOURCE.md")), voice_dir
 
 
 def test_text_ids_globally_unique_and_prefixed():

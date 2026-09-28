@@ -66,17 +66,19 @@ overrides that dependency away and keeps CosyVoice's librosa/soundfile pins. Ups
 
 ## Voices
 
-`content/voices/dev_voice_a` (zero-shot, upstream transcript) and `dev_voice_b` (cross-lingual) come from the two
-Mandarin prompt clips bundled in the CosyVoice repo; there is no English prompt audio upstream. Both are marked
-**개발용 — 출시 전 권리 확인된 음성으로 교체 필요**; provenance is in each `SOURCE.md`. `voice.json` holds label,
-license note and mode. Both backends use the same files and modes.
+`content/voices/libritts_r_4992_f` (female) and `libritts_r_1188_m` (male) are English LibriTTS-R clips (CC BY 4.0,
+attribution required; the text is in each `SOURCE.md` and `license_note`), both `zero_shot` with the dataset
+transcript. The product owner chose them on 2026-09-29 from the candidates in `content/voices/candidates/`. `voice.json`
+holds label, license note and mode. Both backends use the same files and modes. Until 2026-09-29 the defaults were
+`dev_voice_a` / `dev_voice_b`, two Mandarin prompt clips bundled in the CosyVoice repo with undocumented rights
+(removed); the checks and measurements below that mention "dev voices" or "voice a / b" were made on those.
 
 ## MLX backend: what it does and what was checked
 
 `engine_mlx.py` uses the port's model classes but not its `Model.generate` wrapper (no streaming, ignores speed,
 trims and resamples the prompt differently, and computes the prompt mel with fmax 8 kHz where `cosyvoice3.yaml`
 says `fmax: null`, i.e. 12 kHz). It follows the upstream PyTorch path instead; the module docstring lists each
-step. Checked against the upstream code on the two dev voices:
+step. Checked against the upstream code on the two former dev voices (Mandarin prompts, see Voices):
 
 - Text token ids: identical to upstream `CosyVoice3Tokenizer` for the prompt prefix + English text and for the
   Mandarin prompt transcript.
@@ -166,5 +168,5 @@ The real-model tests run once per backend (a backend without its model files is 
 `python -m tts_worker` as a subprocess and check `/health` (model id + pinned revision), audio duration/non-silence,
 speed, streaming, cancel (no frames after `cancelled`, next request served), auth, that a unique phrase never
 reaches the worker log, and that the process has no non-loopback sockets. Sample WAVs are written to
-`tests/fixtures/audio/tts_<backend>_*.wav` (gitignored); `tts_mlx_stream_dev_voice_{a,b}.wav` are streamed bench
-outputs of the default setting.
+`tests/fixtures/audio/tts_<backend>_<name>_<voice_id>.wav` (gitignored); the pronunciation worker's prosody test reads
+`tts_mlx_price_libritts_r_4992_f.wav`. `bench.py` writes its streamed outputs to `var/tts-bench/<run>/`.

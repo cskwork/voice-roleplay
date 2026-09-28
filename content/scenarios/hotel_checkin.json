@@ -7,7 +7,7 @@
   "ai_role_ko": "프런트 직원",
   "user_role_ko": "투숙객",
   "setting_ko": "저녁 8시쯤 하버뷰 호텔 로비에 도착했습니다. 김민준(Minjun Kim) 이름으로 퀸 룸 3박(목요일~일요일)을 예약했고, 예약 번호는 HV-48213입니다.",
-  "default_voice_id": "dev_voice_b",
+  "default_voice_id": "libritts_r_1188_m",
   "facts": {
     "hotel_name": "The Harborview Hotel",
     "reservation_name": "Minjun Kim",

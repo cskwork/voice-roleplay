@@ -7,7 +7,7 @@
   "ai_role_ko": "바리스타",
   "user_role_ko": "손님",
   "setting_ko": "오전 9시, 동네 카페 '메이플 스트리트 커피' 계산대 앞에 섰습니다. 음료를 주문하고 옵션을 바꾼 뒤 가격을 확인해 보세요.",
-  "default_voice_id": "dev_voice_a",
+  "default_voice_id": "libritts_r_4992_f",
   "facts": {
     "cafe_name": "Maple Street Coffee",
     "sizes": "Small (12 oz) or large (16 oz); every drink can be hot or iced",

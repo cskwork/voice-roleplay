@@ -85,7 +85,7 @@ def assert_speech_like(pcm: np.ndarray, sr: int, n_words: int) -> float:
     return dur
 
 
-def post(worker, text, voice="dev_voice_a", speed=1.0):
+def post(worker, text, voice="libritts_r_4992_f", speed=1.0):
     r = httpx.post(f"http://{worker['base']}/synthesize", headers=H, timeout=180,
                    json={"voice_id": voice, "text": text, "speed": speed})
     assert r.status_code == 200, r.text
@@ -103,15 +103,15 @@ def test_health(worker):
     assert h["sample_rate"] == 24000
     assert (h["model_id"], h["revision"]) == REVISIONS[worker["backend"]]
     assert (h["device"] == "mlx") == (worker["backend"] == "mlx")
-    assert {v["voice_id"] for v in h["voices"]} == {"dev_voice_a", "dev_voice_b"}
-    assert all("출시 전 권리 확인된 음성으로 교체 필요" in v["license_note"] for v in h["voices"])
+    assert {v["voice_id"] for v in h["voices"]} == {"libritts_r_4992_f", "libritts_r_1188_m"}
+    assert all("CC BY 4.0" in v["license_note"] and "LibriTTS-R" in v["license_note"] for v in h["voices"])
     print(f"\n[measure] health={json.dumps(h)} process_ready_s={worker['ready_s']:.1f}")
 
 
 @pytest.mark.parametrize("name, voice, text, n_words", [
-    ("price", "dev_voice_a", "The latte is $4.50, and the muffin is $3.25.", 16),
-    ("date_time", "dev_voice_b", "Let's meet on March 3rd at 3:30 p.m.", 10),
-    ("contraction", "dev_voice_a", "I'll call you back if I can't make it, okay?", 10),
+    ("price", "libritts_r_4992_f", "The latte is $4.50, and the muffin is $3.25.", 16),
+    ("date_time", "libritts_r_1188_m", "Let's meet on March 3rd at 3:30 p.m.", 10),
+    ("contraction", "libritts_r_4992_f", "I'll call you back if I can't make it, okay?", 10),
 ])
 def test_post_sentences(worker, audio_dir, name, voice, text, n_words):
     t = time.perf_counter()
@@ -143,7 +143,7 @@ def test_ws_streams_first_chunk_before_done(worker):
             "right next to the bookstore, and it opens at 7 a.m. every day.")
     with ws_conn(worker) as c:
         t0 = time.perf_counter()
-        c.send(json.dumps({"type": "synthesize", "request_id": "s1", "voice_id": "dev_voice_a", "text": text}))
+        c.send(json.dumps({"type": "synthesize", "request_id": "s1", "voice_id": "libritts_r_4992_f", "text": text}))
         assert json.loads(c.recv(timeout=30))["type"] == "start"
         first_frame_at, arrivals, pcm = None, [], bytearray()
         while True:
@@ -170,7 +170,7 @@ def test_ws_cancel_mid_stream(worker):
     text = ("Well, there are a few options. You could take the bus, which is cheaper but slower, or you could "
             "take a taxi, which costs about $25 and gets you there in twenty minutes.")
     with ws_conn(worker) as c:
-        c.send(json.dumps({"type": "synthesize", "request_id": "c1", "voice_id": "dev_voice_a", "text": text}))
+        c.send(json.dumps({"type": "synthesize", "request_id": "c1", "voice_id": "libritts_r_4992_f", "text": text}))
         assert json.loads(c.recv(timeout=30))["type"] == "start"
         assert isinstance(c.recv(timeout=120), bytes)  # first chunk arrived
         t_cancel = time.perf_counter()
@@ -182,7 +182,7 @@ def test_ws_cancel_mid_stream(worker):
                 break
         ack_ms = (time.perf_counter() - t_cancel) * 1000
         # No frames (and no "done") for c1 after "cancelled"; the next request is served normally.
-        c.send(json.dumps({"type": "synthesize", "request_id": "c2", "voice_id": "dev_voice_a", "text": "Okay, no problem."}))
+        c.send(json.dumps({"type": "synthesize", "request_id": "c2", "voice_id": "libritts_r_4992_f", "text": "Okay, no problem."}))
         m = c.recv(timeout=60)
         assert json.loads(m) == {"type": "start", "request_id": "c2", "sample_rate": 24000}
         next_start_ms = (time.perf_counter() - t_cancel) * 1000
@@ -197,7 +197,7 @@ def test_ws_cancel_mid_stream(worker):
 def test_no_text_in_logs_and_no_external_connections(worker):
     post(worker, SECRET_PHRASE + ".")
     with ws_conn(worker) as c:
-        c.send(json.dumps({"type": "synthesize", "request_id": "p1", "voice_id": "dev_voice_b", "text": SECRET_PHRASE + "."}))
+        c.send(json.dumps({"type": "synthesize", "request_id": "p1", "voice_id": "libritts_r_1188_m", "text": SECRET_PHRASE + "."}))
         while not (isinstance(m := c.recv(timeout=120), str) and json.loads(m)["type"] != "start"):
             pass
     time.sleep(0.5)

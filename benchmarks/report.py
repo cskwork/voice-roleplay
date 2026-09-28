@@ -117,7 +117,7 @@ def environment(raw: dict) -> dict:
             "tts": app_tool.pkg_versions("tts", ["mlx", "mlx-audio-plus", "torch", "onnxruntime"]),
             "pron": app_tool.pkg_versions("pron", ["torch", "transformers", "qwen-asr", "pyworld"]),
         },
-        "voice": "dev_voice_a (development voice, see content/voices)",
+        "voice": "libritts_r_4992_f (cafe_order default; LibriTTS-R speaker 4992, CC BY 4.0, see content/voices)",
         "audio_devices": "input: FAKE-MIC-SOURCE (fixture WAVs via MediaStream, 48 kHz context); output: Chromium --mute-audio",
         "llm_context": "llama-server -c 8192 -np 2 (4096 tokens per slot), Q4_K_M, all layers on Metal",
     }

@@ -4,6 +4,7 @@ import { Badge, Choice, Notice } from '../components/ui'
 import { api } from '../lib/api'
 import { toApiError } from '../lib/errors'
 import { DEFAULT_SILENCE_MS, type Difficulty, type Settings as S } from '../lib/types'
+import { savedVoiceChoice } from '../lib/voice'
 import { useApp } from '../state'
 import { DIFFICULTY_LABEL, DIFFICULTY_NOTE } from './Home'
 
@@ -105,7 +106,7 @@ export function Settings() {
         </label>
         <label className="field">
           <span>AI 음성</span>
-          <select value={draft.voice_id ?? ''} onChange={(e) => set('voice_id', e.target.value || null)} disabled={voices.length === 0}>
+          <select value={savedVoiceChoice(draft.voice_id, voices)} onChange={(e) => set('voice_id', e.target.value || null)} disabled={voices.length === 0}>
             <option value="">시나리오 기본 음성</option>
             {voices.map((v) => (
               <option key={v.voice_id} value={v.voice_id}>

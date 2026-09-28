@@ -215,4 +215,6 @@ appears among the heard candidates (4 cases), and that bands appear only with th
 .venv/bin/python -m pytest                  # + real-model integration tests (~50 s; two worker processes one after the other)
 ```
 
-The prosody integration test uses a CosyVoice fixture (`tts_mlx_price_dev_voice_a.wav`, 24 kHz, resampled in the test).
+The prosody integration test uses a CosyVoice fixture (`tts_mlx_price_libritts_r_4992_f.wav`, 24 kHz, resampled in the
+test). It is written by the TTS worker's real-model test (`cd ../tts && .venv/bin/python -m pytest tests/test_real_model.py`),
+not by `make_fixtures.sh`.

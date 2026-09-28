@@ -1,8 +1,9 @@
-# Voice candidates (CO-3) — 후보, 기본 목소리 아님
+# Voice candidates (CO-3) — 후보, 앱은 이 폴더를 쓰지 않음
 
-Candidate English prompt voices with documented reuse rights, to replace the development voices `dev_voice_a` /
-`dev_voice_b`. Nothing here is used by the app: the default voices are unchanged. Adopting a candidate needs the
-product owner's decision on voice likeness (see below) and a listening check.
+Candidate English prompt voices with documented reuse rights, evaluated to replace the former Mandarin development
+voices. Nothing in this folder is used by the app. On 2026-09-29 the product owner chose `libritts_r_4992_f` (female)
+and `libritts_r_1188_m` (male) after a listening check; they were copied to `content/voices/<id>/` and are the
+scenario defaults. The other two stay here as unused candidates.
 
 | id | gender, accent | source | licence | attribution | prompt |
 |---|---|---|---|---|---|

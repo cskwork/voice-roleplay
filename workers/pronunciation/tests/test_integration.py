@@ -150,13 +150,15 @@ def test_align_latency(server):
 
 
 def test_prosody_on_tts_sample(server):
-    pcm = fixture_pcm("tts_mlx_price_dev_voice_a")  # CosyVoice (MLX) output, 24 kHz resampled to 16 kHz
+    # CosyVoice (MLX) output written by workers/tts/tests/test_real_model.py (tts_<backend>_<name>_<voice_id>.wav),
+    # 24 kHz resampled to 16 kHz.
+    pcm = fixture_pcm("tts_mlx_price_libritts_r_4992_f")
     started = time.monotonic()
     r = post(server, "/prosody", {"audio_b64": b64(pcm)})
     assert r.status_code == 200, r.text
     body = r.json()
     f0 = [v for v in body["f0_hz"] if v > 0]
-    METRICS["prosody_tts_9.2s"] = {"http_ms": round((time.monotonic() - started) * 1000), "worker_ms": body["elapsed_ms"],
+    METRICS[f"prosody_tts_{len(pcm) / 32000:.1f}s"] = {"http_ms": round((time.monotonic() - started) * 1000), "worker_ms": body["elapsed_ms"],
                                    "voiced_fraction": round(len(f0) / len(body["f0_hz"]), 2)}
     assert body["hop_ms"] == 10 and body["method"] == "pyworld-harvest"
     assert abs(len(body["f0_hz"]) - len(pcm) // 320) <= 1

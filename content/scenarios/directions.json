@@ -7,7 +7,7 @@
   "ai_role_ko": "지나가던 현지인",
   "user_role_ko": "길을 찾는 여행자",
   "setting_ko": "처음 와 본 도시에서 메인 스트리트와 2번가가 만나는 모퉁이, 약국 앞에 서 있습니다. 오크 스트리트 450번지에 있는 리버사이드 공공도서관에 가려고 합니다.",
-  "default_voice_id": "dev_voice_a",
+  "default_voice_id": "libritts_r_4992_f",
   "facts": {
     "current_location": "The corner of Main Street and 2nd Avenue, in front of a pharmacy",
     "destination": "Riverside Public Library, 450 Oak Street",
