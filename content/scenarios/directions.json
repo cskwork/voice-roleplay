@@ -1,9 +1,9 @@
 {
   "scenario_id": "directions",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title_ko": "길 묻기",
   "title_en": "Asking for Directions",
-  "ai_role": "local passer-by",
+  "ai_role": "local passerby",
   "ai_role_ko": "지나가던 현지인",
   "user_role_ko": "길을 찾는 여행자",
   "setting_ko": "처음 와 본 도시에서 메인 스트리트와 2번가가 만나는 모퉁이, 약국 앞에 서 있습니다. 오크 스트리트 450번지에 있는 리버사이드 공공도서관에 가려고 합니다.",
@@ -17,12 +17,12 @@
     "bus_option": "Bus 12 from the stop in front of the pharmacy goes two stops to Oak Street; the fare is $2.00",
     "library_hours": "The library is open until 8:00 p.m. today",
     "nearby_cafe": "A coffee shop called Bean There is next to the post office",
-    "limits": "The passer-by knows this neighborhood well but does not know other parts of the city"
+    "limits": "The passerby knows this neighborhood well but does not know other parts of the city"
   },
   "opening_line": {
     "text_id": "directions_opening",
     "en": "Hi there, you look a little lost. Can I help you find something?",
-    "ko": "안녕하세요, 길을 헤매시는 것 같네요. 뭐 찾는 거 도와드릴까요?"
+    "ko": "안녕하세요, 길을 헤매시는 것 같네요. 찾으시는 곳 있으면 도와드릴까요?"
   },
   "goals": [
     { "goal_id": "ask_way", "en": "Ask how to get to the library", "ko": "도서관 가는 길 묻기" },
@@ -93,7 +93,7 @@
     { "text_id": "directions_expr_01", "goal_id": "ask_way", "en": "Excuse me, could you tell me how to get to the Riverside Public Library?", "ko": "실례합니다, 리버사이드 공공도서관 가는 길 좀 알려 주시겠어요?" },
     { "text_id": "directions_expr_02", "goal_id": "ask_way", "en": "Is it within walking distance?", "ko": "걸어갈 만한 거리인가요?" },
     { "text_id": "directions_expr_03", "goal_id": "ask_way", "en": "Is there a bus that goes there?", "ko": "거기 가는 버스가 있나요?" },
-    { "text_id": "directions_expr_04", "goal_id": "confirm_route", "en": "Let me make sure I've got this: two blocks north, then left on Oak Street?", "ko": "제가 제대로 이해했는지 볼게요. 북쪽으로 두 블록, 그다음 오크 스트리트에서 왼쪽이죠?" },
+    { "text_id": "directions_expr_04", "goal_id": "confirm_route", "en": "Let me make sure I've got this: two blocks north, then left on Oak Street?", "ko": "제가 제대로 이해했는지 확인해 볼게요. 북쪽으로 두 블록, 그다음 오크 스트리트에서 왼쪽이죠?" },
     { "text_id": "directions_expr_05", "goal_id": "confirm_route", "en": "So the library will be on my right, across from the park?", "ko": "그러니까 도서관은 공원 맞은편, 제 오른쪽에 있는 거죠?" },
     { "text_id": "directions_expr_06", "goal_id": "ask_clarify", "en": "Sorry, could you say that one more time?", "ko": "죄송한데, 한 번만 더 말씀해 주시겠어요?" },
     { "text_id": "directions_expr_07", "goal_id": "ask_clarify", "en": "What does the building look like?", "ko": "그 건물은 어떻게 생겼어요?" },

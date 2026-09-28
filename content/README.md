@@ -5,12 +5,15 @@
 
 ## Review status
 
-| scenario_id | version | English review | Korean review |
-|---|---|---|---|
-| `cafe_order` | 1.0.0 | 필요 (pending) | 필요 (pending) |
-| `hotel_checkin` | 1.0.0 | 필요 (pending) | 필요 (pending) |
-| `directions` | 1.0.0 | 필요 (pending) | 필요 (pending) |
-| `job_interview` | 1.0.0 | 필요 (pending) | 필요 (pending) |
+| scenario_id | version | AI pre-review | English review | Korean review |
+|---|---|---|---|---|
+| `cafe_order` | 1.0.1 | 2026-09 완료 | 필요 (pending) | 필요 (pending) |
+| `hotel_checkin` | 1.0.0 | 2026-09 완료 (수정 없음) | 필요 (pending) | 필요 (pending) |
+| `directions` | 1.0.1 | 2026-09 완료 | 필요 (pending) | 필요 (pending) |
+| `job_interview` | 1.0.1 | 2026-09 완료 | 필요 (pending) | 필요 (pending) |
+
+The AI pre-review ([REVIEW-2026-09.md](REVIEW-2026-09.md)) fixed clear errors and lists open questions. It is **not** a
+native-speaker or translator review; the two human review columns stay pending until a person signs off.
 
 All material is original and was not copied from any other app. When a scenario passes review, update its row here
 and bump `version` if the text changed.

@@ -1,6 +1,6 @@
 {
   "scenario_id": "job_interview",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title_ko": "면접 연습",
   "title_en": "Job Interview Practice",
   "ai_role": "interviewer",
@@ -116,7 +116,7 @@
       { "text_id": "job_interview_read_04", "en": "What would success look like in the first three months?", "ko": "처음 3개월 동안 어떤 결과를 내면 성공이라고 볼 수 있을까요?" }
     ],
     "shadowing": [
-      { "text_id": "job_interview_shadow_01", "en": "Thank you for having me today.", "ko": "오늘 초대해 주셔서 감사합니다." },
+      { "text_id": "job_interview_shadow_01", "en": "Thank you for having me today.", "ko": "오늘 이렇게 면접 자리를 마련해 주셔서 감사합니다." },
       { "text_id": "job_interview_shadow_02", "en": "I'd love to learn more about the team.", "ko": "팀에 대해 더 알고 싶어요." },
       { "text_id": "job_interview_shadow_03", "en": "I'm comfortable working on my own and as part of a team.", "ko": "혼자서도, 팀의 일원으로도 편하게 일할 수 있어요." }
     ],

@@ -1,6 +1,6 @@
 {
   "scenario_id": "cafe_order",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title_ko": "카페에서 주문하기",
   "title_en": "Ordering at a Cafe",
   "ai_role": "barista",
@@ -99,9 +99,9 @@
     { "text_id": "cafe_order_expr_02", "goal_id": "order_drink", "en": "I'd like a small latte for here, please.", "ko": "스몰 라테 한 잔 주세요. 매장에서 마실게요." },
     { "text_id": "cafe_order_expr_03", "goal_id": "customize", "en": "Can I get that with oat milk instead?", "ko": "그거 오트 밀크로 바꿔 주실 수 있나요?" },
     { "text_id": "cafe_order_expr_04", "goal_id": "customize", "en": "Could you add an extra shot of espresso?", "ko": "에스프레소 샷 하나 추가해 주시겠어요?" },
-    { "text_id": "cafe_order_expr_05", "goal_id": "customize", "en": "Actually, could you make that decaf?", "ko": "저기, 그거 디카페인으로 해 주실 수 있나요?" },
+    { "text_id": "cafe_order_expr_05", "goal_id": "customize", "en": "Actually, could you make that decaf?", "ko": "아, 그거 디카페인으로 바꿔 주실 수 있나요?" },
     { "text_id": "cafe_order_expr_06", "goal_id": "confirm_price", "en": "How much is that altogether?", "ko": "전부 얼마예요?" },
-    { "text_id": "cafe_order_expr_07", "goal_id": "confirm_price", "en": "Just to check, is that $5.65 with the oat milk?", "ko": "확인차 여쭤볼게요, 오트 밀크까지 해서 5.65달러 맞나요?" },
+    { "text_id": "cafe_order_expr_07", "goal_id": "confirm_price", "en": "Just to check, is that $5.65 for the large latte with oat milk?", "ko": "확인차 여쭤볼게요, 라지 라테에 오트 밀크까지 해서 5.65달러 맞나요?" },
     { "text_id": "cafe_order_expr_08", "goal_id": "confirm_price", "en": "Does that price include tax?", "ko": "그 가격에 세금이 포함되어 있나요?" }
   ],
   "exercises": {
@@ -113,7 +113,7 @@
     ],
     "shadowing": [
       { "text_id": "cafe_order_shadow_01", "en": "Could I get that to go, please?", "ko": "그거 포장해 주시겠어요?" },
-      { "text_id": "cafe_order_shadow_02", "en": "Actually, can I change that to a small?", "ko": "저기, 그거 스몰로 바꿀 수 있을까요?" },
+      { "text_id": "cafe_order_shadow_02", "en": "Actually, can I change that to a small?", "ko": "아, 그거 스몰로 바꿀 수 있을까요?" },
       { "text_id": "cafe_order_shadow_03", "en": "Thanks so much, have a great day!", "ko": "정말 감사해요, 좋은 하루 보내세요!" }
     ],
     "free_answer": [
