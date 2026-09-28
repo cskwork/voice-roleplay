@@ -26,7 +26,7 @@ v0.1.0의 녹음형 연습을 2025~2026년 영어 학습 앱의 발음 분석과
 - **Google 번역 "Pronounce":** 2026-04 출시. 점수와 함께 불명확한 소리를 표시합니다.
 - **Microsoft Azure Pronunciation Assessment:** 많은 앱이 쓰는 엔진입니다. 음소·단어·문장 정확도, 유창성, 완성도, 운율(en-US)을 채점하고 오류 유형(누락·삽입·오발음·끊김·단조로움)과 실제로 발음된 음소 후보(IPA)를 줍니다.
 
-현재 방식의 알려진 약점: Qwen3-ASR은 문맥으로 단어를 보정하는 경향이 있습니다. 그래서 "다르게 인식된 부분"은 실제 발음 오류를 놓치기 쉽습니다(측정 전, PA-0에서 확인).
+현재 방식의 알려진 약점: Qwen3-ASR은 문맥으로 단어를 보정하는 경향이 있습니다. 그래서 "다르게 인식된 부분"은 실제 발음 오류를 놓치기 쉽습니다. 2026-09-28 측정: speechocean762 test에서 사람 평가 단어 정확도 6 이하인 단어의 39.8%(1,297개 중 516개)를 놓쳤습니다(`benchmarks/pronunciation/results/asr_diff-test.md`). 이 코퍼스는 중국어 모국어 화자뿐이므로 한국인 학습자에 대한 수치가 아닙니다.
 
 전체 출처는 [부록](#부록-출처)에 있습니다.
 
@@ -70,6 +70,30 @@ v0.1.0의 녹음형 연습을 2025~2026년 영어 학습 앱의 발음 분석과
 | CO-6 | P2 | 힌트 요청·응답 매칭: 늦게 온 1단계 번역이 새 요청의 목표 힌트와 섞일 수 있는 경쟁 조건 수정(요청 ID 부여) | 게이트웨이 테스트 추가 | S |
 | CO-7 | P2 | AI 발화가 다음 답변 시작 시점에만 이력에 기록되는 문제 검토(목표·요약이 한 줄 늦을 수 있음) | 원인 분석과 수정 또는 의도 문서화 | S |
 | CO-8 | P2 | NVIDIA/vLLM 경로 실제 실행 검증 | Linux + NVIDIA 장비에서 두 모드 통과 기록 | L (장비 의존) |
+
+## 4. 진행 상황 (2026-09-29)
+
+상태: **완료**, **일부 완료**(남은 부분 명시), **막힘**(사람·결정·장비가 필요). 발음 등급은 어느 항목에서도 기본으로 켜지지 않았습니다. 기본 상태는 `timing_only`이고 `pronunciation_score`는 항상 `null`입니다.
+
+| ID | 상태 | 근거 / 남은 일 |
+|---|---|---|
+| PA-0 | 일부 완료 · **열림** | speechocean762 하네스와 기준선 완료(`benchmarks/pronunciation/`, `results/asr_diff-test.md`). **한국인 학습자 평가셋 없음**: 동의받은 녹음, 평가자 2인 이상, 라벨이 필요합니다. 수집 절차·동의서 초안·라벨 가이드만 있음(`benchmarks/pronunciation/korean_set/README.md`, 동의서는 법무·개인정보 검토 필요). |
+| PA-1 | 일부 완료 | 발음 워커 `/align`(`workers/pronunciation`), 게이트웨이 `timing_only` 결과(`services/gateway/src/vr_gateway/pronunciation.py`), 단어별 "내 발음 / 모범 음성" 비교 재생(`apps/web/src/components/Pronunciation.tsx`), E2E `tests/e2e/specs/pronunciation.spec.ts` 통과. 남음: 정렬 오차 측정(PA-0 셋 필요). |
+| PA-2 | 일부 완료 | CTC GOP를 워커 `/assess`에 구현. speechocean762 test 상관 음소 0.480, 단어 0.463 (공개 GOPT 0.612/0.549보다 낮음; `benchmarks/pronunciation/results/2026-09-28-speechocean762.md`). 남음: 한국어 악센트 별도 리포트(PA-0 필요). |
+| PA-3 | 일부 완료 (실험 플래그 뒤) | 보정 파일 `workers/pronunciation/calibration/so762-ctcgop-2026-09-28.json`(중국어 모국어 화자로만 맞춤). 등급은 `VR_PRON_EXPERIMENTAL=1`일 때만, 상태 값은 `experimental_banded`(`assessed_banded`는 예약). 채택 기준은 PA-0 셋이 없어 확인 불가 → 기본 꺼짐. |
+| PA-4 | 일부 완료 | 단어 줄, 비교 재생, 실험 등급(아이콘+글자, 숫자 없음), 키보드·aria 라벨, 자유 발화 판정 보류 문구, 복습 추가. 남음: 약한 단어만 골라 다시 말하기, 스크린리더 실사용 확인. |
+| PA-5 | 일부 완료 | pyworld 억양 곡선(학습자·모범 음성), 단어별 길이·쉼 표, "참고 지표 · 점수 아님" 표시. 남음: 단조로움·끊김 표시, 한국인 학습자에게 의미 있는지 검토(PA-0 필요). |
+| PA-6 | 일부 완료 | 자유 답변은 ASR 전사를 기준으로 `timing_only` 제공, 실험 등급은 전사 확인 전 보류로 표시, 세션 요약은 `assessment_unavailable` 유지. 남음: 스크립트 대비 오탐률 측정. |
+| PA-7 | 완료 · 사용자 리뷰 대기 | `docs/PRD.md` v0.2(§8.4, §13.3, §13.5, §15.2, AT-23~26), `contracts/PROTOCOL.md` §12, `docs/pronunciation.md`. 완료 기준의 "문서 리뷰·합의"는 사용자 확인이 필요합니다. |
+| PA-8 | 일부 완료 | `content/pronunciation/guide.json` v1.0.0 초안, 스키마 `contracts/pronunciation_content.schema.json`, 테스트 `tests/content/test_pronunciation_content.py`. 남음: 원어민·한국어·음성학 검수(외부). |
+| CO-1 | 일부 완료 | 2026-09-29 전체 E2E 16개 통과(AT-01~03, 05/06, 07~09/18, 11/12/20, 15/16/21, CO-5, 발음, 장치 경로; 실행 로그는 커밋하지 않은 `tests/e2e/.out/co1_run2.txt`). 남음: 장치 캡처는 Chromium 가짜 장치로만 확인, 실제 마이크·스피커 장치 스모크는 미실행. |
+| CO-2 | 완료 (목표 일부 미달) | 200턴 리포트 `benchmarks/results/2026-09-29-m3pro.md`. 미달: 응답 시작 p50 3.26 s(목표 2 s), p95 4.43 s(목표 4 s), TTS RTF p95 0.87(목표 0.80). 충족: 끼어들기, 첫 자막, 녹음형 30 s·120 s. |
+| CO-3 | 막힘 · **결정 필요** | 권리가 확인된 후보 목소리 4개와 측정(`content/voices/candidates/README.md`). 기본 목소리는 그대로. 제품 책임자의 목소리 선택(유사성 판단)과 청취 확인이 필요합니다. |
+| CO-4 | 일부 완료 | AI 사전 검수와 명백한 오류 수정(`content/REVIEW-2026-09.md`, 시나리오 3개 1.0.1). 사람(원어민·번역) 검수는 여전히 필요(외부). |
+| CO-5 | 완료 | E2E `tests/e2e/specs/co5_summary_drill.spec.ts` 통과(스크린샷은 커밋하지 않은 `tests/e2e/.out/co5-summary-drill.png`). |
+| CO-6 | 완료 | 힌트 요청 id 왕복(`realtime.py`, `realtimeSession.ts`), 테스트 `test_hint_reply_echoes_request_id`. |
+| CO-7 | 완료 | 원인: AI 대사가 다음 답변 시작 때에야 이력에 들어가 기록 순서가 뒤바뀌고 요약·프롬프트에서 한 줄이 빠짐. 재생이 끝나면 바로 기록하도록 수정, 테스트 `test_ai_line_enters_history_when_playback_completes`. |
+| CO-8 | 막힘 · **장비 필요** | Linux + NVIDIA 장비가 없어 미실행. |
 
 ## 부록: 출처
 
