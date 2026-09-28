@@ -20,11 +20,14 @@ If a component must deviate, update this file in the same change and say why.
 | ASR worker (Qwen3-ASR-0.6B) | 8711 | `workers/asr/.venv` (py3.12, uv) | `workers/asr/` |
 | TTS worker (Fun-CosyVoice3-0.5B-2512) | 8712 | `workers/tts/.venv` (py3.10, uv) + `vendor/CosyVoice` at pinned commit | `workers/tts/` |
 | LLM (llama.cpp `llama-server`, Qwen3-4B-Instruct-2507 Q4_K_M GGUF) | 8713 | Homebrew `llama-server` | `config/llm/` |
+| pronunciation worker (Qwen3-ForcedAligner-0.6B, wav2vec2-lv-60-espeak-cv-ft, pyworld) — optional, §12 | 8714 | `workers/pronunciation/.venv` (py3.12, uv), package `pron_worker` | `workers/pronunciation/` |
 
 Model files live in `models/` (gitignored), pinned in `models.lock.json`:
 - `models/Qwen3-ASR-0.6B` (Qwen/Qwen3-ASR-0.6B @ 5eb144179a02acc5e5ba31e748d22b0cf3e303b0)
 - `models/Fun-CosyVoice3-0.5B-2512` (FunAudioLLM/Fun-CosyVoice3-0.5B-2512 @ 29e01c4e8d000f4bcd70751be16fa94bf3d85a18)
 - `models/Qwen3-4B-Instruct-2507-GGUF/Qwen3-4B-Instruct-2507-Q4_K_M.gguf` (unsloth/Qwen3-4B-Instruct-2507-GGUF @ a06e946bb6b655725eafa393f4a9745d460374c9 — third-party conversion, record as such)
+- Optional (§12): `models/Qwen3-ForcedAligner-0.6B` (Qwen/Qwen3-ForcedAligner-0.6B) and `models/wav2vec2-lv-60-espeak-cv-ft`
+  (facebook/wav2vec2-lv-60-espeak-cv-ft), both Apache-2.0; revisions and hashes pinned in `models.lock.json` like the others.
 
 Per-file SHA-256, licenses, runtime versions and the `vendor/CosyVoice` commit are in `models.lock.json`
 (`./app setup` downloads exactly those files and verifies the hashes; `./app doctor` re-checks them).
@@ -163,12 +166,14 @@ As PRD §13.1 (route list with request fields: `services/gateway/README.md`). Er
     "tts": {reachable, ready, model_id, revision, device, sample_rate, voices}, "llm": {reachable, ready, model_revision}, "vad": {ready, model}},
     "modes": {"realtime": {available, reason_ko, session_active}, "recorded": {available, reason_ko, feedback_available, model_audio_available,
     blocked_by_realtime}}, "tts_cache": {"status": "idle|warming|paused|done", "openings_total", "openings_ready", "openings_failed"},
-    "benchmark": {"status"}, "pronunciation_assessment": "assessment_unavailable"}`. Realtime needs ASR+TTS+LLM+VAD,
+    "benchmark": {"status"}, "pronunciation_assessment": "<pronunciation_status>"}` (§12.4; `workers` also has
+    `"pron": {reachable, ready, models, bands_enabled, calibration_version}` when the pronunciation worker is configured). Realtime needs ASR+TTS+LLM+VAD,
     recorded needs ASR+VAD. The TTS cache warm-up pauses while a realtime session is active; `./app start` waits until
     every opening line is cached.
   - `POST /api/sessions/{id}/end` → `{"session_id", "state": "ended", "summary": {"items": [≤3 feedback], "goals", "status": "ok|held|unavailable",
     "reason", "turns": [{turn_id, turn_index, role, text, transcript_revision, spoken_segments, playback_status, metrics}],
-    "pronunciation_score": null, "pronunciation_status": "assessment_unavailable"}}`.
+    "pronunciation_score": null, "pronunciation_status": "assessment_unavailable"}}` (realtime turns are never sent to the
+    pronunciation worker, §12).
   - Jobs (`GET/DELETE /api/jobs/{id}`, submit, transcript PATCH) → `{"job_id", "attempt_id", "kind": "analyze|reanalyze", "state",
     "error_code", "transcript_revision", "created_at"}`.
 
@@ -263,16 +268,20 @@ common `PAUSED, RECOVERABLE_ERROR, CLOSED`. Input and output sub-states tracked 
   Resample with a proper polyphase/sinc resampler (not by relabelling the rate); stereo → mono average.
 - Reading, shadowing and drill exercises: transcribe **without** the target sentence as context; diff target vs transcript as
   "다르게 인식된 부분".
+- Pronunciation analysis (§12) adds no job state: the learner side runs in `analyzing`, the model-audio side in `synthesizing`.
+  A pronunciation failure or timeout never fails the job.
 
 ## 8. Feedback object (PRD §8.3, §13.3)
 ```json
 {"feedback_id","category":"grammar|expression|vocabulary|goal|fluency_metric","severity":"required|optional",
- "status":"observed|suggested|needs_confirmation|unavailable","evidence_type":"asr_text|user_confirmed_text|vad_metric|target_diff",
+ "status":"observed|suggested|needs_confirmation|unavailable","evidence_type":"asr_text|user_confirmed_text|vad_metric|target_diff|word_timing|prosody_contour|phone_gop",
  "source_turn_id"|"attempt_id","transcript_revision","evidence_quote","suggestion","explanation_ko","model_revision","prompt_revision"}
 ```
 - `evidence_quote` must be an exact substring of the referenced transcript revision; otherwise drop the item (validator).
 - Validator rejects text mentioning pronunciation/accent/stress/intonation/tone-of-voice/emotion claims (EN + KO keywords) unless status `unavailable`.
-- `pronunciation_score: null`, `pronunciation_status: "assessment_unavailable"` always (no scoring module).
+- `pronunciation_score: null` always. `pronunciation_status` is `assessment_unavailable` unless the pronunciation worker produced a
+  result for a recorded attempt (§12.4). `word_timing`, `prosody_contour` and `phone_gop` evidence comes only from the pronunciation
+  worker, never from the LLM; the LLM validator rule above is unchanged.
 - Metrics: `wpm = words / (last_voiced_end - first_voiced_start) * 60`, pause threshold 500 ms, edges excluded; `metrics_version: "m1"`.
 - Max 3 items for session-end summary; each can be sent to "다시 말하기" drill (Speak-style loop): show suggestion, play model audio, record, compare.
 
@@ -295,3 +304,109 @@ by file name) any file that fails the schema or does not have exactly 3 goals. F
   `http://127.0.0.1:8710`.
 - `stop` — SIGTERM to the gateway (cancels jobs, closes sessions, stops workers), then kills leftover workers from their pidfiles.
 - `benchmark` — runs `benchmarks/run.sh`.
+
+## 12. Pronunciation (PRD §8.4, v0.2)
+
+Plain-language explanation for learners and reviewers: `docs/pronunciation.md`. Work items: `docs/TRIAGE.md` PA-0…PA-8.
+
+### 12.1 Rules
+- `pronunciation_score` stays `null` in every result. No numeric pronunciation value (GOP, probability, percentage, "accuracy")
+  is ever shown to the learner. The only judgement the UI may show is a word band, and only in `experimental_banded` (§12.4).
+- Default is `timing_only`: word timings, compare playback and pitch contours, **no judgements**.
+- There is no Korean-learner evaluation data yet (PA-0), so the adoption criteria (§12.3) are not met and bands are **off by
+  default**. Nothing may claim pronunciation accuracy for Korean learners.
+- Alignment success is not a correct pronunciation, alignment failure is not an error (PRD §8.2).
+- Recorded practice only. The gateway never calls the pronunciation worker while a realtime session is active, and realtime
+  turns / session summaries keep `pronunciation_status: "assessment_unavailable"`.
+- Local only: no cloud pronunciation API, no automatic fallback. The worker is optional; without it recorded practice works as
+  before with `pronunciation.status: "unavailable"` (AT-18).
+- Licences: Qwen3-ForcedAligner-0.6B Apache-2.0, wav2vec2-lv-60-espeak-cv-ft Apache-2.0, pyworld MIT. GPL-3.0 packages
+  (Parselmouth, espeak-ng, phonemizer) are not added without a recorded licence decision; this applies to the text → expected-phone
+  (G2P) step as well.
+
+### 12.2 Worker — `http://127.0.0.1:8714`
+Package `pron_worker` in `workers/pronunciation/` (own uv venv, py3.12), FastAPI, started as
+`workers/pronunciation/.venv/bin/python -m pron_worker`. Same conventions as the other workers: `X-Worker-Token` on every request
+including `/health` (401 `AUTH_REQUIRED`), `HF_HUB_OFFLINE=1`/`TRANSFORMERS_OFFLINE=1`, no downloads at runtime, logging policy §2
+(additionally: never log reference text, words, IPA strings or f0 values), exit codes `2` bad configuration / `3` model load failure (§1).
+Env: `VR_WORKER_TOKEN`, `VR_PRON_PORT` (default 8714), `VR_PRON_EXPERIMENTAL` (`1` = allow bands, §12.3). Requests are served one
+at a time (asyncio lock), like the ASR worker. Model placement and load timing are documented in the worker README and must respect
+PRD §14.2 (the worker must not compete with a realtime session).
+
+- `GET /health` → `{"ready", "device", "models": {"aligner": {"model_id", "revision"}, "phones": {"model_id", "revision"}},
+  "prosody_method": "pyworld-harvest", "calibration_version": str|null, "bands_enabled": bool}`. Until models are loaded `ready: false`
+  and other requests get 503 `MODEL_NOT_READY`.
+- Request body for every POST: JSON (`Content-Type: application/json`) with `audio_b64` = base64 of PCM16LE mono 16 000 Hz,
+  ≤ 120 s decoded (3 840 000 bytes). The gateway resamples before sending (§7).
+- `POST /align` `{audio_b64, text}` → `{"words": [{"i", "word", "start_ms", "end_ms"}], "model_revision", "elapsed_ms"}`
+  (Qwen/Qwen3-ForcedAligner-0.6B, English). `i` is the 0-based index of the word in `text` as tokenized by the worker; every word of
+  `text` gets an entry.
+- `POST /prosody` `{audio_b64, words?}` → `{"f0_hz": [...], "hop_ms": 10, "per_word": [{"i", "mean_f0", "f0_range_st", "duration_ms"}],
+  "method": "pyworld-harvest"}`. `f0_hz` has one value per 10 ms frame, `0` = unvoiced. `per_word` is empty without `words`
+  (the `/align` output); `mean_f0` is over voiced frames of the word (`0` if none), `f0_range_st` = `12·log2(max/min)` over voiced frames.
+- `POST /assess` `{audio_b64, reference_text, mode: "scripted"|"unscripted"}` → `{"words": [{"i", "word", "start_ms", "end_ms",
+  "phones": [{"expected_ipa", "heard_candidates": [{"ipa", "p"}], "gop"}], "word_gop", "band": null|"good"|"check"|"practice"}],
+  "calibration_version": str|null, "bands_enabled": bool, "model_revisions": {"aligner", "phones"}}`.
+  `gop` is a CTC-based goodness-of-pronunciation value from facebook/wav2vec2-lv-60-espeak-cv-ft phone posteriors; `p` is the model's
+  posterior, **not calibrated**. Both are for the gateway and offline benchmarks only, never for display. `band` is `null` unless
+  `bands_enabled`. `mode: "unscripted"` means `reference_text` is an ASR transcript.
+- Error codes: `AUTH_REQUIRED` 401, `AUDIO_TOO_LONG` 413, `AUDIO_INVALID` 400 (bad base64, odd byte count), `TEXT_EMPTY` /
+  `BAD_REQUEST` 400, `MODEL_NOT_READY` 503, `WORKER_FAILED` / `OUT_OF_MEMORY` 500. Body `{"error": {"code"}}` (§1).
+
+### 12.3 Calibration, flag and adoption criteria
+- `bands_enabled` = a calibration file was loaded **and** `VR_PRON_EXPERIMENTAL=1`. Either one alone → `band: null` everywhere.
+- The calibration file (produced offline by PA-2/PA-3; path and format documented in the worker README) holds
+  `calibration_version`, the dataset(s) it was fitted on with speaker L1s, the band thresholds, and the measured correlations.
+  A file fitted only on speechocean762 (Mandarin-L1 speakers) may be used behind the flag; it is not evidence of accuracy for
+  Korean learners and the UI note says so.
+- **Adoption criteria** (TRIAGE PA-2) for turning bands on by default (future status `assessed_banded`): on the consented
+  Korean-learner set (PA-0), Pearson correlation with human ratings ≥ 0.55 at phone level and ≥ 0.5 at word level, with at least two
+  raters and inter-rater agreement reported, and speechocean762 results reported separately. **Status on 2026-09-28: not met
+  (PA-0 data does not exist).** Changing the default requires a PRD update, not only a config change.
+- Bands are displayed as bands only (colour **plus** text label and icon, PRD §12), never with numbers.
+
+### 12.4 Gateway: attempt result `pronunciation`
+`GET /api/attempts/{id}/result` gains
+```json
+"pronunciation": {
+  "status": "unavailable|timing_only|experimental_banded",
+  "reason": "<CODE>|null",
+  "mode": "scripted|unscripted",
+  "transcript_revision": 1,
+  "words": [{"i", "word", "start_ms", "end_ms", "gap_before_ms", "in_transcript": bool|null,
+             "band": null|"good"|"check"|"practice", "heard_ipa": ["<ipa>", ...]|null}],
+  "prosody": {"learner": {"hop_ms": 10, "f0_hz": [...], "per_word": [...]},
+              "model": null|{"audio_id", "hop_ms": 10, "f0_hz": [...], "per_word": [...], "words": [{"i", "word", "start_ms", "end_ms"}]}},
+  "calibration_version": "<version>|null",
+  "model_revisions": {"aligner", "phones"?},
+  "note_ko": "<Korean note shown with the result>"
+}
+```
+- **Status.** `unavailable` (worker not configured/not ready, request failed or timed out, no speech, empty reference; `reason` holds
+  the code, e.g. `MODEL_NOT_READY`, `WORKER_FAILED`, `TIMEOUT`, `NO_SPEECH`), `timing_only` (default), `experimental_banded` (worker
+  reported `bands_enabled`). Top-level `pronunciation_status` mirrors it: `assessment_unavailable` / `timing_only` /
+  `experimental_banded`; `assessed_banded` is reserved and not produced in v0.2. `GET /api/health` `pronunciation_assessment` reports
+  what a new attempt would get (`assessment_unavailable` / `timing_only` / `experimental_banded`).
+- **Reference text.** `reading`, `shadowing`, `drill`: scripted, reference = target text. `free_answer`, `roleplay_turn`: unscripted,
+  reference = ASR transcript revision 1. A transcript edit (§8, PATCH) does not re-align the old audio; the result stays bound to
+  `transcript_revision` 1 (PRD §13.3).
+- **Calls.** `timing_only`: `/align` then `/prosody` with the aligned words. `experimental_banded`: `/assess` (its word timings replace
+  `/align`) then `/prosody`. Model side (scripted only, when the attempt has model audio whose text equals the reference text after
+  normalization): the same `/align` + `/prosody` on that model audio (resampled to 16 kHz), linked by `audio_id` from `model_audio`.
+  Otherwise `prosody.model` is `null`.
+- **Fields.** `gap_before_ms` = start of the word − end of the previous word (0 for the first). `in_transcript` (scripted only): whether
+  the target diff found the word in the transcript; `false` means the aligner placed a word the ASR did not hear and the UI marks the
+  interval as uncertain. `band` and `heard_ipa` (top candidates of the word's phones, no probabilities) are non-null only in
+  `experimental_banded`. `gop`, `word_gop` and `p` never leave the gateway. In `unscripted` mode a band is shown as
+  `needs_confirmation` until the learner confirms the transcript (PRD §8.3).
+- **Evidence types** (§8): `word_timing` (word intervals), `prosody_contour` (f0 and per-word duration), `phone_gop`
+  (`experimental_banded` only). Every item carries the word index, interval in ms and model revision.
+- **Compare playback.** "내 발음" plays the browser's own copy of the take (the server released the audio, §7) sliced by
+  `start_ms`/`end_ms`; "모범 음성" plays `GET /api/attempts/{id}/model-audio/{audio_id}` sliced by `prosody.model.words`.
+- **Timeouts.** Per worker call 30 s for audio ≤ 30 s, 90 s up to 120 s (initial values; replace with measured ones). On timeout the
+  request is abandoned and the status is `unavailable`.
+- **`note_ko`.** `timing_only`: "단어 위치와 억양 곡선만 보여 줍니다. 발음을 채점하지 않습니다." `experimental_banded`: "실험 기능입니다.
+  보정 데이터가 한국인 학습자로 검증되지 않았으므로 결과가 틀릴 수 있어요." `unavailable`: "이번 녹음은 발음 분석을 하지 못했어요."
+  The UI may shorten these but not remove the meaning.
+- **Storage.** With `history_opt_in`, only `words` (without `heard_ipa`) and `calibration_version` may be stored with the attempt;
+  pitch contours, phone candidates and audio are never stored.
