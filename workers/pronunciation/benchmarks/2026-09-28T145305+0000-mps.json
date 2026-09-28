@@ -1,0 +1,191 @@
+{
+  "date_utc": "2026-09-28T14:53:05+00:00",
+  "machine": "arm64 26.6.2",
+  "model": {
+    "id": "Qwen/Qwen3-ForcedAligner-0.6B",
+    "revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7"
+  },
+  "phones_model": {
+    "id": "facebook/wav2vec2-lv-60-espeak-cv-ft",
+    "revision": "ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4"
+  },
+  "note": "Other processes may share the machine; numbers are indicative. Fixtures are macOS `say` speech.",
+  "memory_before_load": {
+    "rss_mb": 31,
+    "phys_footprint_mb": 21.0
+  },
+  "device": "mps",
+  "load_ms": 5652,
+  "warmup_ms": 360,
+  "memory_after_load": {
+    "rss_mb": 928,
+    "phys_footprint_mb": 2546.0
+  },
+  "scorer_load_ms": 1027,
+  "scorer_device": "mps",
+  "memory_after_scorer_load": {
+    "rss_mb": 980,
+    "phys_footprint_mb": 4646.0
+  },
+  "assess_scoring_price_6.2s": {
+    "runs_ms": [
+      132,
+      108,
+      107,
+      111,
+      108
+    ],
+    "median_ms": 108,
+    "units": 78,
+    "mean_gop": -0.148,
+    "top1_is_expected": 0.91,
+    "gops": [
+      -0.129,
+      -0.009,
+      -0.002,
+      -0.138,
+      -0.051,
+      -2.395,
+      -3.231,
+      -0.005,
+      -0.12,
+      -0.001,
+      -0.063,
+      -0.005,
+      -0.057,
+      -0.008,
+      -0.002,
+      -0.23,
+      -0.005,
+      -0.006,
+      -0.014,
+      -0.332,
+      -0.002,
+      -0.205,
+      -0.015,
+      -0.104,
+      -0.025,
+      -0.014,
+      -0.0,
+      -0.042,
+      -0.033,
+      -0.035,
+      -0.006,
+      -0.002,
+      -0.082,
+      -0.002,
+      -0.122,
+      -0.026,
+      -0.049,
+      -0.013,
+      -0.087,
+      -0.006,
+      -0.009,
+      -0.006,
+      -0.091,
+      -0.002,
+      -0.008,
+      -0.009,
+      -0.051,
+      -0.587,
+      -0.005,
+      -0.399,
+      -0.006,
+      -0.022,
+      -0.037,
+      -0.021,
+      -0.231,
+      -0.011,
+      -0.447,
+      -0.002,
+      -0.194,
+      -0.018,
+      -0.128,
+      -0.007,
+      -0.002,
+      -0.014,
+      -0.033,
+      -0.007,
+      -0.05,
+      -0.002,
+      -1.209,
+      -0.007,
+      -0.007,
+      -0.043,
+      -0.011,
+      -0.004,
+      -0.057,
+      -0.001,
+      -0.134,
+      -0.004
+    ]
+  },
+  "assess_scoring_passage_30s_28.5s": {
+    "runs_ms": [
+      525,
+      503,
+      510,
+      497,
+      504
+    ],
+    "median_ms": 504,
+    "units": 344,
+    "mean_gop": -0.226,
+    "top1_is_expected": 0.863
+  },
+  "assess_scoring_passage_30s_x4_114.0s": {
+    "runs_ms": [
+      2098
+    ],
+    "median_ms": 2098,
+    "units": 1376,
+    "mean_gop": -0.204,
+    "top1_is_expected": 0.867
+  },
+  "memory_after_assess": {
+    "rss_mb": 1133,
+    "phys_footprint_mb": 5875.0
+  },
+  "align_price_6.2s": {
+    "runs_ms": [
+      121,
+      105,
+      105,
+      105,
+      104
+    ],
+    "median_ms": 105,
+    "words": 19
+  },
+  "prosody_price_6.2s": {
+    "runs_ms": [
+      1789,
+      1753,
+      1749
+    ],
+    "median_ms": 1753
+  },
+  "align_passage_30s_28.5s": {
+    "runs_ms": [
+      398,
+      361,
+      362,
+      361,
+      364
+    ],
+    "median_ms": 362,
+    "words": 103
+  },
+  "prosody_passage_30s_28.5s": {
+    "runs_ms": [
+      8045,
+      8020,
+      8007
+    ],
+    "median_ms": 8020
+  },
+  "memory_after_runs": {
+    "rss_mb": 1125,
+    "phys_footprint_mb": 5650.0
+  }
+}

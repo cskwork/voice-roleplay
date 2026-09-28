@@ -1,0 +1,186 @@
+{
+  "calibration_version": "so762-ctcgop-2026-09-28",
+  "created": "2026-09-28",
+  "status": "experimental: fitted on Mandarin-L1 speech only; NOT validated on Korean learners (TRIAGE PA-0); bands are off unless VR_PRON_EXPERIMENTAL=1",
+  "fitted_on": {
+    "dataset": "speechocean762",
+    "split": "train",
+    "speakers": 125,
+    "speaker_l1": "Mandarin (all speakers)",
+    "utterances": 2500,
+    "source": {
+      "source": "https://github.com/jimbozhang/speechocean762",
+      "commit": "613968e3b0b789fc33936fb5eba1973176ba7d11",
+      "license": "CC BY 4.0 (OpenSLR 101)",
+      "files_verified": 5263,
+      "blob_list_sha256": "0b53410fba4780114a7beba086dcf5978d092ac1db236a302e66531dc78d62ed"
+    }
+  },
+  "korean_learner_validation": null,
+  "models": {
+    "phones": {
+      "model_id": "facebook/wav2vec2-lv-60-espeak-cv-ft",
+      "revision": "ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4"
+    },
+    "aligner": {
+      "model_id": "Qwen/Qwen3-ForcedAligner-0.6B",
+      "revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7"
+    },
+    "gop_method": "segmentation-free CTC GOP over aligned word windows (prev+word+next, pad 200 ms); expected phones = corpus ARPAbet -> pron_worker.lexicon units"
+  },
+  "expected_phones_during_fit": "speechocean762 canonical ARPAbet (the worker uses CMUdict at run time)",
+  "phone": {
+    "features": [
+      "intercept",
+      "gop",
+      "posterior"
+    ],
+    "coef": [
+      2.016885,
+      0.0878,
+      -0.056586
+    ],
+    "unit_bias": {
+      "aɪ": 0.033875,
+      "aɪɚ": 0.306618,
+      "aʊ": -0.045387,
+      "b": 0.05971,
+      "d": 0.002525,
+      "dʒ": -0.021719,
+      "eɪ": -0.0777,
+      "f": 0.038138,
+      "h": 0.071727,
+      "iː": -0.011304,
+      "j": 0.074029,
+      "k": 0.019757,
+      "l": 0.059067,
+      "m": -0.005539,
+      "n": 0.003145,
+      "oʊ": -0.034415,
+      "p": 0.028887,
+      "s": 0.012086,
+      "t": 0.00328,
+      "tʃ": 0.012145,
+      "uː": -0.008599,
+      "v": -0.003333,
+      "w": 0.043884,
+      "z": -0.121211,
+      "æ": -0.009219,
+      "ð": 0.097077,
+      "ŋ": -0.02418,
+      "ɑː": 0.047646,
+      "ɑːɹ": -0.007137,
+      "ɔɪ": 0.079212,
+      "ɔː": -0.06875,
+      "ɔːɹ": -0.00285,
+      "ə": 0.021318,
+      "ɚ": -0.038341,
+      "ɛ": -0.049776,
+      "ɛɹ": -0.090447,
+      "ɜː": -0.098187,
+      "ɡ": 0.087525,
+      "ɪ": 0.019395,
+      "ɪɹ": -0.268945,
+      "ɹ": -0.00774,
+      "ʃ": -0.03981,
+      "ʊ": 0.100772,
+      "ʌ": 0.043436,
+      "ʒ": -0.246476,
+      "θ": 0.01581
+    },
+    "target": "human phone accuracy 0-2 (mean over the ARPAbet phones a unit covers)",
+    "ridge": 1.0
+  },
+  "word": {
+    "features": [
+      "intercept",
+      "mean_phone",
+      "min_phone"
+    ],
+    "coef": [
+      1.135541,
+      1.34467,
+      3.257876
+    ],
+    "target": "human word accuracy 0-10",
+    "ridge": 1.0
+  },
+  "bands": {
+    "practice_below": 7.9,
+    "check_below": 8.4,
+    "train_macro_f1": 0.5118,
+    "chosen_on": "speechocean762 train",
+    "criterion": "max macro-F1 of predicted band vs human class practice (0-3) / check (4-6) / good (7-10)"
+  },
+  "eval": {
+    "train": {
+      "raw_gop": {
+        "phone_pearson": 0.5123,
+        "word_pearson": 0.4957
+      },
+      "calibrated": {
+        "phone_pearson": 0.5259,
+        "word_pearson": 0.5332,
+        "sentence_accuracy_pearson": 0.6993,
+        "flag_miss_rate_le_6": 0.2748,
+        "flag_precision_le_6": 0.4205,
+        "flag_rate_on_words_scored_10": 0.1015
+      },
+      "band_confusion_rows_human_cols_predicted": {
+        "good": {
+          "good": 12742,
+          "check": 741,
+          "practice": 812
+        },
+        "check": {
+          "good": 173,
+          "check": 81,
+          "practice": 157
+        },
+        "practice": {
+          "good": 254,
+          "check": 196,
+          "practice": 693
+        }
+      }
+    },
+    "test": {
+      "raw_gop": {
+        "phone_pearson": 0.4676,
+        "word_pearson": 0.4219
+      },
+      "calibrated": {
+        "phone_pearson": 0.4798,
+        "word_pearson": 0.4628,
+        "sentence_accuracy_pearson": 0.616,
+        "flag_miss_rate_le_6": 0.3408,
+        "flag_precision_le_6": 0.3393,
+        "flag_rate_on_words_scored_10": 0.1072
+      },
+      "band_confusion_rows_human_cols_predicted": {
+        "good": {
+          "good": 13005,
+          "check": 816,
+          "practice": 849
+        },
+        "check": {
+          "good": 220,
+          "check": 86,
+          "practice": 133
+        },
+        "practice": {
+          "good": 222,
+          "check": 159,
+          "practice": 477
+        }
+      }
+    }
+  },
+  "published_baselines": {
+    "GOPT (Gong et al., ICASSP 2022), speechocean762 test": {
+      "phone_accuracy_pcc": 0.612,
+      "word_accuracy_pcc": 0.549,
+      "utterance_accuracy_pcc": 0.742
+    }
+  }
+}

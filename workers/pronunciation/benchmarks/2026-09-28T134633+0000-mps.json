@@ -1,0 +1,62 @@
+{
+  "date_utc": "2026-09-28T13:46:33+00:00",
+  "machine": "arm64 26.6.2",
+  "model": {
+    "id": "Qwen/Qwen3-ForcedAligner-0.6B",
+    "revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7"
+  },
+  "note": "Other processes may share the machine; numbers are indicative. Fixtures are macOS `say` speech.",
+  "memory_before_load": {
+    "rss_mb": 31,
+    "phys_footprint_mb": 21.0
+  },
+  "device": "mps",
+  "load_ms": 6006,
+  "warmup_ms": 264,
+  "memory_after_load": {
+    "rss_mb": 934,
+    "phys_footprint_mb": 2546.0
+  },
+  "align_price_6.2s": {
+    "runs_ms": [
+      355,
+      225,
+      216,
+      217,
+      170
+    ],
+    "median_ms": 217,
+    "words": 19
+  },
+  "prosody_price_6.2s": {
+    "runs_ms": [
+      2036,
+      1989,
+      2083
+    ],
+    "median_ms": 2036
+  },
+  "align_passage_30s_28.5s": {
+    "runs_ms": [
+      889,
+      561,
+      473,
+      465,
+      436
+    ],
+    "median_ms": 473,
+    "words": 103
+  },
+  "prosody_passage_30s_28.5s": {
+    "runs_ms": [
+      9767,
+      9726,
+      9447
+    ],
+    "median_ms": 9726
+  },
+  "memory_after_runs": {
+    "rss_mb": 1045,
+    "phys_footprint_mb": 3513.0
+  }
+}

@@ -1,0 +1,29 @@
+[project]
+name = "vr-pron-worker"
+version = "0.1.0"
+description = "Local pronunciation worker (word timing + prosody) for voice-roleplay"
+requires-python = "==3.12.*"
+dependencies = [
+    "qwen-asr==0.0.6",
+    "torch>=2.5",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "numpy",
+    "pyworld==0.3.5",
+    "setuptools<81",  # pyworld 0.3.5 imports pkg_resources at import time
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8",
+    "httpx>=0.27",
+    "psutil",
+    "scipy",
+]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+markers = ["model: needs the real Qwen3-ForcedAligner-0.6B model (slow)"]
