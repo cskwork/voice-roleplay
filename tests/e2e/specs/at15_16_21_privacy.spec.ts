@@ -58,7 +58,7 @@ test('AT-15 realtime + recorded + retry + review run with no non-loopback connec
     const re = await (await a.patch(`/api/attempts/${id}/transcript`, { text: 'Hi, can I get a large latte, please?' }, { 'Idempotency-Key': `at15-re-${Date.now()}` })).json()
     expect((await a.waitJob(re.job_id)).state).toBe('completed')
     // Model sentence playback and review endpoints.
-    expect((await a.post('/api/tts', { voice_id: 'dev_voice_a', text: 'Could you make it a little less sweet?', speed: 0.85 })).status()).toBe(200)
+    expect((await a.post('/api/tts', { voice_id: 'libritts_r_4992_f', text: 'Could you make it a little less sweet?', speed: 0.85 })).status()).toBe(200)
     expect((await a.get('/api/review/due')).status()).toBe(200)
   } finally {
     const net = await watch.stop()
@@ -91,7 +91,7 @@ test('AT-16 a unique spoken/typed phrase never reaches logs, var/, temp paths or
   expect(r.transcript.toLowerCase()).toMatch(/periwinkle|octopus/)
   const re = await (await a.patch(`/api/attempts/${id}/transcript`, { text: 'My cousin Bartholomew ordered a periwinkle octopus sandwich yesterday.' })).json()
   expect((await a.waitJob(re.job_id)).state).toBe('completed')
-  expect((await a.post('/api/tts', { voice_id: 'dev_voice_a', text: 'Bartholomew ordered a periwinkle octopus sandwich.', speed: 1.0 })).status()).toBe(200)
+  expect((await a.post('/api/tts', { voice_id: 'libritts_r_4992_f', text: 'Bartholomew ordered a periwinkle octopus sandwich.', speed: 1.0 })).status()).toBe(200)
   await page.waitForTimeout(2000) // let loggers flush
 
   // Scan: all of var/ (logs, SQLite + WAL, caches, pidfiles), plus files the stack could have written to /tmp

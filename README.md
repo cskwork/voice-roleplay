@@ -36,9 +36,15 @@ Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
 - TTS는 기본값으로 MLX 백엔드(`VR_TTS_BACKEND=auto`)를 씁니다. `VR_TTS_BACKEND=torch`로 공식 PyTorch 코드를 쓸 수 있으며, 이때는 LLM을 CPU, flow를 MPS, HiFT를 CPU에 나눠 올립니다(전부 MPS에 올리면 Metal이 충돌).
 - LLM은 Homebrew llama-server(Metal)를 씁니다.
 
+음성 출처: AI 목소리 두 개는 LibriTTS-R 데이터셋의 영어 낭독 음성입니다(CC BY 4.0, 제품 책임자가 2026-09-29 청취 후 선택). 여성 `content/voices/libritts_r_4992_f`(카페 주문, 길 안내), 남성 `content/voices/libritts_r_1188_m`(호텔 체크인, 면접). 라이선스에 따른 저작자 표시:
+
+- "Voice prompt from LibriTTS-R (Y. Koizumi, H. Zen, S. Karita et al., 2023), https://www.openslr.org/141/, speaker 4992, licensed CC BY 4.0. Derived from LibriTTS and LibriVox recordings."
+- "Voice prompt from LibriTTS-R (Y. Koizumi, H. Zen, S. Karita et al., 2023), https://www.openslr.org/141/, speaker 1188, licensed CC BY 4.0. Derived from LibriTTS and LibriVox recordings."
+
+낭독자가 음성 복제에 동의한 것은 아니며, 이 점은 제품 책임자가 알고 결정했습니다(각 폴더의 `SOURCE.md`).
+
 출시 전에 바꿔야 하는 것:
 
-- 음성 `content/voices/dev_voice_a`, `dev_voice_b`는 CosyVoice 저장소에 들어 있는 중국어 프롬프트 음성으로 만든 개발용입니다(`개발용 — 출시 전 권리 확인된 음성으로 교체 필요`). 권리가 확인된 영어 음성으로 교체해야 합니다.
 - 시나리오 문장, 한국어 번역, 모범 표현은 초안입니다. 원어민 검수와 번역 검수가 필요합니다(`content/README.md`).
 - 발음 점수는 없습니다. 모든 결과에서 `pronunciation_score`는 `null`입니다. 선택 구성 요소인 발음 워커(`workers/pronunciation`)가 있으면 녹음형 결과에 단어 위치, 단어별 "내 발음 / 모범 음성" 비교 재생, 억양 곡선(참고 지표)을 보여 주며 판정은 하지 않습니다(`timing_only`). 워커가 없거나 실패하면 `assessment_unavailable`입니다. 단어 등급은 실험 기능(`VR_PRON_EXPERIMENTAL=1`)이고, 보정 데이터가 중국어 모국어 화자(speechocean762)뿐이라 한국인 학습자에 대해서는 검증되지 않았으므로 기본으로 꺼져 있습니다(`docs/pronunciation.md`).
 
@@ -99,11 +105,12 @@ Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
 | `./app start`가 "port ... is in use"로 거부 | 이전 실행이 남았으면 `./app stop`. 다른 프로그램이 쓰는 포트라면 `VR_ASR_PORT`, `VR_TTS_PORT`, `VR_LLM_PORT`, `VR_PRON_PORT`, `VR_GATEWAY_PORT`로 다른 포트를 지정할 수 있습니다(예: `VR_LLM_PORT=18713 ./app start`). |
 | "model file ...: not downloaded" 또는 해시 불일치 | `./app setup`을 다시 실행하면 빠졌거나 다른 파일만 다시 받습니다. `./app doctor --full`은 캐시 없이 모든 해시를 다시 계산합니다. |
 | 시작 중 "worker(s) exited" | `var/log/asr.log`, `tts.log`, `llm.log`를 보세요. 종료 코드 2는 설정 문제(메시지에 설치 안내), 3은 모델 로딩 실패입니다. |
-| 결과에 "이번 녹음은 발음 분석을 하지 못했어요" | `/api/health`의 `workers.pron`과 `var/log/pron.log`를 보세요. 발음 워커는 선택 구성 요소라 없어도 시작은 됩니다. 모델 파일이 없으면 종료 코드 2로 끝나니 `./app setup`을 다시 실행하세요. 실시간 회화 중에 제출된 분석은 발음 분석을 건너뜁니다. |
+| 결과에 "이번 녹음은 발음 분석을 하지 못했어요" | `/api/health`의 `workers.pron`과 `var/log/pron.log`를 보세요. 발음 워커는 선택 구성 요소라 없어도 시작은 됩니다. 모델 파일이 없으면 종료 코드 2로 끝나니 `./app setup`을 다시 실행하세요. 분석이 도는 동안 실시간 회화를 시작하면 그 분석은 발음 분석을 건너뜁니다. |
 | AI 음성이 늦게 나옴 | `/api/health`의 TTS `device`가 `mlx`인지 확인하세요(torch 백엔드는 실시간보다 느림). 녹음형 연습이나 다른 무거운 작업이 동시에 돌고 있지 않은지도 확인하세요. |
 | AI 목소리 때문에 대화가 끊김 | 헤드셋을 쓰세요. 에코가 두 번 의심되면 자동 끼어들기가 꺼지고 "눌러 말하기"를 권합니다. |
-| "전송이 2초 넘게 밀리고 있어요" 경고 | 음성이 서버로 늦게 가고 있습니다. 일시정지 후 다시 시작하거나, 계속되면 회화를 끝내고 녹음 연습을 쓰세요. 앱은 밀린 음성을 버리지 않습니다. |
-| 녹음형 제출이 `LOCAL_BUSY` | 실시간 회화가 진행 중이면 녹음형 분석을 막습니다. 회화를 끝낸 뒤 다시 제출하세요. |
+| "전송이 2초 넘게 밀리고 있어요" 경고 | 음성이 서버로 늦게 가고 있습니다. 일시정지 후 다시 시작하거나, 계속되면 녹음 연습을 쓰세요(진행 중인 회화는 자동으로 끝납니다). 앱은 밀린 음성을 버리지 않습니다. |
+| 녹음형 연습을 시작했더니 실시간 회화가 끝남 | 정상 동작입니다. 새 연습(녹음형 제출, 새 회화)을 시작하면 진행 중인 실시간 회화를 자동으로 종료합니다. 실시간 회화 화면을 떠나도 회화가 끝납니다. 다른 탭에 열려 있던 회화에는 "새 연습을 시작해 이전 회화를 종료했어요."가 보이고, 요약은 15분 동안 그 화면의 "요약 보기"로 볼 수 있습니다. |
+| 제출이 `LOCAL_BUSY`("이전 실시간 회화를 끝내는 중") | 이전 회화의 정리가 5초 안에 끝나지 않은 드문 경우입니다. 잠시 후 다시 제출하세요. 계속되면 `var/log/gateway.log`에서 `session_stop_timeout`을 확인하세요. |
 
 ## 테스트
 
@@ -124,6 +131,6 @@ services/gateway/.venv/bin/python tests/integration/stack_smoke.py      # ./app 
 
 voice-roleplay is a local English speaking-practice web app for Korean learners: realtime spoken roleplay with an AI partner, and recorded practice (reading, shadowing, free answers) with transcripts and text-only feedback. ASR (Qwen3-ASR-0.6B), TTS (Fun-CosyVoice3-0.5B-2512) and the LLM (Qwen3-4B-Instruct-2507 Q4_K_M via llama.cpp) all run on the machine, and after `./app setup` nothing needs the network.
 
-Status: development build, validated only on an Apple M3 Pro (36 GB). With the MLX conversion of CosyVoice3 (default on Apple Silicon), TTS alone measured RTF p95 0.72 and first chunk p50 1.15 s; a 200-turn full-stack benchmark measured response start p50 3.26 s / p95 4.43 s (PRD target p50 ≤ 2 s: unmet) and in-stack TTS RTF p95 0.87 (unmet). All 16 browser E2E specs pass on the real stack. Architecture diagrams are in `docs/architecture/`. The two voices are development placeholders that must be replaced with properly licensed English voices, and the scenario content still needs native-speaker and translation review. There is no pronunciation scoring (`pronunciation_score` is always null). An optional local pronunciation worker (`workers/pronunciation`, port 8714) adds word timings, word-by-word "my take / model voice" playback and pitch contours (a reference measure, no judgement) to recorded-practice results. Word bands exist only behind `VR_PRON_EXPERIMENTAL=1`; their calibration was fitted on Mandarin-L1 speakers (speechocean762) and has not been validated on Korean learners, so they are off by default.
+Status: development build, validated only on an Apple M3 Pro (36 GB). With the MLX conversion of CosyVoice3 (default on Apple Silicon), TTS alone measured RTF p95 0.72 and first chunk p50 1.15 s; a 200-turn full-stack benchmark measured response start p50 3.26 s / p95 4.43 s (PRD target p50 ≤ 2 s: unmet) and in-stack TTS RTF p95 0.87 (unmet). All 16 browser E2E specs pass on the real stack. Architecture diagrams are in `docs/architecture/`. The two AI voices are English LibriTTS-R speakers 4992 (female) and 1188 (male), CC BY 4.0 with attribution (see `content/voices/*/SOURCE.md`), chosen by the product owner on 2026-09-29. The scenario content still needs native-speaker and translation review. There is no pronunciation scoring (`pronunciation_score` is always null). An optional local pronunciation worker (`workers/pronunciation`, port 8714) adds word timings, word-by-word "my take / model voice" playback and pitch contours (a reference measure, no judgement) to recorded-practice results. Word bands exist only behind `VR_PRON_EXPERIMENTAL=1`; their calibration was fitted on Mandarin-L1 speakers (speechocean762) and has not been validated on Korean learners, so they are off by default.
 
 Quick start: `./app setup` (asks for consent), `./app doctor`, `./app start` (prints `http://127.0.0.1:8710`), `./app stop`. Everything binds to 127.0.0.1, audio is never written to disk, and transcripts are stored only if the learner opts in.

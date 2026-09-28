@@ -173,10 +173,13 @@ def test_session_validation_and_single_realtime(gw):
     assert missing.status_code == 404 and missing.json()["error"]["code"] == "NOT_FOUND"
     first = create_session(gw)
     assert first["silence_ms"] == 900 and first["realtime_url"].endswith("/realtime")
+    # A second realtime session ends the first one (never connected here) instead of refusing (PRD §7, v0.2.1).
     second = gw.call("POST", "/api/sessions", json={"mode": "realtime", "scenario_id": "cafe_order"})
-    assert second.status_code == 409 and second.json()["error"]["code"] == "LOCAL_BUSY"
-    gw.call("POST", f"/api/sessions/{first['session_id']}/end")
-    assert gw.call("POST", "/api/sessions", json={"mode": "realtime", "scenario_id": "cafe_order"}).status_code == 201
+    assert second.status_code == 201
+    old = gw.call("GET", f"/api/sessions/{first['session_id']}").json()
+    assert old["state"] == "ended" and old["summary"]["status"] == "held"  # no turns
+    assert gw.call("GET", f"/api/sessions/{second.json()['session_id']}").json()["state"] == "created"
+    assert gw.http.get("/api/health").json()["modes"]["recorded"]["blocked_by_realtime"] is False
 
 
 def test_settings_validation(gw):
@@ -186,6 +189,24 @@ def test_settings_validation(gw):
     body = gw.call("PUT", "/api/settings", json={"silence_ms": 1100, "history_opt_in": True}).json()
     assert body["silence_ms"] == 1100 and body["history_opt_in"] is True and body["difficulty"] == "normal"
     assert gw.http.get("/api/settings").json()["silence_ms"] == 1100
+
+
+def test_saved_voice_that_no_longer_exists_falls_back_to_scenario_default(gw):
+    # e.g. a user who saved the removed "dev_voice_a" before the default voices changed
+    assert gw.call("PUT", "/api/settings", json={"voice_id": "dev_voice_a"}).status_code == 200
+    session = create_session(gw)
+    assert session["voice_id"] == "voice_a"  # cafe_order default; the worker offers only voice_a
+    gw.call("POST", f"/api/sessions/{session['session_id']}/end")
+    # A saved voice the worker does offer is kept.
+    offered = [{"voice_id": v, "label": v, "license_note": "fake"} for v in ("voice_a", "voice_b")]
+    health = gw.tts.health
+
+    async def two_voices():
+        return {**(await health()), "voices": offered}
+
+    gw.tts.health = two_voices
+    gw.call("PUT", "/api/settings", json={"voice_id": "voice_b"})
+    assert create_session(gw)["voice_id"] == "voice_b"
 
 
 def test_scenarios_listed(gw):

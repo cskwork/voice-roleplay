@@ -109,6 +109,22 @@ export const api = {
     json<{ session_id: string }>('POST', '/api/sessions', body),
   endSession: async (id: string): Promise<SessionSummary> =>
     normalizeSummary(await json<unknown>('POST', `/api/sessions/${encodeURIComponent(id)}/end`, {})),
+  /**
+   * The same end request while the page is unloading: `keepalive` lets it outlive the page, and unlike
+   * `sendBeacon` it can carry the CSRF header the gateway requires (the cookie and Origin go with it).
+   * Without a token yet there is nothing to authenticate with; the gateway then ends the session itself
+   * when something new starts.
+   */
+  endSessionOnUnload: (id: string): void => {
+    if (!csrfToken) return
+    fetch(`/api/sessions/${encodeURIComponent(id)}/end`, {
+      method: 'POST',
+      keepalive: true,
+      credentials: 'same-origin',
+      headers: { 'X-VR-CSRF': csrfToken, 'Content-Type': 'application/json' },
+      body: '{}',
+    }).catch(() => {})
+  },
 
   createAttempt: (body: {
     exercise_type: ExerciseType

@@ -1,4 +1,8 @@
-"""Session registry: one active realtime session, in-memory transcripts, opt-in persistence, end summary."""
+"""Session registry: one active realtime session, in-memory transcripts, opt-in persistence, end summary.
+
+Starting something new (a realtime session, a recorded-practice attempt, upload, submit or transcript re-analysis)
+ends the running realtime session first instead of refusing (PRD §7, product decision 2026-09-29).
+"""
 
 from __future__ import annotations
 
@@ -19,6 +23,13 @@ log = logging.getLogger("vr_gateway.sessions")
 MODES = ("realtime", "turn_based")
 DIFFICULTIES = ("easy", "normal", "hard")
 DEFAULT_SILENCE_MS = {"easy": 1200, "normal": 900, "hard": 700}
+
+# WebSocket close codes for a session the gateway ended (PROTOCOL §6.3).
+CLOSE_ENDED = 4000  # POST /api/sessions/{id}/end, `session.end`, or an abandoned session
+CLOSE_SUPERSEDED = 4001  # ended because the learner started something new
+CLOSE_REASONS = {"ended": (CLOSE_ENDED, "session_ended"), "superseded": (CLOSE_SUPERSEDED, "session_superseded")}
+# Longest a new request waits for the previous realtime engine to stop (cancel LLM/TTS/ASR, close the socket).
+STOP_TIMEOUT_S = 5.0
 
 
 @dataclass
@@ -48,6 +59,8 @@ class Session:
     last_seen: float = field(default_factory=time.monotonic)
     engine: Any = None
     end_task: asyncio.Task | None = None
+    end_reason: str = "ended"  # ended | superseded
+    stopped: asyncio.Event = field(default_factory=asyncio.Event)  # set once the engine stopped and the socket closed
 
     def next_turn_index(self) -> int:
         self.turn_counter += 1
@@ -98,8 +111,11 @@ class SessionManager:
     def __init__(self, services: Services):
         self.services = services
         self.sessions: dict[str, Session] = {}
+        # Serializes "end the running realtime session, then start the new thing" so two quick requests can never
+        # leave two realtime sessions. Only taken by create() and end_realtime_for_new_work(); _finish never takes it.
+        self._switch_lock = asyncio.Lock()
 
-    def create(self, body: dict, settings: dict) -> Session:
+    async def create(self, body: dict, settings: dict) -> Session:
         mode = body.get("mode")
         if mode not in MODES:
             raise ApiError("UNSUPPORTED_MODE")
@@ -112,11 +128,15 @@ class SessionManager:
         policy = body.get("feedback_policy", "session_end")
         if policy not in ("session_end", "per_turn"):
             raise ApiError("INVALID_REQUEST")
-        if mode == "realtime":
-            if self.active_realtime() is not None:
-                raise ApiError("LOCAL_BUSY")
-            if not self.services.health.realtime_available():
-                raise ApiError("MODEL_NOT_READY")
+        if mode == "realtime" and not self.services.health.realtime_available():
+            raise ApiError("MODEL_NOT_READY")  # checked first: a refused start leaves the running session alone
+        if mode != "realtime":
+            return self._register(mode, scenario, difficulty, policy, body, settings)
+        async with self._switch_lock:
+            await self._end_live_realtime()
+            return self._register(mode, scenario, difficulty, policy, body, settings)
+
+    def _register(self, mode: str, scenario: dict, difficulty: str, policy: str, body: dict, settings: dict) -> Session:
         silence = settings.get("silence_ms") or scenario.get("difficulty", {}).get(difficulty, {}).get(
             "silence_ms", DEFAULT_SILENCE_MS[difficulty]
         )
@@ -127,7 +147,7 @@ class SessionManager:
             difficulty=difficulty,
             history_opt_in=bool(body.get("history_opt_in", settings.get("history_opt_in", False))),
             feedback_policy=policy,
-            voice_id=body.get("voice_id") or settings.get("voice_id") or scenario.get("default_voice_id", ""),
+            voice_id=self.services.voice_for(scenario, body.get("voice_id") or settings.get("voice_id")),
             silence_ms=max(700, min(1400, int(silence))),
             goals=[{"goal_id": g["goal_id"], "status": "pending"} for g in scenario.get("goals", [])],
         )
@@ -155,8 +175,36 @@ class SessionManager:
             self.end_in_background(s)
         return None
 
-    def end_in_background(self, session: Session) -> None:
+    def live_realtime(self) -> list[Session]:
+        """Every realtime session that has not ended, connected or not (reconnect grace included)."""
+        return [s for s in self.sessions.values() if s.mode == "realtime" and s.state != "ended"]
+
+    async def end_realtime_for_new_work(self) -> None:
+        """Recorded practice is about to start: end the running realtime session first (same path as POST end)."""
+        if not self.live_realtime():
+            return
+        async with self._switch_lock:
+            await self._end_live_realtime()
+
+    async def _end_live_realtime(self) -> None:
+        """Caller holds _switch_lock. Waits until the engines are stopped and the sockets closed; the end summary
+        keeps being built in the background (same task POST /end awaits)."""
+        ended = self.live_realtime()
+        for s in ended:
+            self.end_in_background(s, reason="superseded")
+        for s in ended:
+            try:
+                await asyncio.wait_for(asyncio.shield(s.stopped.wait()), STOP_TIMEOUT_S)
+            except TimeoutError:
+                log.error("session_stop_timeout id=%s", s.session_id)
+                raise ApiError("LOCAL_BUSY") from None
+
+    def end_in_background(self, session: Session, reason: str = "ended") -> None:
         if session.end_task is None:
+            # Marked ended synchronously, so the next request already sees no live session.
+            session.state = "ended"
+            session.ended_at = time.time()
+            session.end_reason = reason
             session.end_task = asyncio.create_task(self._finish(session))
 
     async def end(self, session: Session) -> dict:
@@ -165,10 +213,13 @@ class SessionManager:
 
     async def _finish(self, session: Session) -> dict:
         started = time.perf_counter()
-        session.state = "ended"
-        session.ended_at = time.time()
-        if session.engine is not None:
-            await session.engine.shutdown(reason="session_end")
+        engine = session.engine
+        try:
+            if engine is not None:
+                await engine.shutdown(reason="session_end" if session.end_reason == "ended" else session.end_reason)
+                await engine.close_transport(*CLOSE_REASONS[session.end_reason])
+        finally:
+            session.stopped.set()
         svc = self.services
         turns = session.user_turns()
         await svc.health.snapshot()
@@ -209,8 +260,8 @@ class SessionManager:
                              "source_id": session.session_id},
                             conn=conn,
                         )
-        log.info("session_ended id=%s turns=%d summary_ms=%d", session.session_id, len(turns),
-                 int((time.perf_counter() - started) * 1000))
+        log.info("session_ended id=%s reason=%s turns=%d summary_ms=%d", session.session_id, session.end_reason,
+                 len(turns), int((time.perf_counter() - started) * 1000))
         return self.summary_payload(session)
 
     def summary_payload(self, session: Session) -> dict:

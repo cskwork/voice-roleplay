@@ -3,6 +3,7 @@ import { BACKLOG_WARN_MS } from '../lib/backlog'
 import { captionsReducer, type Caption, type CaptionAction } from '../lib/captions'
 import type { OutputAudioHeader } from '../lib/envelope'
 import { messageFor } from '../lib/errors'
+import { endedBy, type EndedBy } from '../lib/sessionEnd'
 import { LevelVad } from '../lib/levelVad'
 import { PlaybackController } from '../lib/playbackQueue'
 import { pcm16ToFloat } from '../lib/pcm'
@@ -52,6 +53,8 @@ export interface Snapshot {
   error: { code?: string; message: string; recoverable: boolean } | null
   summary: SessionSummary | null
   disconnected: boolean
+  /** The gateway ended this conversation: from another tab or screen (`ended`) or because something new started. */
+  endedBy: EndedBy | null
 }
 
 const REPLAY_KEY = 'local:replay'
@@ -110,11 +113,12 @@ export class RealtimeSession {
       error: null,
       summary: null,
       disconnected: false,
+      endedBy: null,
     }
     this.socket = new RealtimeSocket(sessionId, {
       onEvent: (e) => this.onServerEvent(e),
       onAudio: (h, pcm) => this.onAudio(h, pcm),
-      onClose: (clean) => this.onSocketClose(clean),
+      onClose: (info) => this.onSocketClose(info),
     })
   }
 
@@ -401,7 +405,16 @@ export class RealtimeSession {
     }
   }
 
-  private onSocketClose(clean: boolean): void {
+  private onSocketClose({ clean, code }: { clean: boolean; code: number }): void {
+    const by = this.socket.closedByClient ? null : endedBy(code)
+    if (by) {
+      // Ended on purpose by the gateway (the `session.state CLOSED` event came first): calm notice, not an error.
+      this.playback?.stopNow(this.activeResponse)
+      this.mic?.close()
+      this.mic = null
+      this.set({ state: 'CLOSED', aiSpeaking: false, responseActive: false, disconnected: false, error: null, warning: null, endedBy: by })
+      return
+    }
     if (this.snap.state === 'CLOSED') return
     this.playback?.stopNow(this.activeResponse)
     this.mic?.close()

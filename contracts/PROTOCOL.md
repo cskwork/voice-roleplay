@@ -98,8 +98,8 @@ Audio in: PCM signed 16-bit little-endian, mono, 16 000 Hz (gateway resamples be
   - Cancel must stop generation at the next model chunk boundary (check a flag between streaming yields), and no binary frames
     for that request may be sent after `cancelled`.
 - `POST /synthesize` JSON `{"voice_id","text","speed"}` → `audio/wav` (PCM16 mono) — used for model sentences and cache warmup.
-- Voices: `content/voices/<voice_id>/{prompt.wav,prompt.txt,SOURCE.md,voice.json}`; `voice.json` = `{"label","license_note","mode"}`. Initial 2 voices built from assets bundled in the pinned
-  CosyVoice repo, marked **"개발용 — 출시 전 권리 확인된 음성으로 교체 필요"** in SOURCE.md and `license_note`.
+- Voices: `content/voices/<voice_id>/{prompt.wav,prompt.txt,SOURCE.md,voice.json}`; `voice.json` = `{"label","license_note","mode"}`. Default voices (since 2026-09-29):
+  `libritts_r_4992_f` and `libritts_r_1188_m` (LibriTTS-R, CC BY 4.0; the attribution text is in SOURCE.md and `license_note`).
 - Text normalization before synthesis: expand prices/numbers/dates/times only where needed for correct reading; never pass markup, JSON, or Korean.
 
 ## 5. LLM — llama-server `http://127.0.0.1:8713`
@@ -151,6 +151,11 @@ As PRD §13.1 (route list with request fields: `services/gateway/README.md`). Er
 | `QUEUE_FULL` | 429 | | `MODEL_NOT_READY`, `OUT_OF_MEMORY` | 503 |
 | `WORKER_FAILED` | 502 | | | |
 
+`LOCAL_BUSY` (409) is no longer the answer to "a realtime session is active" (PRD §7, v0.2.1): starting new work ends that
+session instead (§7). It is returned only when the previous realtime session could not be stopped within 5 s, so two
+workloads never overlap; the request can simply be retried. As a pronunciation `reason` (§12.4) it still means a realtime
+session started while the job was being analysed.
+
 - **Idempotency.** `POST /api/attempts/{id}/submit` and `PATCH /api/attempts/{id}/transcript` take header `Idempotency-Key`
   (≤ 128 chars). A new key → 202 + new job; the same key for the same attempt/kind → 200 + the same job (also across restarts,
   from SQLite); the same key for something else → 409 `IDEMPOTENCY_CONFLICT`. Without the header, submit uses one implicit key
@@ -168,7 +173,8 @@ As PRD §13.1 (route list with request fields: `services/gateway/README.md`). Er
     blocked_by_realtime}}, "tts_cache": {"status": "idle|warming|paused|done", "openings_total", "openings_ready", "openings_failed"},
     "benchmark": {"status"}, "pronunciation_assessment": "<pronunciation_status>"}` (§12.4; `workers` also has
     `"pron": {reachable, ready, models, bands_enabled, calibration_version}` when the pronunciation worker is configured). Realtime needs ASR+TTS+LLM+VAD,
-    recorded needs ASR+VAD. The TTS cache warm-up pauses while a realtime session is active; `./app start` waits until
+    recorded needs ASR+VAD. `blocked_by_realtime` is always `false` since v0.2.1 (kept for compatibility; recorded work
+    ends the realtime session, §7). The TTS cache warm-up pauses while a realtime session is active; `./app start` waits until
     every opening line is cached.
   - `POST /api/sessions/{id}/end` → `{"session_id", "state": "ended", "summary": {"items": [≤3 feedback], "goals", "status": "ok|held|unavailable",
     "reason", "turns": [{turn_id, turn_index, role, text, transcript_revision, spoken_segments, playback_status, metrics}],
@@ -187,6 +193,11 @@ Additional endpoints (Speak-style learning loop):
 
 Upgrade refusals: the gateway closes the socket before accepting it with `4401` no/invalid `vr_sid`, `4403` Origin
 not allowed, `4404` unknown, ended or non-realtime session, `4409` the session already has a connection (one per session).
+Server-side end: when the gateway ends a connected session it sends `session.state {state: "CLOSED"}` (an unfinished
+reply gets `response.cancelled`), then closes the socket with `4000` reason `session_ended` (`POST /api/sessions/{id}/end`
+or `session.end`, possibly from another tab) or `4001` reason `session_superseded` (the learner started something new, §7).
+Clients treat both as a normal end, not a connection error. The summary stays available through `POST .../end` or
+`GET /api/sessions/{id}` for 15 min (longer only with history opt-in).
 A close before accept becomes an HTTP 403 handshake response in uvicorn, so a real client (browser, raw upgrade) sees
 a refused handshake without the code; only in-process ASGI test clients see the codes (checked in `tests/e2e`, AT-20).
 
@@ -261,7 +272,18 @@ common `PAUSED, RECOVERABLE_ERROR, CLOSED`. Input and output sub-states tracked 
 - Stale output: client drops any output audio/text whose `epoch` ≠ current epoch or whose `response_id` was cancelled.
 
 ## 7. Non-realtime jobs
-- One job slot, queue capacity 2, audio kept in memory only, TTL 5 min while queued. Realtime session active → `LOCAL_BUSY` (409).
+- One job slot, queue capacity 2, audio kept in memory only, TTL 5 min while queued.
+- At most one realtime session is active, and it never runs next to new recorded work (PRD §7, v0.2.1). `POST /api/attempts`,
+  `PUT /api/attempts/{id}/audio`, `POST /api/attempts/{id}/submit`, `PATCH /api/attempts/{id}/transcript` and
+  `POST /api/sessions` (`mode: realtime`) first end every realtime session that has not ended, connected or waiting for a
+  reconnect, through the same path as `POST /api/sessions/{id}/end` (cancel LLM/TTS/ASR work, close the socket with `4001`,
+  release audio buffers; the summary is still built and kept as usual), wait until its engine has stopped, then proceed.
+  A repeated `Idempotency-Key`, a request refused anyway (`INVALID_STATE`, `AUDIO_EXPIRED`, `QUEUE_FULL`) and a realtime
+  start refused with `MODEL_NOT_READY` leave the running session alone. These switches are serialized in the gateway, so
+  concurrent requests end up with exactly one realtime session. If the old engine does not stop within 5 s the request
+  gets `LOCAL_BUSY` (409). The web app also ends the session itself when the learner leaves the realtime screen (route
+  change or unmount: `POST .../end`; tab close or reload: the same request with `fetch(..., {keepalive: true})` carrying
+  `X-VR-CSRF`).
 - Job states: `queued, transcribing, analyzing, synthesizing, completed, failed, cancelled, expired`. On gateway start, any non-terminal job in
   SQLite becomes `expired`.
 - WAV input: PCM16, 1–2 ch, 16/24/44.1/48 kHz, ≤ 120 s, ≤ 32 MiB; validated by actually parsing; request body read into memory with a hard cap (no temp spooling).

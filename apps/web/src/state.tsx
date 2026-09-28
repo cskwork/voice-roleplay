@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 import { api } from './lib/api'
 import { ApiError, toApiError } from './lib/errors'
+import { pickVoiceId } from './lib/voice'
 import type { AttemptResult, ExerciseType, Health, Scenario, SessionSummary, Settings } from './lib/types'
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -119,10 +120,10 @@ export function useApp(): AppState {
   return v
 }
 
-/** Voice for TTS: user setting, else the scenario default, else the first available voice. */
+/** Voice for TTS: user setting if still offered, else the scenario default, else the first voice (`pickVoiceId`). */
 export function useVoiceId(scenario?: Scenario): string {
   const { settings, health } = useApp()
-  return settings.voice_id ?? scenario?.default_voice_id ?? health?.components.tts?.voices?.[0]?.voice_id ?? ''
+  return pickVoiceId(settings.voice_id, scenario?.default_voice_id, health?.components.tts?.voices)
 }
 
 // --- tiny hash router ---------------------------------------------------------

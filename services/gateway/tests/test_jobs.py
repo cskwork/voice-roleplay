@@ -1,4 +1,4 @@
-"""Recorded practice: WAV parsing, job lifecycle, idempotency, cancel, expiry, LOCAL_BUSY, revisions (FAKE workers)."""
+"""Recorded practice: WAV parsing, job lifecycle, idempotency, cancel, expiry, ending realtime, revisions (FAKE)."""
 
 from __future__ import annotations
 
@@ -87,6 +87,16 @@ def test_parse_wav_8bit_rejected():
 
 
 # ---------------------------------------------------------------- job lifecycle
+
+
+def test_model_audio_ignores_saved_voice_that_no_longer_exists(gw):
+    gw.call("PUT", "/api/settings", json={"voice_id": "dev_voice_a"})  # removed voice, still in settings
+    aid = new_attempt(gw)
+    job = upload_and_submit(gw, aid).json()
+    assert gw.wait_job(job["job_id"])["state"] == "completed"
+    result = gw.http.get(f"/api/attempts/{aid}/result").json()
+    assert result["model_audio"], result
+    assert gw.tts.wav_calls and {c["voice_id"] for c in gw.tts.wav_calls} == {"voice_a"}
 
 
 def test_free_answer_lifecycle(gw):
@@ -197,14 +207,42 @@ def test_unfinished_jobs_expire_on_restart(tmp_path):
         g2.stop()
 
 
-def test_local_busy_during_realtime(gw):
+def session_state(gw, session_id) -> str:
+    return gw.call("GET", f"/api/sessions/{session_id}").json()["state"]
+
+
+def test_recorded_work_ends_realtime_session(gw):
+    """Upload, submit and a new attempt each end a realtime session (not connected here) instead of LOCAL_BUSY."""
     aid = new_attempt(gw)
     session = create_session(gw)
     resp = gw.call("PUT", f"/api/attempts/{aid}/audio", content=speech_wav())
-    assert resp.status_code == 409 and resp.json()["error"]["code"] == "LOCAL_BUSY"
-    gw.call("POST", f"/api/sessions/{session['session_id']}/end")
-    resp = upload_and_submit(gw, aid)
+    assert resp.status_code == 200
+    assert session_state(gw, session["session_id"]) == "ended"
+    second = create_session(gw)
+    resp = gw.call("POST", f"/api/attempts/{aid}/submit")
     assert resp.status_code == 202
+    assert session_state(gw, second["session_id"]) == "ended"
+    assert gw.wait_job(resp.json()["job_id"])["state"] == "completed"
+    third = create_session(gw)
+    new_attempt(gw, "reading")
+    assert session_state(gw, third["session_id"]) == "ended"
+    # The summary of an auto-ended session stays available (15-minute window, PRD §11).
+    summary = gw.call("POST", f"/api/sessions/{third['session_id']}/end").json()
+    assert summary["state"] == "ended" and summary["summary"]["status"] == "held"
+
+
+def test_refused_or_repeated_submit_leaves_realtime_alone(gw):
+    aid = new_attempt(gw)
+    job = upload_and_submit(gw, aid, key="k1").json()
+    session = create_session(gw)
+    # Same idempotency key: the existing job comes back, nothing new starts, the conversation keeps running.
+    again = gw.call("POST", f"/api/attempts/{aid}/submit", headers={"Idempotency-Key": "k1"})
+    assert again.status_code == 200 and again.json()["job_id"] == job["job_id"]
+    # A submit that is refused anyway (take already submitted) does not end it either.
+    refused = gw.call("POST", f"/api/attempts/{aid}/submit", headers={"Idempotency-Key": "k2"})
+    assert refused.status_code == 409 and refused.json()["error"]["code"] == "INVALID_STATE"
+    assert session_state(gw, session["session_id"]) == "created"
+    gw.call("POST", f"/api/sessions/{session['session_id']}/end")
 
 
 def test_transcript_revision_semantics(gw):

@@ -13,7 +13,8 @@ export interface ServerEvent {
 export interface SocketHandlers {
   onEvent(e: ServerEvent): void
   onAudio(header: OutputAudioHeader, pcm: Int16Array): void
-  onClose(clean: boolean): void
+  /** `clean`: closed by this client or with 1000. `code` 4000/4001: the gateway ended the session (PROTOCOL §6.3). */
+  onClose(info: { clean: boolean; code: number }): void
 }
 
 /** Realtime WebSocket (PROTOCOL §6.3): JSON control events + binary audio envelopes. */
@@ -43,7 +44,7 @@ export class RealtimeSocket {
       ws.onerror = () => reject(new Error('ws error'))
       ws.onclose = (e) => {
         reject(new Error('ws closed'))
-        this.handlers.onClose(this.closedByClient || e.code === 1000)
+        this.handlers.onClose({ clean: this.closedByClient || e.code === 1000, code: e.code })
       }
       ws.onmessage = (m: MessageEvent<string | ArrayBuffer>) => {
         if (typeof m.data === 'string') {

@@ -72,7 +72,8 @@ class HealthMonitor:
                 "reason_ko": f"준비되지 않은 모델: {', '.join(rec_missing)}" if rec_missing else None,
                 "feedback_available": llm_ok,
                 "model_audio_available": tts_ready,
-                "blocked_by_realtime": busy,
+                # Kept for compatibility, always false: starting recorded work ends the realtime session (PRD §7).
+                "blocked_by_realtime": False,
             },
         }
         return {
@@ -116,6 +117,12 @@ class HealthMonitor:
         """The pronunciation worker's entry of the last snapshot (None when not configured)."""
         snap = self._snapshot
         return snap["workers"].get("pron") if snap else None
+
+    def tts_voice_ids(self) -> set[str] | None:
+        """Voice ids the TTS worker listed in the last snapshot; None when not known (no snapshot, no voices yet)."""
+        snap = self._snapshot
+        voices = snap["workers"]["tts"].get("voices") if snap else None
+        return {v["voice_id"] for v in voices} if voices else None
 
     def tts_ready(self) -> bool:
         snap = self._snapshot

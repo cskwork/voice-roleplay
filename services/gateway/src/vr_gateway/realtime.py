@@ -56,6 +56,7 @@ CANCEL = object()
 class Transport(Protocol):
     async def send_text(self, data: str) -> None: ...
     async def send_bytes(self, data: bytes) -> None: ...
+    async def close(self, code: int, reason: str) -> None: ...
 
 
 def ends_with_question(text: str) -> bool:
@@ -1044,7 +1045,7 @@ class RealtimeEngine:
             return
         if self.response is not None and not self.response.playback_finished():
             await self._cancel_response(self.response, reason)
-        if reason == "session_end":
+        if reason in ("session_end", "superseded"):
             await self._set_state(state="CLOSED", input_state="closed", output_state="idle")
         self.closed = True
         if self.utt is not None and self.utt.queue is not None:
@@ -1066,3 +1067,12 @@ class RealtimeEngine:
             self.s.engine = None
             self.s.last_seen = time.monotonic()
         log.info("engine_closed session=%s reason=%s", self.s.session_id, reason)
+
+    async def close_transport(self, code: int, reason: str) -> None:
+        """Close the client's socket after shutdown(), with a code saying why (PROTOCOL §6.3)."""
+        async with self._send_lock:  # never in the middle of a frame
+            try:
+                await self.t.close(code, reason)
+            except Exception:  # already gone
+                pass
+        log.info("ws_close_sent session=%s code=%d", self.s.session_id, code)

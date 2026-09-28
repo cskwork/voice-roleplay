@@ -39,13 +39,13 @@ allowed `Origin`. Every `/api` route except `/api/health` needs the cookie. Erro
 | `GET /api/bootstrap` | `{csrf_token, protocol_version: 1}` |
 | `GET /api/scenarios`, `GET /api/scenarios/{id}` | full scenario files |
 | `GET/PUT /api/settings` | `difficulty, silence_ms (700–1400 or null), history_opt_in, voice_id, slow, auto_barge_in, feedback_policy, input_device_id, output_device_id, profile`; PUT is a partial update |
-| `POST /api/sessions` | `{mode: "realtime"\|"turn_based", scenario_id, difficulty?, history_opt_in?, feedback_policy?, voice_id?}` → 201; realtime needs models ready (503 `MODEL_NOT_READY`) and no other active realtime session (409 `LOCAL_BUSY`) |
+| `POST /api/sessions` | `{mode: "realtime"\|"turn_based", scenario_id, difficulty?, history_opt_in?, feedback_policy?, voice_id?}` → 201; realtime needs models ready (503 `MODEL_NOT_READY`); any other realtime session that has not ended is ended first (below). A requested or saved `voice_id` the TTS worker does not list falls back to the scenario's `default_voice_id` |
 | `GET /api/sessions/{id}` | state, goals, turns (in memory), summary |
-| `POST /api/sessions/{id}/end` | stops the realtime engine, returns `{summary: {items ≤3, goals, turns, status, pronunciation_score: null}}`; unsaved summaries expire after 15 min |
+| `POST /api/sessions/{id}/end` | stops the realtime engine, closes its socket (`4000 session_ended`), returns `{summary: {items ≤3, goals, turns, status, pronunciation_score: null}}`; unsaved summaries expire after 15 min |
 | `WS /api/sessions/{id}/realtime` | see below |
 | `POST /api/attempts` | `{exercise_type: reading\|shadowing\|free_answer\|roleplay_turn\|drill, scenario_id, text_id \| exercise_id \| session_id, history_opt_in?}`; `drill` takes `target_text` (English ≤ 400) and optional `scenario_id`/`session_id`, and is analysed like reading (no ASR context, `target_diff`, no LLM feedback) |
 | `PUT /api/attempts/{id}/audio` | raw WAV body (PCM16, 1–2 ch, 16/24/44.1/48 kHz, ≤120 s, ≤32 MiB), read into memory; one take per attempt once submitted |
-| `POST /api/attempts/{id}/submit` | header `Idempotency-Key`; 202 new job, 200 same job again; 409 `IDEMPOTENCY_CONFLICT`, 429 `QUEUE_FULL`, 409 `LOCAL_BUSY` |
+| `POST /api/attempts/{id}/submit` | header `Idempotency-Key`; 202 new job, 200 same job again; 409 `IDEMPOTENCY_CONFLICT`, 429 `QUEUE_FULL`, 409 `LOCAL_BUSY` (only if the previous realtime session did not stop within 5 s) |
 | `GET /api/jobs/{id}`, `DELETE /api/jobs/{id}` | `queued, transcribing, analyzing, synthesizing, completed, failed, cancelled, expired` |
 | `GET /api/attempts/{id}/result` | transcript + revisions, feedback (latest revision) and `feedback_by_revision`, metrics (revision 1 only), `target_diff` (label `다르게 인식된 부분`), `model_audio[{audio_id, kind, text, url}]`, `next_ai` (roleplay_turn), `no_speech`, `pronunciation` (below), `pronunciation_score: null` |
 | `PATCH /api/attempts/{id}/transcript` | `{text}` → new revision, text-only re-analysis job (202) |
@@ -55,6 +55,26 @@ allowed `Origin`. Every `/api` route except `/api/health` needs the cookie. Erro
 | `GET /api/review/due`, `POST /api/review/{item_id}/grade`, `POST /api/review` | Leitner boxes 1–5 (0/1/3/7/14 days); `POST /api/review` saves an expression, only with `history_opt_in` |
 | `GET /api/tts/cached?voice_id=&text_id=&slow=` | pre-synthesized reviewed texts (`var/cache/tts/`) |
 | `POST /api/tts` | `{voice_id, text ≤400 English, speed 0.5–1.5}` → WAV |
+
+## Starting something new ends the realtime session (`sessions.py`, PRD §7 v0.2.1, PROTOCOL §7)
+
+`POST /api/attempts`, `PUT /api/attempts/{id}/audio`, `POST /api/attempts/{id}/submit`, `PATCH /api/attempts/{id}/transcript`
+and `POST /api/sessions` with `mode: realtime` never answer `LOCAL_BUSY` because a conversation is running. They end every
+realtime session that has not ended (connected, or waiting in the 120 s reconnect grace) through the `POST .../end` path:
+the session is marked `ended` at once, the engine cancels the reply, LLM/TTS/ASR streams and background tasks, sends
+`session.state CLOSED`, and the socket is closed with `4001 session_superseded`; the end summary is still built in the
+background and kept like any other (15 min in memory, SQLite only with opt-in). The request waits until the engine has
+stopped (not for the summary), then proceeds.
+
+- Race safety: the switch runs under one `asyncio.Lock` in `SessionManager` (`_switch_lock`), so concurrent requests
+  are handled one after another and leave exactly one realtime session; `_finish` never takes the lock, so it cannot
+  deadlock. Jobs check idempotency again after the wait.
+- Not ended: a repeated `Idempotency-Key` (same job back), requests refused anyway (`INVALID_STATE`, `AUDIO_EXPIRED`,
+  `QUEUE_FULL`), a realtime start refused with `MODEL_NOT_READY`, and `turn_based` sessions.
+- `LOCAL_BUSY` remains for one case: the old engine did not stop within 5 s (`session_stop_timeout` in the log). Running
+  the new work next to a realtime engine that is still generating is what the rule exists to prevent.
+- Logs: `session_ended id reason=superseded`, `ws_close_sent session code`; ids and codes only.
+- `modes.recorded.blocked_by_realtime` is always `false` (kept for compatibility).
 
 ## Pronunciation (`pronunciation.py`, PROTOCOL §12.4)
 

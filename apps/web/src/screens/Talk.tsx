@@ -4,6 +4,7 @@ import { ActionButton, Badge, LevelMeter, Notice } from '../components/ui'
 import { api } from '../lib/api'
 import type { Caption } from '../lib/captions'
 import { toApiError } from '../lib/errors'
+import { ENDED_NOTICE, guardSessionEnd, type LeaveGuard } from '../lib/sessionEnd'
 import type { Difficulty, Scenario } from '../lib/types'
 import { RealtimeSession, type HintView, type ServerState, type Snapshot } from '../session/realtimeSession'
 import { navigate, useApp } from '../state'
@@ -268,8 +269,26 @@ export function Talk({ scenarioId, opts }: { scenarioId: string; opts: string })
   const [startError, setStartError] = useState<string | null>(null)
   const [ending, setEnding] = useState(false)
   const [hintLevel, setHintLevel] = useState(0)
+  const alive = useRef(true)
+  const leave = useRef<LeaveGuard | null>(null)
 
-  useEffect(() => () => session?.shutdown(), [session])
+  useEffect(() => {
+    alive.current = true
+    return () => {
+      alive.current = false
+    }
+  }, [])
+
+  // Leaving this screen (route change, unmount, tab close) ends the conversation, not only the socket (PRD §7).
+  useEffect(() => {
+    if (!session) return
+    const guard = guardSessionEnd(session.sessionId, { end: api.endSession, endOnUnload: api.endSessionOnUnload })
+    leave.current = guard
+    return () => {
+      session.shutdown()
+      guard.release()
+    }
+  }, [session])
 
   const begin = async () => {
     if (!sc) return
@@ -280,18 +299,22 @@ export function Talk({ scenarioId, opts }: { scenarioId: string; opts: string })
       const { session_id } = await api.createSession({ mode: 'realtime', scenario_id: sc.scenario_id, difficulty, history_opt_in: historyOptIn, feedback_policy: 'session_end' })
       s = new RealtimeSession(session_id, { autoBargeIn: app.settings.auto_barge_in })
       await s.start(app.micDeviceId || undefined, app.settings.silence_ms)
+      if (!alive.current) throw new Error('left the screen while connecting')
       setSession(s)
     } catch (e) {
       s?.shutdown()
-      setStartError(toApiError(e).messageKo)
+      // The gateway created the session but it never ran here: end it rather than leave it waiting.
+      if (s) api.endSession(s.sessionId).catch(() => {})
+      if (alive.current) setStartError(toApiError(e).messageKo)
     } finally {
-      setStarting(false)
+      if (alive.current) setStarting(false)
     }
   }
 
   const finish = async () => {
     if (!session || !sc) return
     setEnding(true)
+    leave.current?.markEnded()
     session.shutdown()
     let summary = null
     let error = null
@@ -550,10 +573,18 @@ export function LiveTalk({
               )}
             </Notice>
           )}
+          {s.endedBy && (
+            <Notice icon="info">
+              {ENDED_NOTICE[s.endedBy]}{' '}
+              <button type="button" className="link" onClick={onEnd} disabled={ending}>
+                요약 보기
+              </button>
+            </Notice>
+          )}
           {s.warning && <Notice tone="warn">{s.warning}</Notice>}
           {s.backlogged && (
             <Notice tone="warn" icon="alert">
-              음성 전송이 2초 넘게 밀리고 있어요. 말한 내용이 늦게 전달돼요. 잠시 멈춘 뒤 다시 시작하거나, 계속되면 회화를 끝내고 녹음 연습을 이용해 주세요.{' '}
+              음성 전송이 2초 넘게 밀리고 있어요. 말한 내용이 늦게 전달돼요. 잠시 멈춘 뒤 다시 시작하거나, 계속되면 녹음 연습을 이용해 주세요.{' '}
               {!s.paused && (
                 <button type="button" className="link" onClick={() => session.setPaused(true)}>
                   일시정지

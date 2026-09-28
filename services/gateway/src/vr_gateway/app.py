@@ -31,7 +31,7 @@ from .jobs import JobManager
 from .pronunciation import GuideIndex
 from .realtime import RealtimeEngine
 from .scenarios import ScenarioStore
-from .sessions import SessionManager
+from .sessions import CLOSE_REASONS, SessionManager
 from .tts_cache import VOICE_RE, TtsCache
 
 log = logging.getLogger("vr_gateway")
@@ -84,6 +84,19 @@ class Services:
 
     def settings(self) -> dict:
         return {**DEFAULT_SETTINGS, **self.db.get_settings()}
+
+    def voice_for(self, scenario: dict | None, wanted: str | None) -> str:
+        """`wanted` (request or saved setting) if the TTS worker offers it, else the scenario default.
+
+        A saved setting can name a voice that has since been removed (e.g. the former dev voices); that falls back
+        instead of failing every synthesis. Unchecked while the worker's voice list is unknown."""
+        default = (scenario or {}).get("default_voice_id", "")
+        known = self.health.tts_voice_ids() if self.health else None
+        if wanted and (known is None or wanted in known):
+            return wanted
+        if wanted:
+            log.warning("voice_unavailable voice=%s fallback=%s", wanted, default)
+        return default
 
 
 # ---------------------------------------------------------------- request models
@@ -183,6 +196,9 @@ class WsTransport:
 
     async def send_bytes(self, data: bytes) -> None:
         await self.ws.send_bytes(data)
+
+    async def close(self, code: int, reason: str) -> None:
+        await self.ws.close(code=code, reason=reason)
 
 
 # ---------------------------------------------------------------- factory
@@ -339,7 +355,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         body = await read_model(request, SessionIn, svc)
         if body.mode == "realtime":
             await svc.health.snapshot(force=True)
-        session = svc.sessions.create(body.model_dump(exclude_none=True), svc.settings())
+        session = await svc.sessions.create(body.model_dump(exclude_none=True), svc.settings())
         return {**session.meta(), "scenario": session.scenario, "goals": session.goals,
                 "realtime_url": f"/api/sessions/{session.session_id}/realtime" if session.mode == "realtime" else None}
 
@@ -369,6 +385,9 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
             await ws.close(code=4409)  # one connection per session
             return
         await ws.accept()
+        if session.state == "ended":  # ended while the handshake was in flight
+            await ws.close(code=CLOSE_REASONS[session.end_reason][0], reason=CLOSE_REASONS[session.end_reason][1])
+            return
         engine = RealtimeEngine(session, svc, WsTransport(ws))
         session.engine = engine
         log.info("ws_connected session=%s", session_id)
@@ -401,7 +420,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         body = await read_model(request, AttemptIn, svc)
         if body.target_text is not None and not ENGLISH_TEXT.match(body.target_text):
             raise ApiError("INVALID_REQUEST", message_ko="영어 문장만 연습할 수 있습니다.")
-        attempt = svc.jobs.create_attempt(body.model_dump(exclude_none=True))
+        attempt = await svc.jobs.create_attempt(body.model_dump(exclude_none=True))
         return {"attempt_id": attempt.attempt_id, "attempt_index": attempt.attempt_index,
                 "exercise_type": attempt.exercise_type, "target_en": attempt.target_en,
                 "question_en": attempt.question_en, "history_opt_in": attempt.history_opt_in,
@@ -413,7 +432,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         data = await read_body(request, config.max_wav_bytes, "AUDIO_TOO_LARGE")
         decoded = await asyncio.to_thread(parse_wav, data, config.max_audio_s)
         del data
-        return {"attempt_id": attempt_id, **svc.jobs.set_audio(attempt, decoded)}
+        return {"attempt_id": attempt_id, **(await svc.jobs.set_audio(attempt, decoded))}
 
     @app.post("/api/attempts/{attempt_id}/submit", status_code=202)
     async def submit(attempt_id: str, request: Request):
@@ -421,7 +440,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         key = request.headers.get("idempotency-key") or f"auto:{attempt_id}:submit"
         if len(key) > 128:
             raise ApiError("INVALID_REQUEST")
-        job, created = svc.jobs.submit(attempt, key)
+        job, created = await svc.jobs.submit(attempt, key)
         return JSONResponse(job, status_code=202 if created else 200)
 
     @app.get("/api/attempts/{attempt_id}/result")
@@ -435,7 +454,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         key = request.headers.get("idempotency-key") or f"auto:{attempt_id}:rev:{uuid.uuid4().hex}"
         if len(key) > 128:
             raise ApiError("INVALID_REQUEST")
-        job, created = svc.jobs.resubmit_transcript(attempt, body.text, key)
+        job, created = await svc.jobs.resubmit_transcript(attempt, body.text, key)
         return JSONResponse(job, status_code=202 if created else 200)
 
     @app.get("/api/attempts/{attempt_id}/model-audio/{audio_id}")

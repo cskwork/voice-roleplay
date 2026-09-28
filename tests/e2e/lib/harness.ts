@@ -132,6 +132,17 @@ export async function startConversation(page: Page, scenario = 'cafe_order', opt
   return waitReply(page, from, started.response_id as string)
 }
 
+/** Recorded practice: 녹음 시작 → speak a fixture → 녹음 정지, until the take preview is there. */
+export async function recordTake(page: Page, fixture: string): Promise<void> {
+  const rec = page.getByRole('button', { name: /^(녹음 시작|다시 녹음)$/ })
+  await rec.click()
+  await expect(page.getByRole('button', { name: '녹음 정지' })).toBeVisible()
+  const mic = await say(page, fixture, 0.2)
+  await waitUntilPerf(page, mic.endPerf + 400)
+  await page.getByRole('button', { name: '녹음 정지' }).click()
+  await expect(page.locator('.take audio')).toHaveCount(1)
+}
+
 /** 종료하고 요약 보기 → summary screen. */
 export async function endConversation(page: Page): Promise<void> {
   const end = page.getByRole('button', { name: /종료하고 요약 보기/ })
@@ -253,13 +264,18 @@ export class Api {
   }
 }
 
-/** Wait until no realtime session is active (the previous test's session end runs in the background). */
-export async function waitRealtimeFree(req: APIRequestContext, timeoutMs = 30_000): Promise<void> {
-  const deadline = Date.now() + timeoutMs
+/**
+ * Wait until realtime mode is available. A realtime session left over from the previous test no longer blocks the
+ * next one (starting something new ends it, PRD §7 v0.2.1), so it is not an error: it gets up to `settleMs` to end
+ * on its own (a spec then starts from a quiet stack), and after that the next start ends it.
+ */
+export async function waitRealtimeFree(req: APIRequestContext, timeoutMs = 30_000, settleMs = 5_000): Promise<void> {
+  const started = Date.now()
   for (;;) {
     const h = await (await req.get('/api/health')).json()
-    if (!h.modes.realtime.session_active && h.modes.realtime.available) return
-    if (Date.now() > deadline) throw new Error('realtime session still active')
+    const now = Date.now()
+    if (h.modes.realtime.available && (!h.modes.realtime.session_active || now - started > settleMs)) return
+    if (now - started > timeoutMs) throw new Error('realtime mode not available')
     await new Promise((r) => setTimeout(r, 250))
   }
 }

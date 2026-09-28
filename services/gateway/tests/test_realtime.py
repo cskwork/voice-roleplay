@@ -6,10 +6,12 @@ import asyncio
 import dataclasses
 import json
 import struct
+import time
 
 import numpy as np
 import pytest
 from conftest import connect_rt, create_session, silence, tone
+from test_jobs import new_attempt, speech_wav, upload_and_submit
 
 from vr_gateway.protocol import pack_frame
 
@@ -592,3 +594,112 @@ async def test_interrupted_reply_keeps_only_heard_segments_in_order(gw):
     await rt.until("response.started", timeout=10)
     assert [t["role"] for t in s.turns] == ["assistant", "user", "assistant", "user"]
     await rt.ws.close()
+
+
+# ---------------------------------------------------------------- starting something new ends the conversation
+
+
+async def closed_by_server(rt, timeout: float = 3.0) -> tuple[int | None, str | None]:
+    """Reads until the gateway closes the socket; returns (code, reason)."""
+    from websockets.exceptions import ConnectionClosed
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            await rt.recv(deadline - time.monotonic())
+        except ConnectionClosed:
+            break
+    else:
+        raise AssertionError("socket still open")
+    return rt.ws.close_code, rt.ws.close_reason
+
+
+async def test_submit_during_active_session_ends_it(gw):
+    """User flow: realtime conversation, then 녹음형 연습 without pressing 종료 → the submit is accepted."""
+    gw.asr.default_final = "Can I have an oat latte"
+    session, rt = await start(gw)
+    await speak_turn(rt)
+    resp = await rt.until("response.started")
+    await rt.until("response.done")
+    await confirm_playback(rt, resp["response_id"])
+    aid = await asyncio.to_thread(new_attempt, gw, "reading")
+    sub = await asyncio.to_thread(upload_and_submit, gw, aid)
+    assert sub.status_code == 202
+    await rt.until("session.state", state="CLOSED")
+    assert await closed_by_server(rt) == (4001, "session_superseded")
+    s = gw.svc.sessions.sessions[session["session_id"]]
+    assert s.state == "ended" and s.end_reason == "superseded" and s.engine is None
+    assert gw.svc.sessions.active_realtime() is None
+    summary = (await asyncio.to_thread(gw.call, "POST", f"/api/sessions/{session['session_id']}/end")).json()
+    assert summary["state"] == "ended" and summary["summary"]["status"] == "ok"
+    assert summary["summary"]["items"][0]["suggestion"] == "Could I get a latte?"
+    job = await asyncio.to_thread(gw.wait_job, sub.json()["job_id"])
+    assert job["state"] == "completed"
+
+
+async def test_new_session_ends_connected_previous_one(gw):
+    gw.tts.chunks = 50
+    gw.tts.chunk_delay = 0.03
+    session, rt = await start(gw)
+    await speak_turn(rt)
+    await rt.until("response.started")  # a reply is still being synthesized: it must be cancelled
+    second = await asyncio.to_thread(create_session, gw)
+    assert (await rt.until("response.cancelled"))["reason"] == "superseded"
+    assert await closed_by_server(rt) == (4001, "session_superseded")
+    assert [s.session_id for s in gw.svc.sessions.live_realtime()] == [second["session_id"]]
+    rt2 = await connect_rt(gw, second["session_id"])
+    await rt2.event("session.start")
+    await rt2.until("response.started")
+    # The ended session cannot be reconnected.
+    from websockets.exceptions import InvalidStatus
+
+    with pytest.raises(InvalidStatus):
+        await connect_rt(gw, session["session_id"])
+    await rt2.ws.close()
+
+
+async def test_end_request_closes_socket_with_ended_code(gw):
+    session, rt = await start(gw)
+    await asyncio.to_thread(gw.call, "POST", f"/api/sessions/{session['session_id']}/end")
+    assert await closed_by_server(rt) == (4000, "session_ended")
+
+
+async def test_concurrent_switch_requests_leave_one_session(gw):
+    """Two new sessions and a submit at the same moment: no deadlock, no second live session, every request served."""
+    import httpx
+
+    aid = await asyncio.to_thread(new_attempt, gw, "reading")
+    upload = await asyncio.to_thread(gw.call, "PUT", f"/api/attempts/{aid}/audio", content=speech_wav())
+    assert upload.status_code == 200
+    session, rt = await start(gw)
+    gw.tts.close_delay = 0.3  # the old engine is still stopping while the other requests arrive
+    body = {"mode": "realtime", "scenario_id": "cafe_order", "difficulty": "normal", "history_opt_in": False}
+    async with httpx.AsyncClient(base_url=gw.base, headers=gw.headers, cookies={"vr_sid": gw.sid}, timeout=10) as c:
+        results = await asyncio.wait_for(asyncio.gather(
+            c.post("/api/sessions", json=body),
+            c.post(f"/api/attempts/{aid}/submit"),
+            c.post("/api/sessions", json=body),
+            c.post("/api/sessions", json=body),
+        ), 10)
+        assert [r.status_code for r in results] == [201, 202, 201, 201]
+        created = [r.json()["session_id"] for r in results if r.status_code == 201]
+        states = [(await c.get(f"/api/sessions/{sid}")).json()["state"] for sid in [session["session_id"], *created]]
+    assert states.count("ended") == 3 and states.count("created") == 1
+    assert len(gw.svc.sessions.live_realtime()) == 1
+    assert await closed_by_server(rt) == (4001, "session_superseded")
+    assert (await asyncio.to_thread(gw.wait_job, results[1].json()["job_id"]))["state"] == "completed"
+
+
+async def test_local_busy_only_when_old_engine_does_not_stop(gw, monkeypatch):
+    import vr_gateway.sessions as sessions_mod
+
+    monkeypatch.setattr(sessions_mod, "STOP_TIMEOUT_S", 0.1)
+    session, rt = await start(gw)
+    gw.tts.close_delay = 0.6  # the old engine's shutdown hangs past the timeout
+    body = {"mode": "realtime", "scenario_id": "cafe_order"}
+    busy = await asyncio.to_thread(gw.call, "POST", "/api/sessions", json=body)
+    assert busy.status_code == 409 and busy.json()["error"]["code"] == "LOCAL_BUSY"
+    assert gw.svc.sessions.sessions[session["session_id"]].state == "ended"  # still being stopped, never revived
+    await closed_by_server(rt)
+    retry = await asyncio.to_thread(create_session, gw)
+    assert [s.session_id for s in gw.svc.sessions.live_realtime()] == [retry["session_id"]]

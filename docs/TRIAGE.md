@@ -88,7 +88,7 @@ v0.1.0의 녹음형 연습을 2025~2026년 영어 학습 앱의 발음 분석과
 | PA-8 | 일부 완료 | `content/pronunciation/guide.json` v1.0.0 초안, 스키마 `contracts/pronunciation_content.schema.json`, 테스트 `tests/content/test_pronunciation_content.py`. 남음: 원어민·한국어·음성학 검수(외부). |
 | CO-1 | 일부 완료 | 2026-09-29 전체 E2E 16개 통과(AT-01~03, 05/06, 07~09/18, 11/12/20, 15/16/21, CO-5, 발음, 장치 경로; 실행 로그는 커밋하지 않은 `tests/e2e/.out/co1_run2.txt`). 남음: 장치 캡처는 Chromium 가짜 장치로만 확인, 실제 마이크·스피커 장치 스모크는 미실행. |
 | CO-2 | 완료 (목표 일부 미달) | 200턴 리포트 `benchmarks/results/2026-09-29-m3pro.md`. 미달: 응답 시작 p50 3.26 s(목표 2 s), p95 4.43 s(목표 4 s), TTS RTF p95 0.87(목표 0.80). 충족: 끼어들기, 첫 자막, 녹음형 30 s·120 s. |
-| CO-3 | 막힘 · **결정 필요** | 권리가 확인된 후보 목소리 4개와 측정(`content/voices/candidates/README.md`). 기본 목소리는 그대로. 제품 책임자의 목소리 선택(유사성 판단)과 청취 확인이 필요합니다. |
+| CO-3 | 완료 | 제품 책임자가 2026-09-29 청취 확인 후 선택: 여성 `libritts_r_4992_f`(카페 주문, 길 안내), 남성 `libritts_r_1188_m`(호텔 체크인, 면접). 둘 다 LibriTTS-R, CC BY 4.0(저작자 표시는 `SOURCE.md`, `voice.json`, `README.md`). 낭독자의 음성 복제 동의 문제는 제품 책임자가 알고 결정한 사항으로 `SOURCE.md`에 기록. 개발용 `dev_voice_a`/`dev_voice_b`는 삭제. 후보 측정: `content/voices/candidates/README.md`. |
 | CO-4 | 일부 완료 | AI 사전 검수와 명백한 오류 수정(`content/REVIEW-2026-09.md`, 시나리오 3개 1.0.1). 사람(원어민·번역) 검수는 여전히 필요(외부). |
 | CO-5 | 완료 | E2E `tests/e2e/specs/co5_summary_drill.spec.ts` 통과(스크린샷은 커밋하지 않은 `tests/e2e/.out/co5-summary-drill.png`). |
 | CO-6 | 완료 | 힌트 요청 id 왕복(`realtime.py`, `realtimeSession.ts`), 테스트 `test_hint_reply_echoes_request_id`. |

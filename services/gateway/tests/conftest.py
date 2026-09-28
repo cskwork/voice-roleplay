@@ -177,7 +177,7 @@ class FakeTtsStream:
         self.owner.cancels.append(request_id)
 
     async def close(self):
-        pass
+        await asyncio.sleep(self.owner.close_delay)
 
 
 class FakeTts:
@@ -185,6 +185,7 @@ class FakeTts:
         self.ready = True
         self.chunks = 3
         self.chunk_delay = 0.0
+        self.close_delay = 0.0  # slow stream close: keeps an engine shutdown in flight (session switch races)
         self.requests: list[dict] = []
         self.cancels: list[str] = []
         self.cancel_confirmed: list[str] = []

@@ -120,7 +120,7 @@ class JobManager:
 
     # ------------------------------------------------------------ attempts
 
-    def create_attempt(self, body: dict) -> Attempt:
+    async def create_attempt(self, body: dict) -> Attempt:
         etype = body.get("exercise_type")
         if etype not in EXERCISE_TYPES:
             raise ApiError("UNSUPPORTED_MODE")
@@ -156,6 +156,7 @@ class JobManager:
             if session.mode != "turn_based" or session.state == "ended":
                 raise ApiError("INVALID_STATE")
             session_id = session.session_id
+        await self.svc.sessions.end_realtime_for_new_work()
         settings = self.svc.settings()
         scenario_id = scenario["scenario_id"] if scenario else None
         key = (scenario_id, etype, target if etype == "drill" else ref or session_id)
@@ -176,10 +177,12 @@ class JobManager:
             raise ApiError("NOT_FOUND")
         return attempt
 
-    def set_audio(self, attempt: Attempt, audio: DecodedAudio) -> dict:
+    async def set_audio(self, attempt: Attempt, audio: DecodedAudio) -> dict:
         if attempt.last_job_id is not None:
             raise ApiError("INVALID_STATE")  # a submitted take is final; record a new attempt instead
-        self._ensure_not_busy()
+        await self.svc.sessions.end_realtime_for_new_work()
+        if attempt.last_job_id is not None:
+            raise ApiError("INVALID_STATE")
         attempt.audio = audio
         attempt.audio_info = {
             "duration_ms": int(audio.duration_s * 1000), "source_rate": audio.source_rate,
@@ -189,9 +192,21 @@ class JobManager:
 
     # ------------------------------------------------------------ jobs
 
-    def _ensure_not_busy(self) -> None:
-        if self.svc.sessions.active_realtime() is not None:
-            raise ApiError("LOCAL_BUSY")
+    async def _new_work(self, key: str, attempt_id: str, kind: str, check) -> Job | dict | None:
+        """Returns the existing job for a repeated idempotency key, else None once the new job may be created.
+        A request that would be refused anyway (`check`, a full queue) leaves the realtime session alone; otherwise
+        the running realtime session is ended first, and everything is checked again after that wait, because
+        another request (same key, same attempt) may have gone ahead meanwhile."""
+        for wait in (True, False):
+            existing = self._idempotent(key, attempt_id, kind)
+            if existing is not None:
+                return existing
+            check()
+            if len(self.queue) >= self.svc.config.job_queue_capacity:
+                raise ApiError("QUEUE_FULL")
+            if wait:
+                await self.svc.sessions.end_realtime_for_new_work()
+        return None
 
     def _idempotent(self, key: str, attempt_id: str, kind: str) -> Job | dict | None:
         job_id = self.by_key.get(key)
@@ -223,16 +238,17 @@ class JobManager:
         self._wake.set()
         log.info("job_queued job=%s kind=%s queue=%d", job.job_id, job.kind, len(self.queue))
 
-    def submit(self, attempt: Attempt, key: str) -> tuple[dict, bool]:
+    async def submit(self, attempt: Attempt, key: str) -> tuple[dict, bool]:
         """Returns (job, created)."""
-        existing = self._idempotent(key, attempt.attempt_id, "analyze")
+        def check() -> None:
+            if attempt.last_job_id is not None:
+                raise ApiError("INVALID_STATE")
+            if attempt.audio is None:
+                raise ApiError("AUDIO_EXPIRED" if attempt.audio_released else "INVALID_STATE")
+
+        existing = await self._new_work(key, attempt.attempt_id, "analyze", check)
         if existing is not None:
             return (existing.public() if isinstance(existing, Job) else existing), False
-        self._ensure_not_busy()
-        if attempt.last_job_id is not None:
-            raise ApiError("INVALID_STATE")
-        if attempt.audio is None:
-            raise ApiError("AUDIO_EXPIRED" if attempt.audio_released else "INVALID_STATE")
         job = Job(job_id="j_" + uuid.uuid4().hex[:16], attempt_id=attempt.attempt_id, kind="analyze",
                   idempotency_key=key, audio=attempt.audio)
         self._enqueue(job)
@@ -240,16 +256,18 @@ class JobManager:
         attempt.last_job_id = job.job_id
         return job.public(), True
 
-    def resubmit_transcript(self, attempt: Attempt, text: str, key: str) -> tuple[dict, bool]:
-        existing = self._idempotent(key, attempt.attempt_id, "reanalyze")
+    async def resubmit_transcript(self, attempt: Attempt, text: str, key: str) -> tuple[dict, bool]:
+        text = " ".join(text.split())
+
+        def check() -> None:
+            if not attempt.revisions:
+                raise ApiError("INVALID_STATE")
+            if not text or len(text) > 2000:
+                raise ApiError("INVALID_REQUEST")
+
+        existing = await self._new_work(key, attempt.attempt_id, "reanalyze", check)
         if existing is not None:
             return (existing.public() if isinstance(existing, Job) else existing), False
-        self._ensure_not_busy()
-        if not attempt.revisions:
-            raise ApiError("INVALID_STATE")
-        text = " ".join(text.split())
-        if not text or len(text) > 2000:
-            raise ApiError("INVALID_REQUEST")
         revision = attempt.latest_revision() + 1
         job = Job(job_id="j_" + uuid.uuid4().hex[:16], attempt_id=attempt.attempt_id, kind="reanalyze",
                   idempotency_key=key, transcript_revision=revision)
@@ -455,7 +473,7 @@ class JobManager:
         await svc.health.snapshot()
         if not svc.health.tts_ready():
             return
-        voice = svc.settings().get("voice_id") or (scenario or {}).get("default_voice_id", "")
+        voice = svc.voice_for(scenario, svc.settings().get("voice_id"))
         wanted: list[tuple[str, str | None, str]] = []  # (kind, text_id, text)
         if attempt.exercise_type in ("reading", "shadowing"):
             wanted.append(("target", attempt.exercise_ref, attempt.target_en))

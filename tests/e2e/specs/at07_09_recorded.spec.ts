@@ -1,17 +1,7 @@
 // AT-07 preview/re-record/submit, AT-08 double submit + commit resend, AT-09 transcript edit, AT-18 no
 // pronunciation score (PRD §7, §8, §18). Real stack; FAKE-MIC-SOURCE fixtures through the app's recorder.
-import { expect, test, type Page } from '@playwright/test'
-import { api, endConversation, logLen, logSince, nextReply, preparePage, say, startConversation, waitFor, waitRealtimeFree, waitUntilPerf } from '../lib/harness'
-
-async function recordTake(page: Page, fixture: string): Promise<void> {
-  const rec = page.getByRole('button', { name: /^(녹음 시작|다시 녹음)$/ })
-  await rec.click()
-  await expect(page.getByRole('button', { name: '녹음 정지' })).toBeVisible()
-  const mic = await say(page, fixture, 0.2)
-  await waitUntilPerf(page, mic.endPerf + 400)
-  await page.getByRole('button', { name: '녹음 정지' }).click()
-  await expect(page.locator('.take audio')).toHaveCount(1)
-}
+import { expect, test } from '@playwright/test'
+import { api, endConversation, logLen, logSince, nextReply, preparePage, recordTake, say, startConversation, waitFor, waitRealtimeFree, waitUntilPerf } from '../lib/harness'
 
 test('AT-07/08/09/18 reading: preview, re-record, double submit, transcript edit, no pronunciation score', async ({ page }) => {
   await preparePage(page)
