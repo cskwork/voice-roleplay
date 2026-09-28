@@ -1,0 +1,347 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "voice-roleplay/pronunciation_content.schema.json",
+  "title": "Pronunciation guide",
+  "description": "Local, versioned pronunciation guide for Korean learners (content/pronunciation/guide.json). Articulation tips and minimal pairs only: nothing here states what a learner said or how well. espeak_map links phone symbols from the pronunciation worker to guide entries.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "accent",
+    "phone_set",
+    "review_status",
+    "entries",
+    "espeak_map"
+  ],
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "accent": {
+      "const": "en-US"
+    },
+    "phone_set": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "model_repo",
+        "model_revision",
+        "ipa_source"
+      ],
+      "properties": {
+        "model_repo": {
+          "$ref": "#/$defs/text"
+        },
+        "model_revision": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{40}$"
+        },
+        "ipa_source": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "review_status": {
+      "description": "Content review state. Must stay 'pending' until a named native-speaker / Korean / phonetics review is recorded in content/pronunciation/README.md.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "english",
+        "korean",
+        "phonetics"
+      ],
+      "properties": {
+        "english": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "reviewed"
+          ]
+        },
+        "korean": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "reviewed"
+          ]
+        },
+        "phonetics": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "reviewed"
+          ]
+        }
+      }
+    },
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/entry"
+      }
+    },
+    "espeak_map": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/map_item"
+      }
+    }
+  },
+  "$defs": {
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$"
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "espeak_symbol": {
+      "description": "Phone token of facebook/wav2vec2-lv-60-espeak-cv-ft (pinned revision) that espeak-ng en-us emits for English, plus ɨ/ɯ for vowels a Korean speaker may insert. Stress marks are not phone tokens.",
+      "enum": [
+        "p",
+        "b",
+        "t",
+        "d",
+        "k",
+        "ɡ",
+        "f",
+        "v",
+        "θ",
+        "ð",
+        "s",
+        "z",
+        "ʃ",
+        "ʒ",
+        "h",
+        "tʃ",
+        "dʒ",
+        "m",
+        "n",
+        "ŋ",
+        "l",
+        "ɹ",
+        "w",
+        "j",
+        "ɾ",
+        "ʔ",
+        "n̩",
+        "əl",
+        "iː",
+        "ɪ",
+        "i",
+        "ɛ",
+        "æ",
+        "ɑː",
+        "ɔː",
+        "ɔ",
+        "ʌ",
+        "ʊ",
+        "uː",
+        "u",
+        "ə",
+        "ɚ",
+        "ɜː",
+        "ɐ",
+        "ᵻ",
+        "eɪ",
+        "aɪ",
+        "ɔɪ",
+        "oʊ",
+        "aʊ",
+        "ɑːɹ",
+        "ɔːɹ",
+        "oːɹ",
+        "ɪɹ",
+        "ɛɹ",
+        "ʊɹ",
+        "aɪɚ",
+        "aɪə",
+        "iə",
+        "ɨ",
+        "ɯ"
+      ]
+    },
+    "ipa": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "$ref": "#/$defs/espeak_symbol"
+      }
+    },
+    "entry": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "entry_id",
+        "category",
+        "title_ko",
+        "title_en",
+        "target_ipa",
+        "why_ko",
+        "tip_ko",
+        "minimal_pairs",
+        "practice_sentences"
+      ],
+      "properties": {
+        "entry_id": {
+          "$ref": "#/$defs/id"
+        },
+        "category": {
+          "enum": [
+            "consonant",
+            "vowel",
+            "syllable",
+            "stress"
+          ]
+        },
+        "title_ko": {
+          "$ref": "#/$defs/text"
+        },
+        "title_en": {
+          "$ref": "#/$defs/text"
+        },
+        "target_ipa": {
+          "description": "Contrasted phones. Empty for syllable-structure and stress entries.",
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/espeak_symbol"
+          }
+        },
+        "why_ko": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "tip_ko": {
+          "description": "Short articulation tip. Must not claim the app heard or judged anything.",
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 200
+        },
+        "minimal_pairs": {
+          "type": "array",
+          "minItems": 6,
+          "maxItems": 10,
+          "items": {
+            "$ref": "#/$defs/pair"
+          }
+        },
+        "practice_sentences": {
+          "type": "array",
+          "minItems": 2,
+          "maxItems": 2,
+          "items": {
+            "$ref": "#/$defs/sentence"
+          }
+        }
+      }
+    },
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "pair_id",
+        "a",
+        "b"
+      ],
+      "properties": {
+        "pair_id": {
+          "$ref": "#/$defs/id"
+        },
+        "a": {
+          "$ref": "#/$defs/pair_word"
+        },
+        "b": {
+          "$ref": "#/$defs/pair_word"
+        }
+      }
+    },
+    "pair_word": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "word",
+        "ipa"
+      ],
+      "properties": {
+        "word": {
+          "type": "string",
+          "pattern": "^[A-Za-z][A-Za-z']*$"
+        },
+        "ipa": {
+          "$ref": "#/$defs/ipa"
+        },
+        "label_en": {
+          "description": "Part of speech when the pair is one spelling (e.g. noun/verb).",
+          "enum": [
+            "noun",
+            "verb"
+          ]
+        },
+        "stress_en": {
+          "description": "Syllables with the stressed one in capitals, e.g. PRE-sent.",
+          "type": "string",
+          "pattern": "^[A-Za-z]+(-[A-Za-z]+)+$"
+        }
+      }
+    },
+    "sentence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "sentence_id",
+        "en",
+        "ko"
+      ],
+      "properties": {
+        "sentence_id": {
+          "$ref": "#/$defs/id"
+        },
+        "en": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 400
+        },
+        "ko": {
+          "$ref": "#/$defs/text"
+        }
+      }
+    },
+    "map_item": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "espeak",
+        "context",
+        "entry_ids"
+      ],
+      "properties": {
+        "espeak": {
+          "$ref": "#/$defs/espeak_symbol"
+        },
+        "context": {
+          "description": "expected: the reference phone at a position the assessment flags. inserted_word_final / inserted_in_cluster: a vowel heard with no reference phone, after a word-final consonant or between cluster consonants.",
+          "enum": [
+            "expected",
+            "inserted_word_final",
+            "inserted_in_cluster"
+          ]
+        },
+        "entry_ids": {
+          "description": "Guide entries in display order.",
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/$defs/id"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,3169 @@
+{
+  "version": "1.0.0",
+  "accent": "en-US",
+  "phone_set": {
+    "model_repo": "facebook/wav2vec2-lv-60-espeak-cv-ft",
+    "model_revision": "ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4",
+    "ipa_source": "espeak-ng 1.52.0 en-us via phonemizer, stress marks removed"
+  },
+  "review_status": {
+    "english": "pending",
+    "korean": "pending",
+    "phonetics": "pending"
+  },
+  "entries": [
+    {
+      "entry_id": "r_l",
+      "category": "consonant",
+      "title_ko": "R과 L 구분",
+      "title_en": "R vs L",
+      "target_ipa": [
+        "ɹ",
+        "l"
+      ],
+      "why_ko": "한국어 ㄹ 하나로 영어의 r과 l을 모두 대신하기 쉬워서, right와 light가 비슷하게 나올 수 있어요.",
+      "tip_ko": "l은 혀끝을 윗니 뒤 잇몸에 꼭 붙인 채 소리 내요. r은 혀끝이 입천장 어디에도 닿지 않게 살짝 뒤로 당기고, 입술을 조금 둥글게 모아 소리 내요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "r_l_01",
+          "a": {
+            "word": "right",
+            "ipa": [
+              "ɹ",
+              "aɪ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "light",
+            "ipa": [
+              "l",
+              "aɪ",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "r_l_02",
+          "a": {
+            "word": "rice",
+            "ipa": [
+              "ɹ",
+              "aɪ",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "lice",
+            "ipa": [
+              "l",
+              "aɪ",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "r_l_03",
+          "a": {
+            "word": "road",
+            "ipa": [
+              "ɹ",
+              "oʊ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "load",
+            "ipa": [
+              "l",
+              "oʊ",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "r_l_04",
+          "a": {
+            "word": "rock",
+            "ipa": [
+              "ɹ",
+              "ɑː",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "lock",
+            "ipa": [
+              "l",
+              "ɑː",
+              "k"
+            ]
+          }
+        },
+        {
+          "pair_id": "r_l_05",
+          "a": {
+            "word": "pray",
+            "ipa": [
+              "p",
+              "ɹ",
+              "eɪ"
+            ]
+          },
+          "b": {
+            "word": "play",
+            "ipa": [
+              "p",
+              "l",
+              "eɪ"
+            ]
+          }
+        },
+        {
+          "pair_id": "r_l_06",
+          "a": {
+            "word": "fry",
+            "ipa": [
+              "f",
+              "ɹ",
+              "aɪ"
+            ]
+          },
+          "b": {
+            "word": "fly",
+            "ipa": [
+              "f",
+              "l",
+              "aɪ"
+            ]
+          }
+        },
+        {
+          "pair_id": "r_l_07",
+          "a": {
+            "word": "grass",
+            "ipa": [
+              "ɡ",
+              "ɹ",
+              "æ",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "glass",
+            "ipa": [
+              "ɡ",
+              "l",
+              "æ",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "r_l_08",
+          "a": {
+            "word": "wrong",
+            "ipa": [
+              "ɹ",
+              "ɔ",
+              "ŋ"
+            ]
+          },
+          "b": {
+            "word": "long",
+            "ipa": [
+              "l",
+              "ɔ",
+              "ŋ"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "r_l_s1",
+          "en": "The light on the right is red.",
+          "ko": "오른쪽 불빛이 빨간색이에요."
+        },
+        {
+          "sentence_id": "r_l_s2",
+          "en": "Please collect the glass from the grass.",
+          "ko": "잔디 위에 있는 유리잔을 치워 주세요."
+        }
+      ]
+    },
+    {
+      "entry_id": "f_p",
+      "category": "consonant",
+      "title_ko": "F와 P 구분",
+      "title_en": "F vs P",
+      "target_ipa": [
+        "f",
+        "p"
+      ],
+      "why_ko": "한국어에는 f 소리가 없어서 ㅍ으로 바꿔 말하기 쉬워요. 그러면 fan이 pan처럼 들릴 수 있어요.",
+      "tip_ko": "윗니를 아랫입술 안쪽에 가볍게 대고, 그 틈으로 바람을 길게 내보내요. p는 두 입술을 붙였다가 한 번에 터뜨리는 소리예요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "f_p_01",
+          "a": {
+            "word": "fan",
+            "ipa": [
+              "f",
+              "æ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "pan",
+            "ipa": [
+              "p",
+              "æ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "f_p_02",
+          "a": {
+            "word": "fast",
+            "ipa": [
+              "f",
+              "æ",
+              "s",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "past",
+            "ipa": [
+              "p",
+              "æ",
+              "s",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "f_p_03",
+          "a": {
+            "word": "fine",
+            "ipa": [
+              "f",
+              "aɪ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "pine",
+            "ipa": [
+              "p",
+              "aɪ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "f_p_04",
+          "a": {
+            "word": "fool",
+            "ipa": [
+              "f",
+              "uː",
+              "l"
+            ]
+          },
+          "b": {
+            "word": "pool",
+            "ipa": [
+              "p",
+              "uː",
+              "l"
+            ]
+          }
+        },
+        {
+          "pair_id": "f_p_05",
+          "a": {
+            "word": "fork",
+            "ipa": [
+              "f",
+              "ɔːɹ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "pork",
+            "ipa": [
+              "p",
+              "ɔːɹ",
+              "k"
+            ]
+          }
+        },
+        {
+          "pair_id": "f_p_06",
+          "a": {
+            "word": "face",
+            "ipa": [
+              "f",
+              "eɪ",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "pace",
+            "ipa": [
+              "p",
+              "eɪ",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "f_p_07",
+          "a": {
+            "word": "wife",
+            "ipa": [
+              "w",
+              "aɪ",
+              "f"
+            ]
+          },
+          "b": {
+            "word": "wipe",
+            "ipa": [
+              "w",
+              "aɪ",
+              "p"
+            ]
+          }
+        },
+        {
+          "pair_id": "f_p_08",
+          "a": {
+            "word": "leaf",
+            "ipa": [
+              "l",
+              "iː",
+              "f"
+            ]
+          },
+          "b": {
+            "word": "leap",
+            "ipa": [
+              "l",
+              "iː",
+              "p"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "f_p_s1",
+          "en": "I need a fork for my pork.",
+          "ko": "돼지고기를 먹을 포크가 필요해요."
+        },
+        {
+          "sentence_id": "f_p_s2",
+          "en": "The first flight was fine.",
+          "ko": "첫 비행은 괜찮았어요."
+        }
+      ]
+    },
+    {
+      "entry_id": "v_b",
+      "category": "consonant",
+      "title_ko": "V와 B 구분",
+      "title_en": "V vs B",
+      "target_ipa": [
+        "v",
+        "b"
+      ],
+      "why_ko": "한국어에는 v 소리가 없어서 ㅂ으로 바꿔 말하기 쉬워요. 그러면 very가 berry처럼 들릴 수 있어요.",
+      "tip_ko": "f와 같은 입 모양(윗니를 아랫입술에 가볍게 대기)에서 목을 울리며 소리 내요. 목에 손을 대면 떨림이 느껴져요. b는 두 입술을 붙였다가 떼는 소리예요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "v_b_01",
+          "a": {
+            "word": "vest",
+            "ipa": [
+              "v",
+              "ɛ",
+              "s",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "best",
+            "ipa": [
+              "b",
+              "ɛ",
+              "s",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "v_b_02",
+          "a": {
+            "word": "very",
+            "ipa": [
+              "v",
+              "ɛ",
+              "ɹ",
+              "i"
+            ]
+          },
+          "b": {
+            "word": "berry",
+            "ipa": [
+              "b",
+              "ɛ",
+              "ɹ",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "v_b_03",
+          "a": {
+            "word": "van",
+            "ipa": [
+              "v",
+              "æ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "ban",
+            "ipa": [
+              "b",
+              "æ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "v_b_04",
+          "a": {
+            "word": "vote",
+            "ipa": [
+              "v",
+              "oʊ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "boat",
+            "ipa": [
+              "b",
+              "oʊ",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "v_b_05",
+          "a": {
+            "word": "curve",
+            "ipa": [
+              "k",
+              "ɜː",
+              "v"
+            ]
+          },
+          "b": {
+            "word": "curb",
+            "ipa": [
+              "k",
+              "ɜː",
+              "b"
+            ]
+          }
+        },
+        {
+          "pair_id": "v_b_06",
+          "a": {
+            "word": "vet",
+            "ipa": [
+              "v",
+              "ɛ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "bet",
+            "ipa": [
+              "b",
+              "ɛ",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "v_b_07",
+          "a": {
+            "word": "marvel",
+            "ipa": [
+              "m",
+              "ɑːɹ",
+              "v",
+              "əl"
+            ]
+          },
+          "b": {
+            "word": "marble",
+            "ipa": [
+              "m",
+              "ɑːɹ",
+              "b",
+              "əl"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "v_b_s1",
+          "en": "We took a van to the boat.",
+          "ko": "배까지 밴을 타고 갔어요."
+        },
+        {
+          "sentence_id": "v_b_s2",
+          "en": "This vest is very comfortable.",
+          "ko": "이 조끼는 정말 편해요."
+        }
+      ]
+    },
+    {
+      "entry_id": "th_s",
+      "category": "consonant",
+      "title_ko": "TH(θ)와 S 구분",
+      "title_en": "TH (as in think) vs S",
+      "target_ipa": [
+        "θ",
+        "s"
+      ],
+      "why_ko": "한국어에는 think의 th 소리가 없어서 ㅅ이나 ㅆ으로 바꾸기 쉬워요. 그러면 think가 sink처럼 들릴 수 있어요.",
+      "tip_ko": "혀끝을 윗니와 아랫니 사이로 살짝 내밀거나 윗니 뒤에 가볍게 대고, 그 틈으로 바람을 내보내요. 목은 울리지 않아요. s는 혀가 이 사이로 나오지 않아요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "th_s_01",
+          "a": {
+            "word": "think",
+            "ipa": [
+              "θ",
+              "ɪ",
+              "ŋ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "sink",
+            "ipa": [
+              "s",
+              "ɪ",
+              "ŋ",
+              "k"
+            ]
+          }
+        },
+        {
+          "pair_id": "th_s_02",
+          "a": {
+            "word": "thank",
+            "ipa": [
+              "θ",
+              "æ",
+              "ŋ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "sank",
+            "ipa": [
+              "s",
+              "æ",
+              "ŋ",
+              "k"
+            ]
+          }
+        },
+        {
+          "pair_id": "th_s_03",
+          "a": {
+            "word": "thick",
+            "ipa": [
+              "θ",
+              "ɪ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "sick",
+            "ipa": [
+              "s",
+              "ɪ",
+              "k"
+            ]
+          }
+        },
+        {
+          "pair_id": "th_s_04",
+          "a": {
+            "word": "thin",
+            "ipa": [
+              "θ",
+              "ɪ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "sin",
+            "ipa": [
+              "s",
+              "ɪ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "th_s_05",
+          "a": {
+            "word": "thumb",
+            "ipa": [
+              "θ",
+              "ʌ",
+              "m"
+            ]
+          },
+          "b": {
+            "word": "sum",
+            "ipa": [
+              "s",
+              "ʌ",
+              "m"
+            ]
+          }
+        },
+        {
+          "pair_id": "th_s_06",
+          "a": {
+            "word": "mouth",
+            "ipa": [
+              "m",
+              "aʊ",
+              "θ"
+            ]
+          },
+          "b": {
+            "word": "mouse",
+            "ipa": [
+              "m",
+              "aʊ",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "th_s_07",
+          "a": {
+            "word": "path",
+            "ipa": [
+              "p",
+              "æ",
+              "θ"
+            ]
+          },
+          "b": {
+            "word": "pass",
+            "ipa": [
+              "p",
+              "æ",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "th_s_08",
+          "a": {
+            "word": "faith",
+            "ipa": [
+              "f",
+              "eɪ",
+              "θ"
+            ]
+          },
+          "b": {
+            "word": "face",
+            "ipa": [
+              "f",
+              "eɪ",
+              "s"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "th_s_s1",
+          "en": "I think three is enough.",
+          "ko": "세 개면 충분한 것 같아요."
+        },
+        {
+          "sentence_id": "th_s_s2",
+          "en": "Thank you for the thick book.",
+          "ko": "두꺼운 책 고마워요."
+        }
+      ]
+    },
+    {
+      "entry_id": "dh_d",
+      "category": "consonant",
+      "title_ko": "TH(ð)와 D 구분",
+      "title_en": "TH (as in they) vs D",
+      "target_ipa": [
+        "ð",
+        "d"
+      ],
+      "why_ko": "the, they, this의 th는 목이 울리는 소리인데, ㄷ으로 바꿔 말하기 쉬워요. 그러면 they가 day처럼 들릴 수 있어요.",
+      "tip_ko": "think의 th와 같은 혀 위치에서 목을 울리며 소리 내요. 혀를 이 사이에 둔 채 떨림이 이어지게 해 보세요. d는 혀끝을 윗잇몸에 붙였다가 떼는 소리예요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "dh_d_01",
+          "a": {
+            "word": "they",
+            "ipa": [
+              "ð",
+              "eɪ"
+            ]
+          },
+          "b": {
+            "word": "day",
+            "ipa": [
+              "d",
+              "eɪ"
+            ]
+          }
+        },
+        {
+          "pair_id": "dh_d_02",
+          "a": {
+            "word": "then",
+            "ipa": [
+              "ð",
+              "ɛ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "den",
+            "ipa": [
+              "d",
+              "ɛ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "dh_d_03",
+          "a": {
+            "word": "though",
+            "ipa": [
+              "ð",
+              "oʊ"
+            ]
+          },
+          "b": {
+            "word": "dough",
+            "ipa": [
+              "d",
+              "oʊ"
+            ]
+          }
+        },
+        {
+          "pair_id": "dh_d_04",
+          "a": {
+            "word": "there",
+            "ipa": [
+              "ð",
+              "ɛɹ"
+            ]
+          },
+          "b": {
+            "word": "dare",
+            "ipa": [
+              "d",
+              "ɛɹ"
+            ]
+          }
+        },
+        {
+          "pair_id": "dh_d_05",
+          "a": {
+            "word": "breathe",
+            "ipa": [
+              "b",
+              "ɹ",
+              "iː",
+              "ð"
+            ]
+          },
+          "b": {
+            "word": "breed",
+            "ipa": [
+              "b",
+              "ɹ",
+              "iː",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "dh_d_06",
+          "a": {
+            "word": "those",
+            "ipa": [
+              "ð",
+              "oʊ",
+              "z"
+            ]
+          },
+          "b": {
+            "word": "doze",
+            "ipa": [
+              "d",
+              "oʊ",
+              "z"
+            ]
+          }
+        },
+        {
+          "pair_id": "dh_d_07",
+          "a": {
+            "word": "worthy",
+            "ipa": [
+              "w",
+              "ɜː",
+              "ð",
+              "i"
+            ]
+          },
+          "b": {
+            "word": "wordy",
+            "ipa": [
+              "w",
+              "ɜː",
+              "d",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "dh_d_08",
+          "a": {
+            "word": "lather",
+            "ipa": [
+              "l",
+              "æ",
+              "ð",
+              "ɚ"
+            ]
+          },
+          "b": {
+            "word": "ladder",
+            "ipa": [
+              "l",
+              "æ",
+              "d",
+              "ɚ"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "dh_d_s1",
+          "en": "They left the day before.",
+          "ko": "그 사람들은 전날 떠났어요."
+        },
+        {
+          "sentence_id": "dh_d_s2",
+          "en": "My mother is over there.",
+          "ko": "저희 어머니는 저기 계세요."
+        }
+      ]
+    },
+    {
+      "entry_id": "z_dzh",
+      "category": "consonant",
+      "title_ko": "Z와 J(dʒ) 구분",
+      "title_en": "Z vs J",
+      "target_ipa": [
+        "z",
+        "dʒ"
+      ],
+      "why_ko": "한국어에는 z 소리가 없어서 ㅈ으로 바꿔 말하기 쉬워요. 그러면 zest가 jest처럼 들릴 수 있어요.",
+      "tip_ko": "z는 s와 같은 혀 위치에서 혀끝을 잇몸에 붙이지 않고, 벌이 윙윙거리듯 목을 울리며 바람을 계속 흘려보내요. j는 혀를 잇몸 뒤에 붙였다가 떼며 한 번에 터뜨려요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "z_dzh_01",
+          "a": {
+            "word": "zest",
+            "ipa": [
+              "z",
+              "ɛ",
+              "s",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "jest",
+            "ipa": [
+              "dʒ",
+              "ɛ",
+              "s",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "z_dzh_02",
+          "a": {
+            "word": "zealous",
+            "ipa": [
+              "z",
+              "ɛ",
+              "l",
+              "ə",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "jealous",
+            "ipa": [
+              "dʒ",
+              "ɛ",
+              "l",
+              "ə",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "z_dzh_03",
+          "a": {
+            "word": "raise",
+            "ipa": [
+              "ɹ",
+              "eɪ",
+              "z"
+            ]
+          },
+          "b": {
+            "word": "rage",
+            "ipa": [
+              "ɹ",
+              "eɪ",
+              "dʒ"
+            ]
+          }
+        },
+        {
+          "pair_id": "z_dzh_04",
+          "a": {
+            "word": "ways",
+            "ipa": [
+              "w",
+              "eɪ",
+              "z"
+            ]
+          },
+          "b": {
+            "word": "wage",
+            "ipa": [
+              "w",
+              "eɪ",
+              "dʒ"
+            ]
+          }
+        },
+        {
+          "pair_id": "z_dzh_05",
+          "a": {
+            "word": "seas",
+            "ipa": [
+              "s",
+              "iː",
+              "z"
+            ]
+          },
+          "b": {
+            "word": "siege",
+            "ipa": [
+              "s",
+              "iː",
+              "dʒ"
+            ]
+          }
+        },
+        {
+          "pair_id": "z_dzh_06",
+          "a": {
+            "word": "buzz",
+            "ipa": [
+              "b",
+              "ʌ",
+              "z"
+            ]
+          },
+          "b": {
+            "word": "budge",
+            "ipa": [
+              "b",
+              "ʌ",
+              "dʒ"
+            ]
+          }
+        },
+        {
+          "pair_id": "z_dzh_07",
+          "a": {
+            "word": "fuzz",
+            "ipa": [
+              "f",
+              "ʌ",
+              "z"
+            ]
+          },
+          "b": {
+            "word": "fudge",
+            "ipa": [
+              "f",
+              "ʌ",
+              "dʒ"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "z_dzh_s1",
+          "en": "The bees buzz near the orange juice.",
+          "ko": "벌들이 오렌지 주스 근처에서 윙윙거려요."
+        },
+        {
+          "sentence_id": "z_dzh_s2",
+          "en": "Is the zoo open in June?",
+          "ko": "동물원은 6월에 문을 열어요?"
+        }
+      ]
+    },
+    {
+      "entry_id": "ih_ee",
+      "category": "vowel",
+      "title_ko": "짧은 이(ɪ)와 긴 이(iː)",
+      "title_en": "Short I vs long EE",
+      "target_ipa": [
+        "ɪ",
+        "iː"
+      ],
+      "why_ko": "한국어 '이' 하나로 ship의 ɪ와 sheep의 iː를 모두 말하기 쉬워요. 두 소리는 길이뿐 아니라 입 모양도 달라요.",
+      "tip_ko": "iː는 입꼬리를 옆으로 당기고 혀를 높이 올린 채 조금 길게 내요. ɪ는 입과 혀에 힘을 빼고 '이'와 '에' 사이쯤으로 짧게 내요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "ih_ee_01",
+          "a": {
+            "word": "ship",
+            "ipa": [
+              "ʃ",
+              "ɪ",
+              "p"
+            ]
+          },
+          "b": {
+            "word": "sheep",
+            "ipa": [
+              "ʃ",
+              "iː",
+              "p"
+            ]
+          }
+        },
+        {
+          "pair_id": "ih_ee_02",
+          "a": {
+            "word": "slip",
+            "ipa": [
+              "s",
+              "l",
+              "ɪ",
+              "p"
+            ]
+          },
+          "b": {
+            "word": "sleep",
+            "ipa": [
+              "s",
+              "l",
+              "iː",
+              "p"
+            ]
+          }
+        },
+        {
+          "pair_id": "ih_ee_03",
+          "a": {
+            "word": "fit",
+            "ipa": [
+              "f",
+              "ɪ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "feet",
+            "ipa": [
+              "f",
+              "iː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "ih_ee_04",
+          "a": {
+            "word": "hit",
+            "ipa": [
+              "h",
+              "ɪ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "heat",
+            "ipa": [
+              "h",
+              "iː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "ih_ee_05",
+          "a": {
+            "word": "sit",
+            "ipa": [
+              "s",
+              "ɪ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "seat",
+            "ipa": [
+              "s",
+              "iː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "ih_ee_06",
+          "a": {
+            "word": "fill",
+            "ipa": [
+              "f",
+              "ɪ",
+              "l"
+            ]
+          },
+          "b": {
+            "word": "feel",
+            "ipa": [
+              "f",
+              "iː",
+              "l"
+            ]
+          }
+        },
+        {
+          "pair_id": "ih_ee_07",
+          "a": {
+            "word": "chip",
+            "ipa": [
+              "tʃ",
+              "ɪ",
+              "p"
+            ]
+          },
+          "b": {
+            "word": "cheap",
+            "ipa": [
+              "tʃ",
+              "iː",
+              "p"
+            ]
+          }
+        },
+        {
+          "pair_id": "ih_ee_08",
+          "a": {
+            "word": "it",
+            "ipa": [
+              "ɪ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "eat",
+            "ipa": [
+              "iː",
+              "t"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "ih_ee_s1",
+          "en": "Is this seat free?",
+          "ko": "이 자리 비어 있어요?"
+        },
+        {
+          "sentence_id": "ih_ee_s2",
+          "en": "The ship carried sheep.",
+          "ko": "그 배는 양을 실어 날랐어요."
+        }
+      ]
+    },
+    {
+      "entry_id": "uh_oo",
+      "category": "vowel",
+      "title_ko": "짧은 우(ʊ)와 긴 우(uː)",
+      "title_en": "Short U (as in full) vs long OO",
+      "target_ipa": [
+        "ʊ",
+        "uː"
+      ],
+      "why_ko": "한국어 '우' 하나로 full의 ʊ와 fool의 uː를 모두 말하기 쉬워요.",
+      "tip_ko": "uː는 입술을 동그랗게 앞으로 내밀고 조금 길게 내요. ʊ는 입술과 혀에 힘을 빼고 '우'와 '어' 사이쯤으로 짧게 내요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "uh_oo_01",
+          "a": {
+            "word": "full",
+            "ipa": [
+              "f",
+              "ʊ",
+              "l"
+            ]
+          },
+          "b": {
+            "word": "fool",
+            "ipa": [
+              "f",
+              "uː",
+              "l"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_oo_02",
+          "a": {
+            "word": "pull",
+            "ipa": [
+              "p",
+              "ʊ",
+              "l"
+            ]
+          },
+          "b": {
+            "word": "pool",
+            "ipa": [
+              "p",
+              "uː",
+              "l"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_oo_03",
+          "a": {
+            "word": "look",
+            "ipa": [
+              "l",
+              "ʊ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "Luke",
+            "ipa": [
+              "l",
+              "uː",
+              "k"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_oo_04",
+          "a": {
+            "word": "soot",
+            "ipa": [
+              "s",
+              "ʊ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "suit",
+            "ipa": [
+              "s",
+              "uː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_oo_05",
+          "a": {
+            "word": "could",
+            "ipa": [
+              "k",
+              "ʊ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "cooed",
+            "ipa": [
+              "k",
+              "uː",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_oo_06",
+          "a": {
+            "word": "hood",
+            "ipa": [
+              "h",
+              "ʊ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "who'd",
+            "ipa": [
+              "h",
+              "uː",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_oo_07",
+          "a": {
+            "word": "stood",
+            "ipa": [
+              "s",
+              "t",
+              "ʊ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "stewed",
+            "ipa": [
+              "s",
+              "t",
+              "uː",
+              "d"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "uh_oo_s1",
+          "en": "Look at the full moon.",
+          "ko": "보름달 좀 봐요."
+        },
+        {
+          "sentence_id": "uh_oo_s2",
+          "en": "Could you pull the pool cover?",
+          "ko": "수영장 덮개 좀 당겨 줄래요?"
+        }
+      ]
+    },
+    {
+      "entry_id": "ae_e",
+      "category": "vowel",
+      "title_ko": "애(æ)와 에(ɛ) 구분",
+      "title_en": "A (as in bad) vs E (as in bed)",
+      "target_ipa": [
+        "æ",
+        "ɛ"
+      ],
+      "why_ko": "요즘 한국어에서는 '애'와 '에'를 거의 같게 발음해서, bad와 bed를 같은 소리로 말하기 쉬워요.",
+      "tip_ko": "æ는 턱을 크게 내리고 입을 옆으로 벌린 채 '애'를 조금 길게 내요. ɛ는 턱을 덜 내리고 '에'처럼 짧게 내요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "ae_e_01",
+          "a": {
+            "word": "bad",
+            "ipa": [
+              "b",
+              "æ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "bed",
+            "ipa": [
+              "b",
+              "ɛ",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "ae_e_02",
+          "a": {
+            "word": "man",
+            "ipa": [
+              "m",
+              "æ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "men",
+            "ipa": [
+              "m",
+              "ɛ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "ae_e_03",
+          "a": {
+            "word": "pan",
+            "ipa": [
+              "p",
+              "æ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "pen",
+            "ipa": [
+              "p",
+              "ɛ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "ae_e_04",
+          "a": {
+            "word": "sad",
+            "ipa": [
+              "s",
+              "æ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "said",
+            "ipa": [
+              "s",
+              "ɛ",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "ae_e_05",
+          "a": {
+            "word": "bag",
+            "ipa": [
+              "b",
+              "æ",
+              "ɡ"
+            ]
+          },
+          "b": {
+            "word": "beg",
+            "ipa": [
+              "b",
+              "ɛ",
+              "ɡ"
+            ]
+          }
+        },
+        {
+          "pair_id": "ae_e_06",
+          "a": {
+            "word": "had",
+            "ipa": [
+              "h",
+              "æ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "head",
+            "ipa": [
+              "h",
+              "ɛ",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "ae_e_07",
+          "a": {
+            "word": "sat",
+            "ipa": [
+              "s",
+              "æ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "set",
+            "ipa": [
+              "s",
+              "ɛ",
+              "t"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "ae_e_s1",
+          "en": "The man left his bag on the bed.",
+          "ko": "그 남자는 가방을 침대 위에 두고 갔어요."
+        },
+        {
+          "sentence_id": "ae_e_s2",
+          "en": "I had a bad headache.",
+          "ko": "머리가 심하게 아팠어요."
+        }
+      ]
+    },
+    {
+      "entry_id": "uh_ah",
+      "category": "vowel",
+      "title_ko": "어(ʌ)와 아(ɑː) 구분",
+      "title_en": "U (as in cup) vs O (as in cop)",
+      "target_ipa": [
+        "ʌ",
+        "ɑː"
+      ],
+      "why_ko": "철자만 보고 읽으면 cut과 cot, luck과 lock처럼 모음이 다른 단어를 섞기 쉬워요. 이 안내는 미국 영어 발음을 기준으로 해요.",
+      "tip_ko": "ʌ는 입을 조금만 벌리고 힘을 뺀 채 짧은 '어'처럼 내요. ɑː는 턱을 크게 내리고 입 안을 넓힌 채 '아'처럼 조금 길게 내요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "uh_ah_01",
+          "a": {
+            "word": "cut",
+            "ipa": [
+              "k",
+              "ʌ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "cot",
+            "ipa": [
+              "k",
+              "ɑː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_ah_02",
+          "a": {
+            "word": "cup",
+            "ipa": [
+              "k",
+              "ʌ",
+              "p"
+            ]
+          },
+          "b": {
+            "word": "cop",
+            "ipa": [
+              "k",
+              "ɑː",
+              "p"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_ah_03",
+          "a": {
+            "word": "luck",
+            "ipa": [
+              "l",
+              "ʌ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "lock",
+            "ipa": [
+              "l",
+              "ɑː",
+              "k"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_ah_04",
+          "a": {
+            "word": "nut",
+            "ipa": [
+              "n",
+              "ʌ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "not",
+            "ipa": [
+              "n",
+              "ɑː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_ah_05",
+          "a": {
+            "word": "hut",
+            "ipa": [
+              "h",
+              "ʌ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "hot",
+            "ipa": [
+              "h",
+              "ɑː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "uh_ah_06",
+          "a": {
+            "word": "duck",
+            "ipa": [
+              "d",
+              "ʌ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "dock",
+            "ipa": [
+              "d",
+              "ɑː",
+              "k"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "uh_ah_s1",
+          "en": "The duck swam near the dock.",
+          "ko": "오리가 부두 근처에서 헤엄쳤어요."
+        },
+        {
+          "sentence_id": "uh_ah_s2",
+          "en": "My cup of coffee is hot.",
+          "ko": "제 커피가 뜨거워요."
+        }
+      ]
+    },
+    {
+      "entry_id": "s_sh",
+      "category": "consonant",
+      "title_ko": "S와 SH 구분",
+      "title_en": "S vs SH",
+      "target_ipa": [
+        "s",
+        "ʃ"
+      ],
+      "why_ko": "한국어에서는 '시'의 ㅅ이 '쉬'에 가깝게 나서, see가 she처럼, sip이 ship처럼 들릴 수 있어요.",
+      "tip_ko": "s는 입꼬리를 옆으로 당기고 혀끝을 윗니 뒤 가까이 두어 좁고 날카로운 바람을 내요. sh는 입술을 앞으로 둥글게 내밀고 혀를 조금 뒤로 빼서 넓은 바람을 내요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "s_sh_01",
+          "a": {
+            "word": "see",
+            "ipa": [
+              "s",
+              "iː"
+            ]
+          },
+          "b": {
+            "word": "she",
+            "ipa": [
+              "ʃ",
+              "iː"
+            ]
+          }
+        },
+        {
+          "pair_id": "s_sh_02",
+          "a": {
+            "word": "sip",
+            "ipa": [
+              "s",
+              "ɪ",
+              "p"
+            ]
+          },
+          "b": {
+            "word": "ship",
+            "ipa": [
+              "ʃ",
+              "ɪ",
+              "p"
+            ]
+          }
+        },
+        {
+          "pair_id": "s_sh_03",
+          "a": {
+            "word": "seat",
+            "ipa": [
+              "s",
+              "iː",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "sheet",
+            "ipa": [
+              "ʃ",
+              "iː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "s_sh_04",
+          "a": {
+            "word": "sin",
+            "ipa": [
+              "s",
+              "ɪ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "shin",
+            "ipa": [
+              "ʃ",
+              "ɪ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "s_sh_05",
+          "a": {
+            "word": "sift",
+            "ipa": [
+              "s",
+              "ɪ",
+              "f",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "shift",
+            "ipa": [
+              "ʃ",
+              "ɪ",
+              "f",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "s_sh_06",
+          "a": {
+            "word": "seen",
+            "ipa": [
+              "s",
+              "iː",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "sheen",
+            "ipa": [
+              "ʃ",
+              "iː",
+              "n"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "s_sh_s1",
+          "en": "Please sit in this seat.",
+          "ko": "이 자리에 앉아 주세요."
+        },
+        {
+          "sentence_id": "s_sh_s2",
+          "en": "I can see the ship from here.",
+          "ko": "여기서 배가 보여요."
+        }
+      ]
+    },
+    {
+      "entry_id": "schwa",
+      "category": "vowel",
+      "title_ko": "약한 모음 슈와(ə)",
+      "title_en": "Schwa (weak vowel)",
+      "target_ipa": [
+        "ə"
+      ],
+      "why_ko": "영어는 강세가 없는 모음을 짧고 약한 '어'(ə)로 줄여 말해요. 모든 모음을 철자대로 또렷하게 읽으면 리듬이 달라지고 다른 단어처럼 들릴 수 있어요.",
+      "tip_ko": "강세 없는 음절은 입과 혀에 힘을 빼고 아주 짧게 '어'처럼 흘려 말해요. 명사 CON-tract는 첫 음절을 '아'로 또렷하게, 동사 con-TRACT는 첫 음절을 약한 '어'로 줄여요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "schwa_01",
+          "a": {
+            "word": "contract",
+            "label_en": "noun",
+            "stress_en": "CON-tract",
+            "ipa": [
+              "k",
+              "ɑː",
+              "n",
+              "t",
+              "ɹ",
+              "æ",
+              "k",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "contract",
+            "label_en": "verb",
+            "stress_en": "con-TRACT",
+            "ipa": [
+              "k",
+              "ə",
+              "n",
+              "t",
+              "ɹ",
+              "æ",
+              "k",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "schwa_02",
+          "a": {
+            "word": "conflict",
+            "label_en": "noun",
+            "stress_en": "CON-flict",
+            "ipa": [
+              "k",
+              "ɑː",
+              "n",
+              "f",
+              "l",
+              "ɪ",
+              "k",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "conflict",
+            "label_en": "verb",
+            "stress_en": "con-FLICT",
+            "ipa": [
+              "k",
+              "ə",
+              "n",
+              "f",
+              "l",
+              "ɪ",
+              "k",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "schwa_03",
+          "a": {
+            "word": "suspect",
+            "label_en": "noun",
+            "stress_en": "SUS-pect",
+            "ipa": [
+              "s",
+              "ʌ",
+              "s",
+              "p",
+              "ɛ",
+              "k",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "suspect",
+            "label_en": "verb",
+            "stress_en": "sus-PECT",
+            "ipa": [
+              "s",
+              "ə",
+              "s",
+              "p",
+              "ɛ",
+              "k",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "schwa_04",
+          "a": {
+            "word": "produce",
+            "label_en": "noun",
+            "stress_en": "PRO-duce",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ɑː",
+              "d",
+              "uː",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "produce",
+            "label_en": "verb",
+            "stress_en": "pro-DUCE",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ə",
+              "d",
+              "uː",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "schwa_05",
+          "a": {
+            "word": "progress",
+            "label_en": "noun",
+            "stress_en": "PRO-gress",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ɑː",
+              "ɡ",
+              "ɹ",
+              "ɛ",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "progress",
+            "label_en": "verb",
+            "stress_en": "pro-GRESS",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ə",
+              "ɡ",
+              "ɹ",
+              "ɛ",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "schwa_06",
+          "a": {
+            "word": "convict",
+            "label_en": "noun",
+            "stress_en": "CON-vict",
+            "ipa": [
+              "k",
+              "ɑː",
+              "n",
+              "v",
+              "ɪ",
+              "k",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "convict",
+            "label_en": "verb",
+            "stress_en": "con-VICT",
+            "ipa": [
+              "k",
+              "ə",
+              "n",
+              "v",
+              "ɪ",
+              "k",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "schwa_07",
+          "a": {
+            "word": "conduct",
+            "label_en": "noun",
+            "stress_en": "CON-duct",
+            "ipa": [
+              "k",
+              "ɑː",
+              "n",
+              "d",
+              "ʌ",
+              "k",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "conduct",
+            "label_en": "verb",
+            "stress_en": "con-DUCT",
+            "ipa": [
+              "k",
+              "ə",
+              "n",
+              "d",
+              "ʌ",
+              "k",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "schwa_08",
+          "a": {
+            "word": "project",
+            "label_en": "noun",
+            "stress_en": "PRO-ject",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ɑː",
+              "dʒ",
+              "ɛ",
+              "k",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "project",
+            "label_en": "verb",
+            "stress_en": "pro-JECT",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ə",
+              "dʒ",
+              "ɛ",
+              "k",
+              "t"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "schwa_s1",
+          "en": "I'd like a cup of tea and a banana.",
+          "ko": "차 한 잔이랑 바나나 하나 주세요."
+        },
+        {
+          "sentence_id": "schwa_s2",
+          "en": "Can you record a video for us?",
+          "ko": "저희를 위해 영상을 녹화해 줄 수 있어요?"
+        }
+      ]
+    },
+    {
+      "entry_id": "word_stress",
+      "category": "stress",
+      "title_ko": "단어 강세",
+      "title_en": "Word stress",
+      "target_ipa": [],
+      "why_ko": "한국어는 음절을 비슷한 세기로 말하지만, 영어는 한 음절을 더 크고 길고 높게 말하고 나머지는 약하게 줄여요. 강세 위치가 바뀌면 품사나 뜻이 달라지기도 해요.",
+      "tip_ko": "강세 음절은 조금 더 크게, 길게, 높게 말하고 나머지 음절은 짧고 약하게 줄여요. 손뼉을 치며 강세 음절에서만 세게 쳐 보세요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "word_stress_01",
+          "a": {
+            "word": "present",
+            "label_en": "noun",
+            "stress_en": "PRE-sent",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ɛ",
+              "z",
+              "ə",
+              "n",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "present",
+            "label_en": "verb",
+            "stress_en": "pre-SENT",
+            "ipa": [
+              "p",
+              "ɹ",
+              "ɪ",
+              "z",
+              "ɛ",
+              "n",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_02",
+          "a": {
+            "word": "desert",
+            "label_en": "noun",
+            "stress_en": "DE-sert",
+            "ipa": [
+              "d",
+              "ɛ",
+              "z",
+              "ɚ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "desert",
+            "label_en": "verb",
+            "stress_en": "de-SERT",
+            "ipa": [
+              "d",
+              "ᵻ",
+              "z",
+              "ɜː",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_03",
+          "a": {
+            "word": "permit",
+            "label_en": "noun",
+            "stress_en": "PER-mit",
+            "ipa": [
+              "p",
+              "ɜː",
+              "m",
+              "ɪ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "permit",
+            "label_en": "verb",
+            "stress_en": "per-MIT",
+            "ipa": [
+              "p",
+              "ɚ",
+              "m",
+              "ɪ",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_04",
+          "a": {
+            "word": "record",
+            "label_en": "noun",
+            "stress_en": "RE-cord",
+            "ipa": [
+              "ɹ",
+              "ɛ",
+              "k",
+              "ɚ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "record",
+            "label_en": "verb",
+            "stress_en": "re-CORD",
+            "ipa": [
+              "ɹ",
+              "ᵻ",
+              "k",
+              "ɔːɹ",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_05",
+          "a": {
+            "word": "rebel",
+            "label_en": "noun",
+            "stress_en": "RE-bel",
+            "ipa": [
+              "ɹ",
+              "ɛ",
+              "b",
+              "əl"
+            ]
+          },
+          "b": {
+            "word": "rebel",
+            "label_en": "verb",
+            "stress_en": "re-BEL",
+            "ipa": [
+              "ɹ",
+              "ᵻ",
+              "b",
+              "ɛ",
+              "l"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_06",
+          "a": {
+            "word": "increase",
+            "label_en": "noun",
+            "stress_en": "IN-crease",
+            "ipa": [
+              "ɪ",
+              "ŋ",
+              "k",
+              "ɹ",
+              "iː",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "increase",
+            "label_en": "verb",
+            "stress_en": "in-CREASE",
+            "ipa": [
+              "ɪ",
+              "ŋ",
+              "k",
+              "ɹ",
+              "iː",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_07",
+          "a": {
+            "word": "refund",
+            "label_en": "noun",
+            "stress_en": "RE-fund",
+            "ipa": [
+              "ɹ",
+              "iː",
+              "f",
+              "ʌ",
+              "n",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "refund",
+            "label_en": "verb",
+            "stress_en": "re-FUND",
+            "ipa": [
+              "ɹ",
+              "ᵻ",
+              "f",
+              "ʌ",
+              "n",
+              "d"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_08",
+          "a": {
+            "word": "digest",
+            "label_en": "noun",
+            "stress_en": "DI-gest",
+            "ipa": [
+              "d",
+              "aɪ",
+              "dʒ",
+              "ɛ",
+              "s",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "digest",
+            "label_en": "verb",
+            "stress_en": "di-GEST",
+            "ipa": [
+              "d",
+              "aɪ",
+              "dʒ",
+              "ɛ",
+              "s",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "word_stress_09",
+          "a": {
+            "word": "extract",
+            "label_en": "noun",
+            "stress_en": "EX-tract",
+            "ipa": [
+              "ɛ",
+              "k",
+              "s",
+              "t",
+              "ɹ",
+              "æ",
+              "k",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "extract",
+            "label_en": "verb",
+            "stress_en": "ex-TRACT",
+            "ipa": [
+              "ɛ",
+              "k",
+              "s",
+              "t",
+              "ɹ",
+              "æ",
+              "k",
+              "t"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "word_stress_s1",
+          "en": "She will present the new record.",
+          "ko": "그녀가 새 기록을 발표할 거예요."
+        },
+        {
+          "sentence_id": "word_stress_s2",
+          "en": "They record every trip to the desert.",
+          "ko": "그 사람들은 사막 여행을 매번 기록해요."
+        }
+      ]
+    },
+    {
+      "entry_id": "final_consonants",
+      "category": "syllable",
+      "title_ko": "끝 자음 뒤에 모음 넣지 않기",
+      "title_en": "Word-final consonants without an added vowel",
+      "target_ipa": [],
+      "why_ko": "한국어는 받침 뒤에 '으'를 붙여 옮기는 습관이 있어서(bus → 버스), 영어 단어 끝에 없는 모음이 생기기 쉬워요. 모음이 붙으면 다른 단어가 되기도 해요.",
+      "tip_ko": "마지막 자음에서 소리를 멈추고 뒤에 모음을 붙이지 마세요. 끝 자음의 입 모양을 만든 채 짧고 가볍게 끊어요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "final_consonants_01",
+          "a": {
+            "word": "cook",
+            "ipa": [
+              "k",
+              "ʊ",
+              "k"
+            ]
+          },
+          "b": {
+            "word": "cookie",
+            "ipa": [
+              "k",
+              "ʊ",
+              "k",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "final_consonants_02",
+          "a": {
+            "word": "mess",
+            "ipa": [
+              "m",
+              "ɛ",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "messy",
+            "ipa": [
+              "m",
+              "ɛ",
+              "s",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "final_consonants_03",
+          "a": {
+            "word": "fish",
+            "ipa": [
+              "f",
+              "ɪ",
+              "ʃ"
+            ]
+          },
+          "b": {
+            "word": "fishy",
+            "ipa": [
+              "f",
+              "ɪ",
+              "ʃ",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "final_consonants_04",
+          "a": {
+            "word": "catch",
+            "ipa": [
+              "k",
+              "æ",
+              "tʃ"
+            ]
+          },
+          "b": {
+            "word": "catchy",
+            "ipa": [
+              "k",
+              "æ",
+              "tʃ",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "final_consonants_05",
+          "a": {
+            "word": "juice",
+            "ipa": [
+              "dʒ",
+              "uː",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "juicy",
+            "ipa": [
+              "dʒ",
+              "uː",
+              "s",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "final_consonants_06",
+          "a": {
+            "word": "test",
+            "ipa": [
+              "t",
+              "ɛ",
+              "s",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "testy",
+            "ipa": [
+              "t",
+              "ɛ",
+              "s",
+              "t",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "final_consonants_07",
+          "a": {
+            "word": "bag",
+            "ipa": [
+              "b",
+              "æ",
+              "ɡ"
+            ]
+          },
+          "b": {
+            "word": "baggy",
+            "ipa": [
+              "b",
+              "æ",
+              "ɡ",
+              "i"
+            ]
+          }
+        },
+        {
+          "pair_id": "final_consonants_08",
+          "a": {
+            "word": "sun",
+            "ipa": [
+              "s",
+              "ʌ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "sunny",
+            "ipa": [
+              "s",
+              "ʌ",
+              "n",
+              "i"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "final_consonants_s1",
+          "en": "I need a bus pass.",
+          "ko": "버스 정기권이 필요해요."
+        },
+        {
+          "sentence_id": "final_consonants_s2",
+          "en": "Let's take a quick break.",
+          "ko": "잠깐 쉬어요."
+        }
+      ]
+    },
+    {
+      "entry_id": "clusters",
+      "category": "syllable",
+      "title_ko": "자음 연속(클러스터)",
+      "title_en": "Consonant clusters",
+      "target_ipa": [],
+      "why_ko": "한국어에는 자음 두세 개가 모음 없이 이어지는 소리가 없어서, 사이에 '으'를 넣기 쉬워요(street → 스트리트). 모음이 들어가면 다른 단어처럼 들릴 수 있어요.",
+      "tip_ko": "첫 자음 뒤에 모음을 넣지 말고 바로 다음 자음으로 넘어가요. 처음에는 천천히 자음을 이어 붙여 연습하고, 익숙해지면 속도를 올려요.",
+      "minimal_pairs": [
+        {
+          "pair_id": "clusters_01",
+          "a": {
+            "word": "sport",
+            "ipa": [
+              "s",
+              "p",
+              "ɔːɹ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "support",
+            "ipa": [
+              "s",
+              "ə",
+              "p",
+              "ɔːɹ",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "clusters_02",
+          "a": {
+            "word": "blow",
+            "ipa": [
+              "b",
+              "l",
+              "oʊ"
+            ]
+          },
+          "b": {
+            "word": "below",
+            "ipa": [
+              "b",
+              "ᵻ",
+              "l",
+              "oʊ"
+            ]
+          }
+        },
+        {
+          "pair_id": "clusters_03",
+          "a": {
+            "word": "plight",
+            "ipa": [
+              "p",
+              "l",
+              "aɪ",
+              "t"
+            ]
+          },
+          "b": {
+            "word": "polite",
+            "ipa": [
+              "p",
+              "ə",
+              "l",
+              "aɪ",
+              "t"
+            ]
+          }
+        },
+        {
+          "pair_id": "clusters_04",
+          "a": {
+            "word": "train",
+            "ipa": [
+              "t",
+              "ɹ",
+              "eɪ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "terrain",
+            "ipa": [
+              "t",
+              "ɚ",
+              "ɹ",
+              "eɪ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "clusters_05",
+          "a": {
+            "word": "claps",
+            "ipa": [
+              "k",
+              "l",
+              "æ",
+              "p",
+              "s"
+            ]
+          },
+          "b": {
+            "word": "collapse",
+            "ipa": [
+              "k",
+              "ə",
+              "l",
+              "æ",
+              "p",
+              "s"
+            ]
+          }
+        },
+        {
+          "pair_id": "clusters_06",
+          "a": {
+            "word": "clone",
+            "ipa": [
+              "k",
+              "l",
+              "oʊ",
+              "n"
+            ]
+          },
+          "b": {
+            "word": "cologne",
+            "ipa": [
+              "k",
+              "ə",
+              "l",
+              "oʊ",
+              "n"
+            ]
+          }
+        },
+        {
+          "pair_id": "clusters_07",
+          "a": {
+            "word": "drive",
+            "ipa": [
+              "d",
+              "ɹ",
+              "aɪ",
+              "v"
+            ]
+          },
+          "b": {
+            "word": "derive",
+            "ipa": [
+              "d",
+              "ᵻ",
+              "ɹ",
+              "aɪ",
+              "v"
+            ]
+          }
+        },
+        {
+          "pair_id": "clusters_08",
+          "a": {
+            "word": "prayed",
+            "ipa": [
+              "p",
+              "ɹ",
+              "eɪ",
+              "d"
+            ]
+          },
+          "b": {
+            "word": "parade",
+            "ipa": [
+              "p",
+              "ɚ",
+              "ɹ",
+              "eɪ",
+              "d"
+            ]
+          }
+        }
+      ],
+      "practice_sentences": [
+        {
+          "sentence_id": "clusters_s1",
+          "en": "The street is crowded in spring.",
+          "ko": "봄에는 거리가 붐벼요."
+        },
+        {
+          "sentence_id": "clusters_s2",
+          "en": "Please drive slowly near the school.",
+          "ko": "학교 근처에서는 천천히 운전해 주세요."
+        }
+      ]
+    }
+  ],
+  "espeak_map": [
+    {
+      "espeak": "ɹ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "l",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "ɾ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "ɚ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l",
+        "schwa"
+      ]
+    },
+    {
+      "espeak": "ɜː",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "ɑːɹ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "ɔːɹ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "oːɹ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "ɪɹ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "ɛɹ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "ʊɹ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "aɪɚ",
+      "context": "expected",
+      "entry_ids": [
+        "r_l"
+      ]
+    },
+    {
+      "espeak": "f",
+      "context": "expected",
+      "entry_ids": [
+        "f_p"
+      ]
+    },
+    {
+      "espeak": "p",
+      "context": "expected",
+      "entry_ids": [
+        "f_p"
+      ]
+    },
+    {
+      "espeak": "v",
+      "context": "expected",
+      "entry_ids": [
+        "v_b"
+      ]
+    },
+    {
+      "espeak": "b",
+      "context": "expected",
+      "entry_ids": [
+        "v_b"
+      ]
+    },
+    {
+      "espeak": "θ",
+      "context": "expected",
+      "entry_ids": [
+        "th_s"
+      ]
+    },
+    {
+      "espeak": "s",
+      "context": "expected",
+      "entry_ids": [
+        "th_s",
+        "s_sh"
+      ]
+    },
+    {
+      "espeak": "ð",
+      "context": "expected",
+      "entry_ids": [
+        "dh_d"
+      ]
+    },
+    {
+      "espeak": "d",
+      "context": "expected",
+      "entry_ids": [
+        "dh_d"
+      ]
+    },
+    {
+      "espeak": "z",
+      "context": "expected",
+      "entry_ids": [
+        "z_dzh"
+      ]
+    },
+    {
+      "espeak": "dʒ",
+      "context": "expected",
+      "entry_ids": [
+        "z_dzh"
+      ]
+    },
+    {
+      "espeak": "ʃ",
+      "context": "expected",
+      "entry_ids": [
+        "s_sh"
+      ]
+    },
+    {
+      "espeak": "ɪ",
+      "context": "expected",
+      "entry_ids": [
+        "ih_ee"
+      ]
+    },
+    {
+      "espeak": "iː",
+      "context": "expected",
+      "entry_ids": [
+        "ih_ee"
+      ]
+    },
+    {
+      "espeak": "i",
+      "context": "expected",
+      "entry_ids": [
+        "ih_ee"
+      ]
+    },
+    {
+      "espeak": "ʊ",
+      "context": "expected",
+      "entry_ids": [
+        "uh_oo"
+      ]
+    },
+    {
+      "espeak": "uː",
+      "context": "expected",
+      "entry_ids": [
+        "uh_oo"
+      ]
+    },
+    {
+      "espeak": "u",
+      "context": "expected",
+      "entry_ids": [
+        "uh_oo"
+      ]
+    },
+    {
+      "espeak": "æ",
+      "context": "expected",
+      "entry_ids": [
+        "ae_e"
+      ]
+    },
+    {
+      "espeak": "ɛ",
+      "context": "expected",
+      "entry_ids": [
+        "ae_e"
+      ]
+    },
+    {
+      "espeak": "ʌ",
+      "context": "expected",
+      "entry_ids": [
+        "uh_ah"
+      ]
+    },
+    {
+      "espeak": "ɑː",
+      "context": "expected",
+      "entry_ids": [
+        "uh_ah"
+      ]
+    },
+    {
+      "espeak": "ə",
+      "context": "expected",
+      "entry_ids": [
+        "schwa",
+        "word_stress"
+      ]
+    },
+    {
+      "espeak": "ɐ",
+      "context": "expected",
+      "entry_ids": [
+        "schwa",
+        "word_stress"
+      ]
+    },
+    {
+      "espeak": "ᵻ",
+      "context": "expected",
+      "entry_ids": [
+        "schwa",
+        "word_stress"
+      ]
+    },
+    {
+      "espeak": "əl",
+      "context": "expected",
+      "entry_ids": [
+        "schwa"
+      ]
+    },
+    {
+      "espeak": "ɨ",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "ɯ",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "ə",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "ɐ",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "ᵻ",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "ɪ",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "i",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "ʊ",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "u",
+      "context": "inserted_word_final",
+      "entry_ids": [
+        "final_consonants"
+      ]
+    },
+    {
+      "espeak": "ɨ",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    },
+    {
+      "espeak": "ɯ",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    },
+    {
+      "espeak": "ə",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    },
+    {
+      "espeak": "ɐ",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    },
+    {
+      "espeak": "ᵻ",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    },
+    {
+      "espeak": "ɪ",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    },
+    {
+      "espeak": "ʊ",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    },
+    {
+      "espeak": "u",
+      "context": "inserted_in_cluster",
+      "entry_ids": [
+        "clusters"
+      ]
+    }
+  ]
+}
