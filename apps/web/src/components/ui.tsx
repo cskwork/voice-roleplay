@@ -24,13 +24,18 @@ export function PronunciationNote() {
   )
 }
 
-/** A disabled button that says why it is disabled. */
+/**
+ * A disabled button that says why it is disabled. `quietReason` keeps the reason out of the layout
+ * (screen readers still get it via aria-describedby, pointer users via the tooltip) for toolbars whose
+ * buttons change state every turn and must not reflow.
+ */
 export function ActionButton({
   onClick,
   disabledReason,
   children,
   className = 'btn',
   icon,
+  quietReason = false,
   ...rest
 }: {
   onClick?: () => void
@@ -38,23 +43,75 @@ export function ActionButton({
   children: ReactNode
   className?: string
   icon?: IconName
+  quietReason?: boolean
   'aria-pressed'?: boolean
   'aria-keyshortcuts'?: string
   type?: 'button' | 'submit'
 }) {
   const id = useId()
   return (
-    <span className="action">
+    <span className="action" title={quietReason && disabledReason ? disabledReason : undefined}>
       <button type="button" className={className} onClick={onClick} disabled={!!disabledReason} aria-describedby={disabledReason ? id : undefined} {...rest}>
         {icon && <Icon name={icon} />}
         <span>{children}</span>
       </button>
       {disabledReason && (
-        <span id={id} className="disabled-reason">
+        <span id={id} className={quietReason ? 'sr-only' : 'disabled-reason'}>
           {disabledReason}
         </span>
       )}
     </span>
+  )
+}
+
+export interface ChoiceOption<T extends string> {
+  value: T
+  label: string
+  note?: string
+  disabledReason?: string
+}
+
+/**
+ * Compact segmented choice (radio group). The selected option's note, and the reason for any
+ * unavailable option, are shown as one line under the control instead of inside every option.
+ */
+export function Choice<T extends string>({
+  label,
+  name,
+  value,
+  options,
+  onChange,
+}: {
+  label: string
+  name: string
+  value: T
+  options: ChoiceOption<T>[]
+  onChange(v: T): void
+}) {
+  const helpId = useId()
+  const current = options.find((o) => o.value === value)
+  const off = options.filter((o) => o.disabledReason)
+  return (
+    <fieldset className="choice" aria-describedby={helpId}>
+      <legend className="choice-label">{label}</legend>
+      <div className="choice-options">
+        {options.map((o) => (
+          <label key={o.value} className={`choice-opt ${value === o.value ? 'is-on' : ''} ${o.disabledReason ? 'is-off' : ''}`} title={o.disabledReason}>
+            <input type="radio" name={name} value={o.value} checked={value === o.value} disabled={!!o.disabledReason} onChange={() => onChange(o.value)} />
+            {value === o.value && <Icon name="check" size={16} />}
+            <span>{o.label}</span>
+          </label>
+        ))}
+      </div>
+      <p id={helpId} className="choice-help">
+        {current?.note}
+        {off.map((o) => (
+          <span key={o.value} className="choice-off">
+            {o.label}: {o.disabledReason}
+          </span>
+        ))}
+      </p>
+    </fieldset>
   )
 }
 

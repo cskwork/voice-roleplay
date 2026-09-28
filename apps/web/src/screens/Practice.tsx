@@ -1,7 +1,7 @@
 import { useRef, useState, type KeyboardEvent } from 'react'
 import { ModelAudio } from '../components/ModelAudio'
 import { Recorder } from '../components/Recorder'
-import { JOB_LABEL, JobProgress, Notice, PronunciationNote } from '../components/ui'
+import { Badge, JOB_LABEL, JobProgress, Notice, PronunciationNote } from '../components/ui'
 import type { Take } from '../hooks/audio'
 import { useAttemptRunner } from '../hooks/attempt'
 import { api } from '../lib/api'
@@ -153,10 +153,10 @@ export function Practice({ parts }: { parts: string[] }) {
   return (
     <main className="page" aria-labelledby="pr-title">
       <header className="page-head">
-        <p className="eyebrow">
-          녹음형 연습 · {DIFFICULTY_LABEL[difficulty]} · {historyOptIn ? '기록 저장' : '기록 저장 안 함'}
-        </p>
         <h1 id="pr-title">{sc.title_ko}</h1>
+        <p className="page-meta">
+          <Badge tone="brand">녹음형 연습</Badge> <Badge>난이도 {DIFFICULTY_LABEL[difficulty]}</Badge> <Badge>{historyOptIn ? '기록 저장' : '기록 저장 안 함'}</Badge>
+        </p>
       </header>
 
       <div className="tabs" role="tablist" aria-label="연습 유형">
@@ -185,7 +185,7 @@ export function Practice({ parts }: { parts: string[] }) {
       </div>
 
       <section id="practice-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} className="card practice">
-        <p className="muted">{tabInfo.help}</p>
+        <p className="practice-help">{tabInfo.help}</p>
 
         {tab !== 'roleplay_turn' && items.length > 1 && (
           <label className="field">

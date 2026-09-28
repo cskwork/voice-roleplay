@@ -25,6 +25,10 @@ export interface HintView {
   text_ko?: string
   keywords?: string[]
   example_en?: string
+  /** 'local' = built instantly from the scenario file; 'server' = the gateway's reply. */
+  source: 'local' | 'server'
+  /** The AI line (response_id) the hint was built for; absent when the server did not say. */
+  response_id?: string
 }
 
 export interface Snapshot {
@@ -347,16 +351,24 @@ export class RealtimeSession {
       case 'turn.warning':
         this.set({ warning: '40초가 지났어요. 45초가 되면 지금까지 말한 내용이 자동으로 제출돼요.' })
         break
-      case 'hint':
+      case 'hint': {
+        const level = (e.level as 1 | 2 | 3) ?? 1
+        const responseId = typeof e.response_id === 'string' ? e.response_id : undefined
+        const cur = this.snap.hint
+        // Replies can overtake each other (level 1 may wait on the LLM): never step back to a lower level.
+        if (cur && cur.level > level && (!responseId || cur.response_id === responseId)) break
         this.set({
           hint: {
-            level: (e.level as 1 | 2 | 3) ?? 1,
+            level,
             text_ko: e.text_ko as string | undefined,
             keywords: e.keywords as string[] | undefined,
             example_en: e.example_en as string | undefined,
+            source: 'server',
+            response_id: responseId,
           },
         })
         break
+      }
       case 'goal.update':
         if (Array.isArray(e.goals)) this.set({ goals: e.goals as GoalState[] })
         break

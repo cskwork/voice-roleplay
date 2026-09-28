@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Drill } from '../components/Drill'
 import { Icon } from '../components/Icon'
-import { FeedbackCard, Notice, PronunciationNote } from '../components/ui'
+import { Badge, FeedbackCard, Notice, PronunciationNote } from '../components/ui'
 import { useApp, useVoiceId } from '../state'
 
 const UNSAVED_TTL_MS = 15 * 60 * 1000
@@ -42,12 +42,28 @@ export function Summary() {
   return (
     <main className="page narrow" aria-labelledby="sum-title">
       <header className="page-head">
-        <p className="eyebrow">세션 요약 · {sc.title_ko}</p>
         <h1 id="sum-title">수고했어요! 이렇게 말해 봤어요</h1>
+        <p className="page-meta">
+          <Badge tone="brand">실시간 회화 요약</Badge> <Badge>{sc.title_ko}</Badge>
+        </p>
         {!last.historyOptIn && <p className="muted small">기록 저장을 선택하지 않아 이 요약은 15분 뒤 사라져요.</p>}
       </header>
 
       {last.error && <Notice tone="danger" icon="alert">{last.error}</Notice>}
+
+      {last.said.length > 0 && (
+        <section className="card" aria-labelledby="said-h">
+          <h2 id="said-h">내가 한 말</h2>
+          <ol className="said">
+            {last.said.map((t, i) => (
+              <li key={i} lang="en">
+                {t}
+              </li>
+            ))}
+          </ol>
+          <p className="muted small">음성 인식이 받아쓴 문장이에요.</p>
+        </section>
+      )}
 
       <section className="card" aria-labelledby="g-h">
         <h2 id="g-h">대화 목표</h2>
@@ -60,7 +76,7 @@ export function Summary() {
                   <Icon name={done ? 'check' : 'circle'} size={18} />
                 </span>
                 <span>
-                  {g.ko} <strong className="small">{done ? '달성' : '확인되지 않음'}</strong>
+                  {g.ko} <Badge tone={done ? 'ok' : 'neutral'}>{done ? '달성' : '아직 확인 안 됨'}</Badge>
                 </span>
               </li>
             )
@@ -70,7 +86,7 @@ export function Summary() {
 
       <section aria-labelledby="imp-h">
         <h2 id="imp-h" className="section-title">
-          다음엔 이렇게 말해 보세요 <span className="muted small">(최대 3개)</span>
+          다음엔 이렇게 말해 보세요
         </h2>
         {items.length === 0 && !last.error && (
           <Notice tone={last.summary?.status === 'ok' ? 'info' : 'warn'}>
@@ -96,7 +112,7 @@ export function Summary() {
                     historyOptIn={last.historyOptIn}
                   />
                 ) : (
-                  <button type="button" className="btn btn-primary" onClick={() => setDrillId(f.feedback_id)}>
+                  <button type="button" className="btn btn-soft" onClick={() => setDrillId(f.feedback_id)}>
                     <Icon name="mic" /> 다시 말하기
                   </button>
                 )
@@ -108,10 +124,10 @@ export function Summary() {
       </section>
 
       <div className="page-actions">
-        <a className="btn btn-primary" href={`#/talk/${encodeURIComponent(sc.scenario_id)}`}>
+        <a className="btn btn-primary" href={`#/talk/${encodeURIComponent(sc.scenario_id)}/${encodeURIComponent(last.opts)}`}>
           같은 상황 다시 하기
         </a>
-        <a className="btn" href={`#/practice/${encodeURIComponent(sc.scenario_id)}`}>
+        <a className="btn" href={`#/practice/${encodeURIComponent(sc.scenario_id)}/${encodeURIComponent(last.opts)}`}>
           녹음형으로 연습하기
         </a>
         <a className="btn btn-ghost" href="#/home">

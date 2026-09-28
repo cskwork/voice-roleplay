@@ -1,3 +1,4 @@
+import { useEffect } from 'react'
 import { Icon } from './components/Icon'
 import { Home } from './screens/Home'
 import { Practice } from './screens/Practice'
@@ -43,8 +44,14 @@ export function App() {
   const { health } = useApp()
   const current = route[0] ?? 'setup'
   const inTalk = current === 'talk'
+  const routeKey = route.join('/')
+  // A new screen starts at its top, not at the previous screen's scroll position.
+  useEffect(() => {
+    window.scrollTo(0, 0)
+    document.getElementById('main-content')?.scrollTo(0, 0)
+  }, [routeKey])
   return (
-    <>
+    <div className={`shell ${inTalk ? 'shell-fixed' : ''}`}>
       <a className="skip" href="#main-content" onClick={(e) => { e.preventDefault(); document.getElementById('main-content')?.focus() }}>
         본문으로 건너뛰기
       </a>
@@ -70,8 +77,8 @@ export function App() {
         </span>
       </header>
       <div id="main-content" tabIndex={-1}>
-        <Screen key={route.join('/')} route={route} />
+        <Screen key={routeKey} route={route} />
       </div>
-    </>
+    </div>
   )
 }

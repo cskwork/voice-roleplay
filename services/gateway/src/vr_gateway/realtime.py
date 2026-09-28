@@ -942,14 +942,23 @@ class RealtimeEngine:
         level = int(ev["level"])
         if level not in (1, 2, 3):
             raise ValueError("level")
-        last_ai = next((h["text"] for h in reversed(self.s.history) if h["role"] == "assistant"), "")
-        if not last_ai and self.response is not None:
-            last_ai = " ".join(s.text for s in self.response.segments.values())
-        self._spawn(self._hint(level, last_ai))
+        # The line on the learner's screen is the newest response; history only gains it when the next one starts.
+        last_ai, about = "", None
+        resp = next((r for r in reversed(self.responses) if r.segments), None)
+        if resp is not None:
+            ordered = [resp.segments[k] for k in sorted(resp.segments)]
+            shown = [s for s in ordered if s.status in ("played", "interrupted", "text_only")] if resp.cancelled else ordered
+            last_ai = " ".join(s.text for s in shown).strip()
+            about = resp.response_id if last_ai else None
+        if not last_ai:
+            last_ai = next((h["text"] for h in reversed(self.s.history) if h["role"] == "assistant"), "")
+        self._spawn(self._hint(level, last_ai, about))
 
-    async def _hint(self, level: int, last_ai: str) -> None:
+    async def _hint(self, level: int, last_ai: str, about: str | None) -> None:
         hint = await self.brain.build_hint(self.s.scenario, self.s.difficulty, level, self.s.goals, last_ai,
                                            llm=self.svc.llm_bg if level == 1 else None)
+        if about is not None:
+            hint["response_id"] = about  # which AI line the hint (and its level-1 translation) belongs to
         await self.send("hint", **hint)
 
     async def h_settings_update(self, ev: dict) -> None:

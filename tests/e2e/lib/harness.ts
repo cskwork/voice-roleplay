@@ -97,8 +97,8 @@ export async function startConversation(page: Page, scenario = 'cafe_order', opt
     await page.goto('/#/home')
     await page.getByRole('radio', { name: /실시간 회화/ }).check()
     const card = page.locator('li.scenario', { hasText: scenarioTitle(scenario) })
-    await expect(card.getByRole('button', { name: /대화 시작/ })).toBeEnabled({ timeout: 60_000 })
-    await card.getByRole('button', { name: /대화 시작/ }).click()
+    await expect(card.getByRole('button', { name: /이 상황으로 연습/ })).toBeEnabled({ timeout: 60_000 })
+    await card.getByRole('button', { name: /이 상황으로 연습/ }).click()
   } else {
     await page.goto(`/#/talk/${scenario}/${opts}`)
   }

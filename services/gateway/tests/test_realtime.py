@@ -331,6 +331,12 @@ async def test_hint_and_settings(gw):
     await rt.event("hint.request", level=1)
     hint = await rt.until("hint")
     assert hint["level"] == 1 and hint["text_ko"]
+    # After a reply, the hint belongs to that newest AI line (history only folds it when the next reply starts).
+    await speak_turn(rt)
+    reply = await rt.until("response.started")
+    await rt.until("response.done")
+    await rt.event("hint.request", level=1)
+    assert (await rt.until("hint"))["response_id"] == reply["response_id"]
     await rt.event("hint.request", level=7)
     assert (await rt.until("error"))["code"] == "EVENT_INVALID"
     await rt.event("settings.update", silence_ms=5000, slow=True)

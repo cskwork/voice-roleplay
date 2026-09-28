@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import { Icon } from '../components/Icon'
 import { ModelAudio } from '../components/ModelAudio'
-import { FeedbackCard, JobProgress, Notice, PronunciationNote } from '../components/ui'
-import { WordDiff } from '../components/WordDiff'
+import { Badge, FeedbackCard, JobProgress, Notice, PronunciationNote } from '../components/ui'
+import { diffCount, WordDiff } from '../components/WordDiff'
 import { useJobPoll } from '../hooks/audio'
 import { api } from '../lib/api'
 import { messageFor, toApiError } from '../lib/errors'
@@ -18,26 +18,38 @@ function MetricsView({ m, edited }: { m: Metrics | null; edited: boolean }) {
     <>
       <dl className="metrics">
         <div>
-          <dt>분당 단어 수</dt>
-          <dd>{m.wpm == null ? '측정 불가' : Math.round(m.wpm)}</dd>
+          <dt>말하기 속도</dt>
+          <dd>{m.wpm == null ? '측정 불가' : <>{Math.round(m.wpm)}<span className="unit">단어/분</span></>}</dd>
         </div>
         <div>
           <dt>말한 구간</dt>
-          <dd>{m.speech_span_s.toFixed(1)}초</dd>
+          <dd>
+            {m.speech_span_s.toFixed(1)}
+            <span className="unit">초</span>
+          </dd>
         </div>
         <div>
           <dt>0.5초 이상 쉰 횟수</dt>
-          <dd>{m.pause_count}회</dd>
+          <dd>
+            {m.pause_count}
+            <span className="unit">회</span>
+          </dd>
         </div>
         <div>
           <dt>쉰 시간 합계</dt>
-          <dd>{m.total_pause_s.toFixed(1)}초</dd>
+          <dd>
+            {m.total_pause_s.toFixed(1)}
+            <span className="unit">초</span>
+          </dd>
         </div>
       </dl>
-      <p className="muted small">
-        참고 지표예요. 실력 점수가 아니며, 천천히 말했다고 감점하지 않아요. {m.definition_ko} (지표 {m.metrics_version}
-        {edited ? ', 원래 녹음 기준 — 전사를 고쳐도 다시 계산하지 않아요' : ''})
-      </p>
+      <p className="muted small">실력 점수가 아니며, 천천히 말해도 감점하지 않아요.{edited ? ' 원래 녹음 기준이라 전사를 고쳐도 다시 계산하지 않아요.' : ''}</p>
+      <details className="fine-print">
+        <summary>지표 계산 방법</summary>
+        <p className="muted small">
+          {m.definition_ko} (지표 {m.metrics_version})
+        </p>
+      </details>
     </>
   )
 }
@@ -163,28 +175,37 @@ export function Result({ attemptId }: { attemptId: string }) {
     }
   }
 
+  const showDiff = !!target && r.transcript != null
+  const diffs = showDiff && target ? diffCount(target, r.transcript ?? '', r.target_diff) : 0
   const retry = () => navigate('practice', meta.scenarioId, meta.opts, meta.exerciseType, meta.itemId ?? '', r.attempt_id)
 
   return (
     <main className="page narrow" aria-labelledby="res-title">
       <header className="page-head">
-        <p className="eyebrow">
-          결과 · {TYPE_LABEL[meta.exerciseType]} · {sc.title_ko}
-        </p>
         <h1 id="res-title">이렇게 들렸어요</h1>
-        {(target ?? question) && (
+        <p className="page-meta">
+          <Badge tone="brand">{TYPE_LABEL[meta.exerciseType]}</Badge> <Badge>{sc.title_ko}</Badge>
+        </p>
+        {question ? (
           <p className="lead" lang="en">
-            {question ? `Q. ${question}` : `목표 문장 · ${target}`}
+            Q. {question}
           </p>
+        ) : (
+          target &&
+          !showDiff && (
+            <p className="lead">
+              목표 문장 · <span lang="en">{target}</span>
+            </p>
+          )
         )}
       </header>
 
       <Transcript key={r.transcript_revision} r={r} onEdited={() => void reload()} />
       {reloadError && <Notice tone="danger" icon="alert">{reloadError}</Notice>}
 
-      {target && r.transcript != null && (
+      {showDiff && target && (
         <section className="card">
-          <WordDiff target={target} heard={r.transcript} serverOps={r.target_diff} />
+          <WordDiff target={target} heard={r.transcript ?? ''} serverOps={r.target_diff} level="h2" />
         </section>
       )}
 
@@ -217,7 +238,7 @@ export function Result({ attemptId }: { attemptId: string }) {
           (r.feedback_status && r.feedback_status !== 'ok' ? (
             <Notice tone="warn">문장 피드백을 만들지 못했어요. {app.health?.modes.recorded.feedback_available === false ? '대화 모델이 준비되지 않았어요.' : '전사가 불확실하면 피드백을 보류해요. 전사를 확인해 주세요.'}</Notice>
           ) : (
-            <Notice>고칠 점을 찾지 못했어요. 잘했어요!</Notice>
+            <Notice>{diffs > 0 ? '문장 제안은 없어요. 위의 다르게 인식된 부분을 목표 문장과 비교해 보세요.' : '고칠 점을 찾지 못했어요.'}</Notice>
           ))}
         {r.feedback.map((f) => (
           <FeedbackCard key={f.feedback_id} f={f} />
@@ -230,11 +251,13 @@ export function Result({ attemptId }: { attemptId: string }) {
       </section>
 
       {modelSource && meta.exerciseType !== 'roleplay_turn' && (
-        <section className="card">
-          <h2>모범 음성</h2>
-          <p lang="en">{modelSource.text}</p>
+        <section className="card" aria-labelledby="model-h">
+          <h2 id="model-h">모범 음성</h2>
+          <p lang="en" className="model-text">
+            {modelSource.text}
+          </p>
           {!target && <p className="muted small">예시 문장이에요. 내 표현이 달라도 틀린 것이 아니에요.</p>}
-          <ModelAudio voiceId={voiceId} source={modelSource} ttsReady={ttsReady} />
+          <ModelAudio voiceId={voiceId} source={modelSource} ttsReady={ttsReady} hideLabel />
         </section>
       )}
 

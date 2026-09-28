@@ -201,7 +201,7 @@ Client → server: `session.start`, `input.start`, `input.commit {turn_id, last_
 
 Server → client: `session.state {input_state, output_state, state}`, `speech.started {turn_id}`, `speech.ended {turn_id}`, `asr.partial {turn_id, text}`,
 `asr.final {turn_id, text, transcript_revision}`, `response.started {response_id, epoch}`, `response.text {response_id, segment_id, text}`,
-`response.done {response_id}`, `response.cancelled {response_id}`, `turn.warning {turn_id, code:"UTTERANCE_40S"}`, `hint {level, text_ko?, keywords?, example_en?}`,
+`response.done {response_id}`, `response.cancelled {response_id}`, `turn.warning {turn_id, code:"UTTERANCE_40S"}`, `hint {level, text_ko?, keywords?, example_en?, response_id?}`,
 `goal.update {goals:[{goal_id, status:"done|pending", evidence_turn_id?}]}`, `feedback.ready {...}`, `echo.suspected {}`, `error {code, message_ko, recoverable}`,
 `settings.applied {silence_ms, auto_barge_in, slow}` (reply to every `settings.update`).
 
@@ -213,7 +213,8 @@ Realtime error codes: `FRAME_INVALID, EVENT_INVALID, ASR_FAILED, LLM_FAILED, TTS
 
 Hint levels map to the scenario hint fields: 1 = `ko` (plus a Korean rendering of the AI's last line when the LLM is up),
 2 = + `keywords`, 3 = + `example_en`. Hints are built asynchronously (level 1 may call the LLM on slot 1); the reply is a `hint`
-event whenever it is ready.
+event whenever it is ready. `hint.response_id` names the AI line the hint was built for (the newest response with text); the
+client shows a hint only while that line is still the newest one.
 
 **Turn ids.** The server owns turn ids and announces them in `speech.started`. It reuses the `turn_id` of the client's audio
 frames when that id is new, otherwise it makes one. `input.start {turn_id}` opens a push-to-talk turn with that id (silence does

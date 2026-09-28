@@ -31,6 +31,10 @@ export interface StoredResult {
 export interface FinishedSession {
   sessionId: string
   scenarioId: string
+  /** `difficulty:optIn` route options the session was started with (for "같은 상황 다시 하기"). */
+  opts: string
+  /** Final learner captions, in order. In memory only, cleared with the rest of the summary. */
+  said: string[]
   summary: SessionSummary | null
   error: string | null
   historyOptIn: boolean

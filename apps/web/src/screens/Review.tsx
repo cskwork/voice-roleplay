@@ -89,21 +89,28 @@ export function Review() {
   return (
     <main className="page narrow" aria-labelledby="rv-title">
       <header className="page-head">
-        <p className="eyebrow">복습</p>
         <h1 id="rv-title">오늘 다시 말해 볼 표현</h1>
         <p className="lead">저장에 동의한 연습만 여기에 모여요. 간격을 두고 다시 말하면 오래 기억돼요.</p>
       </header>
 
       {error && <Notice tone="danger" icon="alert">{error}</Notice>}
       {empty && (
-        <Notice>
-          아직 복습할 표현이 없어요.{' '}
-          {!settings.history_opt_in && (
-            <>
-              연습을 시작할 때 <strong>기록 저장</strong>을 켜면 표현이 여기에 모여요. <a href="#/settings">설정 열기</a>
-            </>
-          )}
-        </Notice>
+        <section className="card empty-state" aria-labelledby="empty-h">
+          <h2 id="empty-h">아직 복습할 표현이 없어요</h2>
+          <p className="muted">
+            학습 홈에서 <strong>이번 연습 기록 저장</strong>을 켜고 연습하면, 개선 제안과 표현이 여기에 모여요.
+          </p>
+          <div className="row">
+            <a className="btn btn-primary" href="#/home">
+              학습 홈에서 연습 시작
+            </a>
+            {!settings.history_opt_in && (
+              <a className="btn btn-ghost" href="#/settings">
+                기록 저장을 기본으로 켜기
+              </a>
+            )}
+          </div>
+        </section>
       )}
 
       {due && due.length > 0 && (

@@ -8,11 +8,12 @@ import { decodeWav } from '../lib/wav'
 import type { ComponentHealth } from '../lib/types'
 import { navigate, useApp, useVoiceId } from '../state'
 
+// Plain-language roles; model names and devices live in 설정 › 진단 정보.
 const COMPONENTS: { key: 'vad' | 'asr' | 'tts' | 'llm'; label: string; role: string }[] = [
-  { key: 'asr', label: '음성 인식', role: 'Qwen3-ASR 0.6B' },
-  { key: 'tts', label: '음성 합성', role: 'CosyVoice3 0.5B' },
-  { key: 'llm', label: '대화 모델', role: 'Qwen3-4B (llama.cpp)' },
-  { key: 'vad', label: '발화 감지', role: 'Silero VAD' },
+  { key: 'asr', label: '음성 인식', role: '내 말을 글로 받아써요' },
+  { key: 'tts', label: '음성 합성', role: 'AI의 말을 목소리로 들려줘요' },
+  { key: 'llm', label: '대화 모델', role: 'AI 대화 상대가 대답을 만들어요' },
+  { key: 'vad', label: '발화 감지', role: '말이 시작되고 끝나는 때를 알아채요' },
 ]
 
 /** Two soft tones at 24 kHz — exercises the same resampling path as TTS audio. */
@@ -46,7 +47,6 @@ function ReadyRow({ label, role, c }: { label: string; role: string; c?: Compone
       </span>
       <span className="ready-status">
         {ready ? <Badge tone="ok">준비됨</Badge> : <Badge tone="warn">{c?.reachable === false ? '연결 안 됨' : c ? '준비 중' : '확인 불가'}</Badge>}
-        {c?.device && <span className="muted small">{c.device.toUpperCase()}</span>}
       </span>
       {!ready && (
         <span className="ready-detail small">
@@ -124,14 +124,35 @@ export function Setup() {
   }
 
   const ttsReady = health?.components.tts?.ready ?? false
+  const goHome = () => {
+    mic?.close()
+    setMic(null)
+    navigate('home')
+  }
 
   return (
     <main className="page" aria-labelledby="setup-title">
       <header className="page-head">
-        <p className="eyebrow">시작 전 점검</p>
         <h1 id="setup-title">마이크와 모델을 확인할게요</h1>
         <p className="lead">모든 처리는 이 컴퓨터 안에서만 이뤄져요. 음성은 저장하지 않아요.</p>
       </header>
+
+      {health?.ready ? (
+        <section className="ready-banner" aria-labelledby="ready-h">
+          <span className="ready-icon ok" aria-hidden="true">
+            <Icon name="check" size={18} />
+          </span>
+          <div>
+            <h2 id="ready-h">준비 완료 — 바로 시작할 수 있어요</h2>
+            <p className="muted small">마이크와 소리는 아래에서 먼저 확인해 볼 수 있어요.</p>
+          </div>
+          <button type="button" className="btn btn-primary" onClick={goHome}>
+            학습 시작 <Icon name="play" size={16} />
+          </button>
+        </section>
+      ) : (
+        !healthError && <Notice icon="circle">모델을 불러오는 중이에요. 준비되면 여기에 시작 버튼이 나타나요.</Notice>
+      )}
 
       <div className="grid-2">
         <section className="card" aria-labelledby="mic-h">
@@ -139,7 +160,7 @@ export function Setup() {
             <Icon name="mic" /> 마이크
           </h2>
           {!mic ? (
-            <ActionButton className="btn btn-primary" icon="mic" onClick={() => void openMic(micDeviceId)}>
+            <ActionButton className="btn btn-soft" icon="mic" onClick={() => void openMic(micDeviceId)}>
               마이크 켜고 확인하기
             </ActionButton>
           ) : (
@@ -166,7 +187,6 @@ export function Setup() {
                 <Icon name={heard ? 'check' : 'mic'} size={18} />
                 {heard ? '목소리가 잘 들려요.' : '아무 말이나 해 보세요. 막대가 움직이면 정상이에요.'}
               </p>
-              <p className="muted small">장치 샘플레이트 {mic.deviceRate.toLocaleString()} Hz → 16,000 Hz로 변환해 보내요.</p>
               <button type="button" className="btn btn-ghost" onClick={() => { mic.close(); setMic(null) }}>
                 마이크 끄기
               </button>
@@ -210,7 +230,7 @@ export function Setup() {
             <ReadyRow key={c.key} label={c.label} role={c.role} c={health?.components[c.key]} />
           ))}
         </ul>
-        <h3>사용 가능한 모드</h3>
+        <h3 className="subhead">사용 가능한 모드</h3>
         <ul className="mode-list">
           {(
             [
@@ -227,10 +247,13 @@ export function Setup() {
             )
           })}
         </ul>
+        <p className="muted small">
+          모델 이름과 실행 장치는 <a href="#/settings">설정 › 진단 정보</a>에서 볼 수 있어요.
+        </p>
       </section>
 
       <div className="page-actions">
-        <button type="button" className="btn btn-primary btn-lg" onClick={() => { mic?.close(); setMic(null); navigate('home') }}>
+        <button type="button" className={health?.ready ? 'btn' : 'btn btn-primary'} onClick={goHome}>
           학습 홈으로
         </button>
       </div>

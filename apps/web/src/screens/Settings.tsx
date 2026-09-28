@@ -1,11 +1,11 @@
 import { useEffect, useState } from 'react'
 import { listMicrophones } from '../audio/engine'
-import { Badge, Notice } from '../components/ui'
+import { Badge, Choice, Notice } from '../components/ui'
 import { api } from '../lib/api'
 import { toApiError } from '../lib/errors'
 import { DEFAULT_SILENCE_MS, type Difficulty, type Settings as S } from '../lib/types'
 import { useApp } from '../state'
-import { DIFFICULTY_LABEL } from './Home'
+import { DIFFICULTY_LABEL, DIFFICULTY_NOTE } from './Home'
 
 export function Settings() {
   const app = useApp()
@@ -55,23 +55,18 @@ export function Settings() {
   return (
     <main className="page narrow" aria-labelledby="st-title">
       <header className="page-head">
-        <p className="eyebrow">설정</p>
         <h1 id="st-title">내 연습 환경</h1>
       </header>
 
       <section className="card form" aria-labelledby="learn-h">
         <h2 id="learn-h">학습</h2>
-        <fieldset className="segmented">
-          <legend>기본 난이도</legend>
-          <div className="segmented-options">
-            {(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => (
-              <label key={d} className={`seg ${draft.difficulty === d ? 'is-on' : ''}`}>
-                <input type="radio" name="difficulty" checked={draft.difficulty === d} onChange={() => set('difficulty', d)} />
-                <span className="seg-label">{DIFFICULTY_LABEL[d]}</span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+        <Choice<Difficulty>
+          label="기본 난이도"
+          name="difficulty"
+          value={draft.difficulty}
+          onChange={(d) => set('difficulty', d)}
+          options={(['easy', 'normal', 'hard'] as Difficulty[]).map((d) => ({ value: d, label: DIFFICULTY_LABEL[d], note: DIFFICULTY_NOTE[d] }))}
+        />
         <label className="field">
           <span>
             말이 끝났다고 판단할 침묵 시간: <strong>{(silence / 1000).toFixed(2)}초</strong>
@@ -181,9 +176,9 @@ export function Settings() {
               return (
                 <tr key={k}>
                   <th scope="row">{k.toUpperCase()}</th>
-                  <td>{c ? c.ready ? <Badge tone="ok">준비됨</Badge> : <Badge tone="warn">준비 안 됨</Badge> : <Badge>정보 없음</Badge>}</td>
-                  <td>{c?.device ?? '—'}</td>
-                  <td className="mono small">
+                  <td data-label="상태">{c ? c.ready ? <Badge tone="ok">준비됨</Badge> : <Badge tone="warn">준비 안 됨</Badge> : <Badge>정보 없음</Badge>}</td>
+                  <td data-label="장치">{c?.device ?? '—'}</td>
+                  <td data-label="모델 / 버전" className="mono small model-cell">
                     {[c?.model_id ?? c?.model, (c?.revision ?? c?.model_revision)?.slice(0, 12), c?.backend, c?.streaming_mode, c?.sample_rate && `${c.sample_rate} Hz`]
                       .filter(Boolean)
                       .join(' · ') || '—'}
