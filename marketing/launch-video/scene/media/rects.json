@@ -1,0 +1,2320 @@
+{
+ "m-home": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 92,
+     "text": "말하기 연습\n학습 홈\n복습\n장비 점검\n설정\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "scenario": [
+    {
+     "x": 16,
+     "y": 594,
+     "w": 358,
+     "h": 293,
+     "text": "카페에서 주문하기\n\nOrdering at a Cafe\n\nAI · 바리스타\n나 · 손님\n\n오전 9시, 동네 카페 '메이플 스트리트 커피' 계산대 "
+    },
+    {
+     "x": 16,
+     "y": 903,
+     "w": 358,
+     "h": 293,
+     "text": "길 묻기\n\nAsking for Directions\n\nAI · 지나가던 현지인\n나 · 길을 찾는 여행자\n\n처음 와 본 도시에서 메인 스트리트와 2"
+    },
+    {
+     "x": 16,
+     "y": 1211,
+     "w": 358,
+     "h": 293,
+     "text": "호텔 체크인\n\nHotel Check-in\n\nAI · 프런트 직원\n나 · 투숙객\n\n저녁 8시쯤 하버뷰 호텔 로비에 도착했습니다. 김민준(Minju"
+    },
+    {
+     "x": 16,
+     "y": 1520,
+     "w": 358,
+     "h": 293,
+     "text": "면접 연습\n\nJob Interview Practice\n\nAI · 면접관\n나 · 지원자\n\n아웃도어 용품 온라인 판매 회사 '노스윈드 아웃도어'의 "
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 116,
+     "w": 358,
+     "h": 31,
+     "text": "오늘은 어떤 상황을 연습할까요?"
+    }
+   ],
+   "heading": [
+    {
+     "x": 16,
+     "y": 556,
+     "w": 358,
+     "h": 26,
+     "text": "상황 고르기"
+    }
+   ]
+  }
+ },
+ "m-ai-speaking": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 53,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 16,
+     "y": 65,
+     "w": 358,
+     "h": 36,
+     "text": "카페에서 주문하기\nAI 응답 중\n종료\n하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 175,
+     "y": 67,
+     "w": 103,
+     "h": 32,
+     "text": "AI 응답 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 31,
+     "y": 156,
+     "w": 328,
+     "h": 193,
+     "text": ""
+    }
+   ],
+   "captions": [
+    {
+     "x": 16,
+     "y": 167,
+     "w": 358,
+     "h": 453,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 31,
+     "y": 182,
+     "w": 302,
+     "h": 119,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "orb": [
+    {
+     "x": 29,
+     "y": 641,
+     "w": 224,
+     "h": 55,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요"
+    }
+   ],
+   "dock": [
+    {
+     "x": 16,
+     "y": 630,
+     "w": 358,
+     "h": 194,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요\n내 목소리\n말하기 완료\n멈추기(끼어들기)\n힌트 1/3\n· 한국어 뜻\n다시 듣기\n다시 들을 AI "
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 29,
+     "y": 756,
+     "w": 332,
+     "h": 57,
+     "text": "힌트 1/3\n· 한국어 뜻\n다시 듣기\n다시 들을 AI 말이 아직 없어요\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 186,
+     "y": 704,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 71,
+     "w": 145,
+     "h": 23,
+     "text": "카페에서 주문하기"
+    }
+   ]
+  }
+ },
+ "m-barge": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 53,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 16,
+     "y": 65,
+     "w": 358,
+     "h": 36,
+     "text": "카페에서 주문하기\n듣는 중\n종료\n하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 192,
+     "y": 67,
+     "w": 86,
+     "h": 32,
+     "text": "듣는 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 31,
+     "y": 156,
+     "w": 328,
+     "h": 193,
+     "text": ""
+    }
+   ],
+   "captions": [
+    {
+     "x": 16,
+     "y": 167,
+     "w": 358,
+     "h": 453,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 31,
+     "y": 59,
+     "w": 302,
+     "h": 119,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 76,
+     "y": 190,
+     "w": 283,
+     "h": 68,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 31,
+     "y": 269,
+     "w": 278,
+     "h": 68,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    },
+    {
+     "x": 57,
+     "y": 349,
+     "w": 302,
+     "h": 93,
+     "text": "나\n\nCould I have oat milk instead of whole milk?"
+    },
+    {
+     "x": 31,
+     "y": 454,
+     "w": 191,
+     "h": 68,
+     "text": "AI · 말하다 멈춤\n\n여기서 멈춤Of course!\n(여기서 끊김)"
+    },
+    {
+     "x": 268,
+     "y": 533,
+     "w": 91,
+     "h": 72,
+     "text": "나 · 인식 중\n\nSorry."
+    }
+   ],
+   "orb": [
+    {
+     "x": 29,
+     "y": 641,
+     "w": 148,
+     "h": 55,
+     "text": "듣고 있어요\n눌러서 음소거"
+    }
+   ],
+   "dock": [
+    {
+     "x": 16,
+     "y": 630,
+     "w": 358,
+     "h": 194,
+     "text": "듣고 있어요\n눌러서 음소거\n내 목소리\n말하기 완료\n멈추기(끼어들기)\nAI가 말하고 있을 때 쓸 수 있어요\n힌트 1/3\n· 한국어 뜻\n다시 듣기\n"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 29,
+     "y": 756,
+     "w": 332,
+     "h": 57,
+     "text": "힌트 1/3\n· 한국어 뜻\n다시 듣기\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 186,
+     "y": 704,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 71,
+     "w": 162,
+     "h": 23,
+     "text": "카페에서 주문하기"
+    }
+   ]
+  }
+ },
+ "m-barge-reply": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 53,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 16,
+     "y": 65,
+     "w": 358,
+     "h": 36,
+     "text": "카페에서 주문하기\nAI 응답 중\n종료\n하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 175,
+     "y": 67,
+     "w": 103,
+     "h": 32,
+     "text": "AI 응답 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 31,
+     "y": 156,
+     "w": 328,
+     "h": 193,
+     "text": ""
+    }
+   ],
+   "captions": [
+    {
+     "x": 16,
+     "y": 167,
+     "w": 358,
+     "h": 453,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 31,
+     "y": -93,
+     "w": 302,
+     "h": 119,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 76,
+     "y": 38,
+     "w": 283,
+     "h": 68,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 31,
+     "y": 117,
+     "w": 278,
+     "h": 68,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    },
+    {
+     "x": 57,
+     "y": 197,
+     "w": 302,
+     "h": 93,
+     "text": "나\n\nCould I have oat milk instead of whole milk?"
+    },
+    {
+     "x": 31,
+     "y": 302,
+     "w": 191,
+     "h": 68,
+     "text": "AI · 말하다 멈춤\n\n여기서 멈춤Of course!\n(여기서 끊김)"
+    },
+    {
+     "x": 57,
+     "y": 381,
+     "w": 302,
+     "h": 93,
+     "text": "나\n\nSorry, wait. I have a quick question about the menu."
+    },
+    {
+     "x": 31,
+     "y": 486,
+     "w": 302,
+     "h": 119,
+     "text": "AI\n\nNo problem! A large latte with oat milk — that’s $4.95 plus $0.70 for the oa"
+    }
+   ],
+   "orb": [
+    {
+     "x": 29,
+     "y": 641,
+     "w": 224,
+     "h": 55,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요"
+    }
+   ],
+   "dock": [
+    {
+     "x": 16,
+     "y": 630,
+     "w": 358,
+     "h": 194,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요\n내 목소리\n말하기 완료\n멈추기(끼어들기)\n힌트 1/3\n· 한국어 뜻\n다시 듣기\nAI가 말하는 중"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 29,
+     "y": 756,
+     "w": 332,
+     "h": 57,
+     "text": "힌트 1/3\n· 한국어 뜻\n다시 듣기\nAI가 말하는 중이에요\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 186,
+     "y": 704,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 71,
+     "w": 145,
+     "h": 23,
+     "text": "카페에서 주문하기"
+    }
+   ]
+  }
+ },
+ "m-hint1": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 53,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 16,
+     "y": 65,
+     "w": 358,
+     "h": 36,
+     "text": "카페에서 주문하기\n듣는 중\n종료\n하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 192,
+     "y": 67,
+     "w": 86,
+     "h": 32,
+     "text": "듣는 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 31,
+     "y": 156,
+     "w": 328,
+     "h": 193,
+     "text": ""
+    }
+   ],
+   "captions": [
+    {
+     "x": 16,
+     "y": 167,
+     "w": 358,
+     "h": 207,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 31,
+     "y": -364,
+     "w": 302,
+     "h": 119,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 76,
+     "y": -233,
+     "w": 283,
+     "h": 68,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 31,
+     "y": -154,
+     "w": 278,
+     "h": 68,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    },
+    {
+     "x": 57,
+     "y": -74,
+     "w": 302,
+     "h": 93,
+     "text": "나\n\nCould I have oat milk instead of whole milk?"
+    },
+    {
+     "x": 31,
+     "y": 31,
+     "w": 191,
+     "h": 68,
+     "text": "AI · 말하다 멈춤\n\n여기서 멈춤Of course!\n(여기서 끊김)"
+    },
+    {
+     "x": 57,
+     "y": 110,
+     "w": 302,
+     "h": 93,
+     "text": "나\n\nSorry, wait. I have a quick question about the menu."
+    },
+    {
+     "x": 31,
+     "y": 215,
+     "w": 302,
+     "h": 144,
+     "text": "AI\n\nNo problem! A large latte with oat milk — that’s $4.95 plus $0.70 for the oa"
+    }
+   ],
+   "hint": [
+    {
+     "x": 16,
+     "y": 384,
+     "w": 358,
+     "h": 236,
+     "text": "힌트 1/3 · 한국어 뜻\n접기\n상대방이 한 말\n\nNo problem! A large latte with oat milk — that’s $4."
+    }
+   ],
+   "orb": [
+    {
+     "x": 29,
+     "y": 641,
+     "w": 148,
+     "h": 55,
+     "text": "듣고 있어요\n눌러서 음소거"
+    }
+   ],
+   "dock": [
+    {
+     "x": 16,
+     "y": 630,
+     "w": 358,
+     "h": 194,
+     "text": "듣고 있어요\n눌러서 음소거\n내 목소리\n말하기 완료\n멈추기(끼어들기)\nAI가 말하고 있을 때 쓸 수 있어요\n힌트 2/3\n· 핵심 단어\n다시 듣기\n"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 29,
+     "y": 756,
+     "w": 332,
+     "h": 57,
+     "text": "힌트 2/3\n· 핵심 단어\n다시 듣기\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 186,
+     "y": 704,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 71,
+     "w": 162,
+     "h": 23,
+     "text": "카페에서 주문하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 33,
+     "y": 399,
+     "w": 324,
+     "h": 28,
+     "text": "힌트 1/3 · 한국어 뜻\n접기"
+    }
+   ]
+  }
+ },
+ "m-t4": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 53,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 16,
+     "y": 65,
+     "w": 358,
+     "h": 36,
+     "text": "카페에서 주문하기\n듣는 중\n종료\n하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 192,
+     "y": 67,
+     "w": 86,
+     "h": 32,
+     "text": "듣는 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 31,
+     "y": 156,
+     "w": 328,
+     "h": 193,
+     "text": ""
+    }
+   ],
+   "captions": [
+    {
+     "x": 16,
+     "y": 167,
+     "w": 358,
+     "h": 453,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 31,
+     "y": -538,
+     "w": 302,
+     "h": 119,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 76,
+     "y": -407,
+     "w": 283,
+     "h": 68,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 31,
+     "y": -328,
+     "w": 278,
+     "h": 68,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    },
+    {
+     "x": 57,
+     "y": -248,
+     "w": 302,
+     "h": 93,
+     "text": "나\n\nCould I have oat milk instead of whole milk?"
+    },
+    {
+     "x": 31,
+     "y": -143,
+     "w": 191,
+     "h": 68,
+     "text": "AI · 말하다 멈춤\n\n여기서 멈춤Of course!\n(여기서 끊김)"
+    },
+    {
+     "x": 57,
+     "y": -64,
+     "w": 302,
+     "h": 93,
+     "text": "나\n\nSorry, wait. I have a quick question about the menu."
+    },
+    {
+     "x": 31,
+     "y": 41,
+     "w": 302,
+     "h": 144,
+     "text": "AI\n\nNo problem! A large latte with oat milk — that’s $4.95 plus $0.70 for the oa"
+    },
+    {
+     "x": 131,
+     "y": 197,
+     "w": 228,
+     "h": 68,
+     "text": "나\n\nHow much is that in total?"
+    },
+    {
+     "x": 31,
+     "y": 277,
+     "w": 291,
+     "h": 68,
+     "text": "AI\n\nThat’s $5.65 in total. Ready to go?"
+    },
+    {
+     "x": 130,
+     "y": 356,
+     "w": 229,
+     "h": 68,
+     "text": "나\n\nI want pay with my phone."
+    },
+    {
+     "x": 31,
+     "y": 436,
+     "w": 302,
+     "h": 170,
+     "text": "AI\n\nGot it, I’ll charge your phone. Just tap to pay when you’re ready. Your larg"
+    }
+   ],
+   "orb": [
+    {
+     "x": 29,
+     "y": 641,
+     "w": 148,
+     "h": 55,
+     "text": "듣고 있어요\n눌러서 음소거"
+    }
+   ],
+   "dock": [
+    {
+     "x": 16,
+     "y": 630,
+     "w": 358,
+     "h": 194,
+     "text": "듣고 있어요\n눌러서 음소거\n내 목소리\n말하기 완료\n멈추기(끼어들기)\nAI가 말하고 있을 때 쓸 수 있어요\n힌트 1/3\n· 한국어 뜻\n다시 듣기\n"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 29,
+     "y": 756,
+     "w": 332,
+     "h": 57,
+     "text": "힌트 1/3\n· 한국어 뜻\n다시 듣기\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 186,
+     "y": 704,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 71,
+     "w": 162,
+     "h": 23,
+     "text": "카페에서 주문하기"
+    }
+   ]
+  }
+ },
+ "m-summary": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 92,
+     "text": "말하기 연습\n학습 홈\n복습\n장비 점검\n설정\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "goals": [
+    {
+     "x": 33,
+     "y": 617,
+     "w": 324,
+     "h": 95,
+     "text": "사이즈를 말하며 음료 주문하기 달성\n우유·시럽·샷 추가 등 옵션 바꾸기 달성\n총 금액을 묻거나 확인하기 달성"
+    }
+   ],
+   "goalMeta": [
+    {
+     "x": 16,
+     "y": 153,
+     "w": 358,
+     "h": 24,
+     "text": "실시간 회화 요약\n카페에서 주문하기"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 116,
+     "w": 358,
+     "h": 31,
+     "text": "수고했어요! 이렇게 말해 봤어요"
+    }
+   ],
+   "said": [
+    {
+     "x": 33,
+     "y": 277,
+     "w": 324,
+     "h": 208,
+     "text": "Hi, can I get a large latte, please?\nCould I have oat milk instead of whole milk"
+    }
+   ],
+   "feedback": [
+    {
+     "x": 16,
+     "y": 799,
+     "w": 358,
+     "h": 292,
+     "text": "제안\n더 자연스럽게\n표현\n내가 말한 부분\nI want pay with my phone.\n이렇게 말해 보세요\n\nI'd like to pay wit"
+    }
+   ],
+   "drillBtn": [
+    {
+     "x": 33,
+     "y": 1030,
+     "w": 139,
+     "h": 44,
+     "text": "다시 말하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 33,
+     "y": 242,
+     "w": 324,
+     "h": 23,
+     "text": "내가 한 말"
+    },
+    {
+     "x": 33,
+     "y": 582,
+     "w": 324,
+     "h": 23,
+     "text": "대화 목표"
+    },
+    {
+     "x": 16,
+     "y": 761,
+     "w": 358,
+     "h": 26,
+     "text": "다음엔 이렇게 말해 보세요"
+    }
+   ]
+  }
+ },
+ "m-feedback": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 92,
+     "text": "말하기 연습\n학습 홈\n복습\n장비 점검\n설정\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "goals": [
+    {
+     "x": 33,
+     "y": 370,
+     "w": 324,
+     "h": 95,
+     "text": "사이즈를 말하며 음료 주문하기 달성\n우유·시럽·샷 추가 등 옵션 바꾸기 달성\n총 금액을 묻거나 확인하기 달성"
+    }
+   ],
+   "goalMeta": [
+    {
+     "x": 16,
+     "y": -94,
+     "w": 358,
+     "h": 24,
+     "text": "실시간 회화 요약\n카페에서 주문하기"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": -131,
+     "w": 358,
+     "h": 31,
+     "text": "수고했어요! 이렇게 말해 봤어요"
+    }
+   ],
+   "said": [
+    {
+     "x": 33,
+     "y": 30,
+     "w": 324,
+     "h": 208,
+     "text": "Hi, can I get a large latte, please?\nCould I have oat milk instead of whole milk"
+    }
+   ],
+   "feedback": [
+    {
+     "x": 16,
+     "y": 552,
+     "w": 358,
+     "h": 292,
+     "text": "제안\n더 자연스럽게\n표현\n내가 말한 부분\nI want pay with my phone.\n이렇게 말해 보세요\n\nI'd like to pay wit"
+    }
+   ],
+   "drillBtn": [
+    {
+     "x": 33,
+     "y": 783,
+     "w": 139,
+     "h": 44,
+     "text": "다시 말하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 33,
+     "y": -5,
+     "w": 324,
+     "h": 23,
+     "text": "내가 한 말"
+    },
+    {
+     "x": 33,
+     "y": 335,
+     "w": 324,
+     "h": 23,
+     "text": "대화 목표"
+    },
+    {
+     "x": 16,
+     "y": 514,
+     "w": 358,
+     "h": 26,
+     "text": "다음엔 이렇게 말해 보세요"
+    }
+   ]
+  }
+ },
+ "m-result-pron": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 92,
+     "text": "말하기 연습\n학습 홈\n복습\n장비 점검\n설정\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "goalMeta": [
+    {
+     "x": 16,
+     "y": -352,
+     "w": 358,
+     "h": 24,
+     "text": "문장 읽기\n카페에서 주문하기"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": -389,
+     "w": 358,
+     "h": 31,
+     "text": "이렇게 들렸어요"
+    }
+   ],
+   "pron": [
+    {
+     "x": 16,
+     "y": 12,
+     "w": 358,
+     "h": 753,
+     "text": "단어별로 들어 보기\n\n단어 위치와 억양 곡선만 보여 줍니다. 발음을 채점하지 않습니다.\n\nI'd\nlike\na\nlarge\ncappuccino\nwi"
+    }
+   ],
+   "pronWord": [
+    {
+     "x": 33,
+     "y": 131,
+     "w": 44,
+     "h": 40,
+     "text": "I'd"
+    },
+    {
+     "x": 83,
+     "y": 131,
+     "w": 50,
+     "h": 40,
+     "text": "like"
+    },
+    {
+     "x": 139,
+     "y": 131,
+     "w": 35,
+     "h": 40,
+     "text": "a"
+    },
+    {
+     "x": 180,
+     "y": 131,
+     "w": 62,
+     "h": 40,
+     "text": "large"
+    },
+    {
+     "x": 33,
+     "y": 177,
+     "w": 110,
+     "h": 40,
+     "text": "cappuccino"
+    },
+    {
+     "x": 149,
+     "y": 177,
+     "w": 56,
+     "h": 40,
+     "text": "with"
+    },
+    {
+     "x": 212,
+     "y": 177,
+     "w": 49,
+     "h": 40,
+     "text": "oat"
+    },
+    {
+     "x": 267,
+     "y": 177,
+     "w": 55,
+     "h": 40,
+     "text": "milk"
+    },
+    {
+     "x": 33,
+     "y": 223,
+     "w": 73,
+     "h": 40,
+     "text": "please"
+    }
+   ],
+   "contour": [
+    {
+     "x": 33,
+     "y": 78,
+     "w": 16,
+     "h": 16,
+     "text": ""
+    },
+    {
+     "x": 66,
+     "y": 371,
+     "w": 20,
+     "h": 20,
+     "text": ""
+    },
+    {
+     "x": 187,
+     "y": 371,
+     "w": 20,
+     "h": 20,
+     "text": ""
+    },
+    {
+     "x": 33,
+     "y": 516,
+     "w": 22,
+     "h": 8,
+     "text": ""
+    },
+    {
+     "x": 117,
+     "y": 516,
+     "w": 22,
+     "h": 8,
+     "text": ""
+    },
+    {
+     "x": 33,
+     "y": 536,
+     "w": 324,
+     "h": 92,
+     "text": ""
+    }
+   ],
+   "legend": [
+    {
+     "x": 33,
+     "y": 509,
+     "w": 324,
+     "h": 22,
+     "text": "내 녹음\n모범 음성"
+    }
+   ],
+   "transcript": [
+    {
+     "x": 33,
+     "y": -255,
+     "w": 324,
+     "h": 64,
+     "text": "I'd like a large cappuccino with oat milk, please."
+    }
+   ],
+   "heading": [
+    {
+     "x": 33,
+     "y": -291,
+     "w": 81,
+     "h": 23,
+     "text": "인식된 문장"
+    },
+    {
+     "x": 33,
+     "y": -81,
+     "w": 324,
+     "h": 23,
+     "text": "다르게 인식된 부분"
+    },
+    {
+     "x": 33,
+     "y": 29,
+     "w": 131,
+     "h": 23,
+     "text": "단어별로 들어 보기"
+    },
+    {
+     "x": 16,
+     "y": 797,
+     "w": 358,
+     "h": 26,
+     "text": "개선 제안"
+    },
+    {
+     "x": 33,
+     "y": 920,
+     "w": 324,
+     "h": 23,
+     "text": "참고 지표"
+    },
+    {
+     "x": 33,
+     "y": 1238,
+     "w": 324,
+     "h": 23,
+     "text": "모범 음성"
+    }
+   ]
+  }
+ },
+ "m-result": {
+  "w": 390,
+  "h": 844,
+  "dpr": 3.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 390,
+     "h": 92,
+     "text": "말하기 연습\n학습 홈\n복습\n장비 점검\n설정\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 274,
+     "y": 12,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "goalMeta": [
+    {
+     "x": 16,
+     "y": 153,
+     "w": 358,
+     "h": 24,
+     "text": "문장 읽기\n카페에서 주문하기"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 16,
+     "y": 116,
+     "w": 358,
+     "h": 31,
+     "text": "이렇게 들렸어요"
+    }
+   ],
+   "pron": [
+    {
+     "x": 16,
+     "y": 517,
+     "w": 358,
+     "h": 645,
+     "text": "단어별로 들어 보기\n\n단어 위치와 억양 곡선만 보여 줍니다. 발음을 채점하지 않습니다.\n\nI'd\nlike\na\nlarge\ncappuccino\nwi"
+    }
+   ],
+   "pronWord": [
+    {
+     "x": 33,
+     "y": 636,
+     "w": 44,
+     "h": 40,
+     "text": "I'd"
+    },
+    {
+     "x": 83,
+     "y": 636,
+     "w": 50,
+     "h": 40,
+     "text": "like"
+    },
+    {
+     "x": 139,
+     "y": 636,
+     "w": 35,
+     "h": 40,
+     "text": "a"
+    },
+    {
+     "x": 180,
+     "y": 636,
+     "w": 62,
+     "h": 40,
+     "text": "large"
+    },
+    {
+     "x": 33,
+     "y": 682,
+     "w": 110,
+     "h": 40,
+     "text": "cappuccino"
+    },
+    {
+     "x": 149,
+     "y": 682,
+     "w": 56,
+     "h": 40,
+     "text": "with"
+    },
+    {
+     "x": 212,
+     "y": 682,
+     "w": 49,
+     "h": 40,
+     "text": "oat"
+    },
+    {
+     "x": 267,
+     "y": 682,
+     "w": 55,
+     "h": 40,
+     "text": "milk"
+    },
+    {
+     "x": 33,
+     "y": 728,
+     "w": 73,
+     "h": 40,
+     "text": "please"
+    }
+   ],
+   "contour": [
+    {
+     "x": 33,
+     "y": 583,
+     "w": 16,
+     "h": 16,
+     "text": ""
+    },
+    {
+     "x": 33,
+     "y": 912,
+     "w": 22,
+     "h": 8,
+     "text": ""
+    },
+    {
+     "x": 117,
+     "y": 912,
+     "w": 22,
+     "h": 8,
+     "text": ""
+    },
+    {
+     "x": 33,
+     "y": 933,
+     "w": 324,
+     "h": 92,
+     "text": ""
+    }
+   ],
+   "legend": [
+    {
+     "x": 33,
+     "y": 905,
+     "w": 324,
+     "h": 22,
+     "text": "내 녹음\n모범 음성"
+    }
+   ],
+   "transcript": [
+    {
+     "x": 33,
+     "y": 250,
+     "w": 324,
+     "h": 64,
+     "text": "I'd like a large cappuccino with oat milk, please."
+    }
+   ],
+   "heading": [
+    {
+     "x": 33,
+     "y": 214,
+     "w": 81,
+     "h": 23,
+     "text": "인식된 문장"
+    },
+    {
+     "x": 33,
+     "y": 424,
+     "w": 324,
+     "h": 23,
+     "text": "다르게 인식된 부분"
+    },
+    {
+     "x": 33,
+     "y": 534,
+     "w": 131,
+     "h": 23,
+     "text": "단어별로 들어 보기"
+    },
+    {
+     "x": 16,
+     "y": 1193,
+     "w": 358,
+     "h": 26,
+     "text": "개선 제안"
+    },
+    {
+     "x": 33,
+     "y": 1317,
+     "w": 324,
+     "h": 23,
+     "text": "참고 지표"
+    },
+    {
+     "x": 33,
+     "y": 1635,
+     "w": 324,
+     "h": 23,
+     "text": "모범 음성"
+    }
+   ]
+  }
+ },
+ "d-home": {
+  "w": 1440,
+  "h": 900,
+  "dpr": 2.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1440,
+     "h": 70,
+     "text": "말하기 연습\n학습 홈\n복습\n장비 점검\n설정\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 1300,
+     "y": 20,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "scenario": [
+    {
+     "x": 220,
+     "y": 395,
+     "w": 238,
+     "h": 334,
+     "text": "카페에서 주문하기\n\nOrdering at a Cafe\n\nAI · 바리스타\n나 · 손님\n\n오전 9시, 동네 카페 '메이플 스트리트 커피' 계산대 "
+    },
+    {
+     "x": 474,
+     "y": 395,
+     "w": 238,
+     "h": 334,
+     "text": "길 묻기\n\nAsking for Directions\n\nAI · 지나가던 현지인\n나 · 길을 찾는 여행자\n\n처음 와 본 도시에서 메인 스트리트와 2"
+    },
+    {
+     "x": 728,
+     "y": 395,
+     "w": 238,
+     "h": 334,
+     "text": "호텔 체크인\n\nHotel Check-in\n\nAI · 프런트 직원\n나 · 투숙객\n\n저녁 8시쯤 하버뷰 호텔 로비에 도착했습니다. 김민준(Minju"
+    },
+    {
+     "x": 982,
+     "y": 395,
+     "w": 238,
+     "h": 334,
+     "text": "면접 연습\n\nJob Interview Practice\n\nAI · 면접관\n나 · 지원자\n\n아웃도어 용품 온라인 판매 회사 '노스윈드 아웃도어'의 "
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 220,
+     "y": 114,
+     "w": 1000,
+     "h": 36,
+     "text": "오늘은 어떤 상황을 연습할까요?"
+    }
+   ],
+   "heading": [
+    {
+     "x": 220,
+     "y": 357,
+     "w": 1000,
+     "h": 26,
+     "text": "상황 고르기"
+    }
+   ]
+  }
+ },
+ "d-t1": {
+  "w": 1440,
+  "h": 900,
+  "dpr": 2.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1440,
+     "h": 61,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 1300,
+     "y": 16,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 162,
+     "y": 77,
+     "w": 1116,
+     "h": 44,
+     "text": "카페에서 주문하기\nAI 응답 중\n종료하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 329,
+     "y": 83,
+     "w": 103,
+     "h": 32,
+     "text": "AI 응답 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 187,
+     "y": 242,
+     "w": 250,
+     "h": 203,
+     "text": "사이즈를 말하며 음료 주문하기\n— 아직\nOrder a drink and say the size\n우유·시럽·샷 추가 등 옵션 바꾸기\n— 아직\nCh"
+    }
+   ],
+   "captions": [
+    {
+     "x": 482,
+     "y": 135,
+     "w": 796,
+     "h": 532,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 501,
+     "y": 154,
+     "w": 622,
+     "h": 96,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 963,
+     "y": 262,
+     "w": 296,
+     "h": 69,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 501,
+     "y": 343,
+     "w": 291,
+     "h": 69,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    }
+   ],
+   "orb": [
+    {
+     "x": 499,
+     "y": 694,
+     "w": 245,
+     "h": 72,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요"
+    }
+   ],
+   "dock": [
+    {
+     "x": 482,
+     "y": 679,
+     "w": 796,
+     "h": 201,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요\n내 목소리\n말하기 완료\n멈추기(끼어들기)\n힌트 1/3 · 한국어 뜻\n다시 듣기\nAI가 말하는 중"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 499,
+     "y": 778,
+     "w": 762,
+     "h": 53,
+     "text": "힌트 1/3 · 한국어 뜻\n다시 듣기\nAI가 말하는 중이에요\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 1086,
+     "y": 708,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 162,
+     "y": 85,
+     "w": 153,
+     "h": 29,
+     "text": "카페에서 주문하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 187,
+     "y": 207,
+     "w": 250,
+     "h": 23,
+     "text": "이번 대화 목표"
+    }
+   ]
+  }
+ },
+ "d-t2": {
+  "w": 1440,
+  "h": 900,
+  "dpr": 2.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1440,
+     "h": 61,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 1300,
+     "y": 16,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 162,
+     "y": 77,
+     "w": 1116,
+     "h": 44,
+     "text": "카페에서 주문하기\nAI 응답 중\n종료하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 329,
+     "y": 83,
+     "w": 103,
+     "h": 32,
+     "text": "AI 응답 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 187,
+     "y": 242,
+     "w": 250,
+     "h": 203,
+     "text": "사이즈를 말하며 음료 주문하기\n— 달성\nOrder a drink and say the size\n우유·시럽·샷 추가 등 옵션 바꾸기\n— 아직\nCh"
+    }
+   ],
+   "captions": [
+    {
+     "x": 482,
+     "y": 135,
+     "w": 796,
+     "h": 532,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 501,
+     "y": 154,
+     "w": 622,
+     "h": 96,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 963,
+     "y": 262,
+     "w": 296,
+     "h": 69,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 501,
+     "y": 343,
+     "w": 291,
+     "h": 69,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    },
+    {
+     "x": 879,
+     "y": 424,
+     "w": 380,
+     "h": 69,
+     "text": "나\n\nCould I have oat milk instead of whole milk?"
+    },
+    {
+     "x": 501,
+     "y": 505,
+     "w": 466,
+     "h": 69,
+     "text": "AI\n\nOf course! Oat milk will be added — that’s $0.70 extra."
+    }
+   ],
+   "orb": [
+    {
+     "x": 499,
+     "y": 694,
+     "w": 245,
+     "h": 72,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요"
+    }
+   ],
+   "dock": [
+    {
+     "x": 482,
+     "y": 679,
+     "w": 796,
+     "h": 201,
+     "text": "AI가 말하는 중\n말하면 바로 끼어들 수 있어요\n내 목소리\n말하기 완료\n멈추기(끼어들기)\n힌트 1/3 · 한국어 뜻\n다시 듣기\nAI가 말하는 중"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 499,
+     "y": 778,
+     "w": 762,
+     "h": 53,
+     "text": "힌트 1/3 · 한국어 뜻\n다시 듣기\nAI가 말하는 중이에요\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 1086,
+     "y": 708,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 162,
+     "y": 85,
+     "w": 153,
+     "h": 29,
+     "text": "카페에서 주문하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 187,
+     "y": 207,
+     "w": 250,
+     "h": 23,
+     "text": "이번 대화 목표"
+    }
+   ]
+  }
+ },
+ "d-hint1": {
+  "w": 1440,
+  "h": 900,
+  "dpr": 2.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1440,
+     "h": 61,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 1300,
+     "y": 16,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 162,
+     "y": 77,
+     "w": 1116,
+     "h": 44,
+     "text": "카페에서 주문하기\n듣는 중\n종료하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 329,
+     "y": 83,
+     "w": 86,
+     "h": 32,
+     "text": "듣는 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 187,
+     "y": 242,
+     "w": 250,
+     "h": 203,
+     "text": "사이즈를 말하며 음료 주문하기\n— 달성\nOrder a drink and say the size\n우유·시럽·샷 추가 등 옵션 바꾸기\n— 달성\nCh"
+    }
+   ],
+   "captions": [
+    {
+     "x": 482,
+     "y": 135,
+     "w": 796,
+     "h": 279,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 501,
+     "y": -52,
+     "w": 622,
+     "h": 96,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 963,
+     "y": 56,
+     "w": 296,
+     "h": 69,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 501,
+     "y": 137,
+     "w": 291,
+     "h": 69,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    },
+    {
+     "x": 879,
+     "y": 218,
+     "w": 380,
+     "h": 69,
+     "text": "나\n\nCould I have oat milk instead of whole milk?"
+    },
+    {
+     "x": 501,
+     "y": 299,
+     "w": 622,
+     "h": 96,
+     "text": "AI\n\nOf course! Oat milk will be added — that’s $0.70 extra. Your large latte wit"
+    }
+   ],
+   "hint": [
+    {
+     "x": 482,
+     "y": 426,
+     "w": 796,
+     "h": 241,
+     "text": "힌트 1/3 · 한국어 뜻\n상대방이 한 말\n\nOf course! Oat milk will be added — that’s $0.70 extra."
+    }
+   ],
+   "orb": [
+    {
+     "x": 499,
+     "y": 694,
+     "w": 173,
+     "h": 72,
+     "text": "듣고 있어요\n눌러서 음소거"
+    }
+   ],
+   "dock": [
+    {
+     "x": 482,
+     "y": 679,
+     "w": 796,
+     "h": 201,
+     "text": "듣고 있어요\n눌러서 음소거\n내 목소리\n말하기 완료\n멈추기(끼어들기)\nAI가 말하고 있을 때 쓸 수 있어요\n힌트 2/3 · 핵심 단어\n다시 듣기\n"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 499,
+     "y": 778,
+     "w": 762,
+     "h": 53,
+     "text": "힌트 2/3 · 핵심 단어\n다시 듣기\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 1086,
+     "y": 708,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 162,
+     "y": 85,
+     "w": 153,
+     "h": 29,
+     "text": "카페에서 주문하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 187,
+     "y": 207,
+     "w": 250,
+     "h": 23,
+     "text": "이번 대화 목표"
+    },
+    {
+     "x": 499,
+     "y": 441,
+     "w": 762,
+     "h": 18,
+     "text": "힌트 1/3 · 한국어 뜻"
+    }
+   ]
+  }
+ },
+ "d-t4": {
+  "w": 1440,
+  "h": 900,
+  "dpr": 2.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1440,
+     "h": 61,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 1300,
+     "y": 16,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "talkHead": [
+    {
+     "x": 162,
+     "y": 77,
+     "w": 1116,
+     "h": 44,
+     "text": "카페에서 주문하기\n듣는 중\n종료하고 요약 보기"
+    }
+   ],
+   "stateChip": [
+    {
+     "x": 329,
+     "y": 83,
+     "w": 86,
+     "h": 32,
+     "text": "듣는 중"
+    }
+   ],
+   "goals": [
+    {
+     "x": 187,
+     "y": 242,
+     "w": 250,
+     "h": 203,
+     "text": "사이즈를 말하며 음료 주문하기\n— 달성\nOrder a drink and say the size\n우유·시럽·샷 추가 등 옵션 바꾸기\n— 달성\nCh"
+    }
+   ],
+   "captions": [
+    {
+     "x": 482,
+     "y": 135,
+     "w": 796,
+     "h": 532,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    }
+   ],
+   "bubble": [
+    {
+     "x": 501,
+     "y": -150,
+     "w": 622,
+     "h": 96,
+     "text": "AI\n\nHi there, welcome to Maple Street Coffee! What can I get started for you tod"
+    },
+    {
+     "x": 963,
+     "y": -42,
+     "w": 296,
+     "h": 69,
+     "text": "나\n\nHi, can I get a large latte, please?"
+    },
+    {
+     "x": 501,
+     "y": 39,
+     "w": 291,
+     "h": 69,
+     "text": "AI\n\nSure, a large latte — hot or iced?"
+    },
+    {
+     "x": 879,
+     "y": 120,
+     "w": 380,
+     "h": 69,
+     "text": "나\n\nCould I have oat milk instead of whole milk?"
+    },
+    {
+     "x": 501,
+     "y": 201,
+     "w": 622,
+     "h": 96,
+     "text": "AI\n\nOf course! Oat milk will be added — that’s $0.70 extra. Your large latte wit"
+    },
+    {
+     "x": 1020,
+     "y": 309,
+     "w": 239,
+     "h": 69,
+     "text": "나\n\nHow much is that in total?"
+    },
+    {
+     "x": 501,
+     "y": 390,
+     "w": 585,
+     "h": 69,
+     "text": "AI\n\nThe total is $5.65 — that’s your large latte with oat milk. Ready to go?"
+    },
+    {
+     "x": 1014,
+     "y": 471,
+     "w": 245,
+     "h": 69,
+     "text": "나\n\nI won't pay with my phone."
+    },
+    {
+     "x": 501,
+     "y": 552,
+     "w": 622,
+     "h": 96,
+     "text": "AI\n\nNo problem! You can pay with cash or card. Would you like to use cash or a c"
+    }
+   ],
+   "orb": [
+    {
+     "x": 499,
+     "y": 694,
+     "w": 173,
+     "h": 72,
+     "text": "듣고 있어요\n눌러서 음소거"
+    }
+   ],
+   "dock": [
+    {
+     "x": 482,
+     "y": 679,
+     "w": 796,
+     "h": 201,
+     "text": "듣고 있어요\n눌러서 음소거\n내 목소리\n말하기 완료\n멈추기(끼어들기)\nAI가 말하고 있을 때 쓸 수 있어요\n힌트 1/3 · 한국어 뜻\n다시 듣기\n"
+    }
+   ],
+   "dockTools": [
+    {
+     "x": 499,
+     "y": 778,
+     "w": 762,
+     "h": 53,
+     "text": "힌트 1/3 · 한국어 뜻\n다시 듣기\n더 천천히\n일시정지"
+    }
+   ],
+   "stopBtn": [
+    {
+     "x": 1086,
+     "y": 708,
+     "w": 175,
+     "h": 44,
+     "text": "멈추기(끼어들기)"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 162,
+     "y": 85,
+     "w": 153,
+     "h": 29,
+     "text": "카페에서 주문하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 187,
+     "y": 207,
+     "w": 250,
+     "h": 23,
+     "text": "이번 대화 목표"
+    }
+   ]
+  }
+ },
+ "d-talk-ready": {
+  "w": 1440,
+  "h": 900,
+  "dpr": 2.0,
+  "rects": {
+   "topbar": [
+    {
+     "x": 0,
+     "y": 0,
+     "w": 1440,
+     "h": 61,
+     "text": "말하기 연습\n모델 준비됨"
+    }
+   ],
+   "healthDot": [
+    {
+     "x": 1300,
+     "y": 16,
+     "w": 100,
+     "h": 28,
+     "text": "모델 준비됨"
+    }
+   ],
+   "goals": [
+    {
+     "x": 405,
+     "y": 357,
+     "w": 630,
+     "h": 159,
+     "text": "사이즈를 말하며 음료 주문하기\n— 아직\nOrder a drink and say the size\n우유·시럽·샷 추가 등 옵션 바꾸기\n— 아직\nCh"
+    }
+   ],
+   "goalMeta": [
+    {
+     "x": 380,
+     "y": 147,
+     "w": 680,
+     "h": 24,
+     "text": "실시간 회화\n난이도 보통\n기록 저장 안 함"
+    }
+   ],
+   "summaryH1": [
+    {
+     "x": 380,
+     "y": 105,
+     "w": 680,
+     "h": 36,
+     "text": "카페에서 주문하기"
+    }
+   ],
+   "heading": [
+    {
+     "x": 405,
+     "y": 322,
+     "w": 630,
+     "h": 23,
+     "text": "이번 대화 목표"
+    }
+   ]
+  }
+ },
+ "c-hdr1": {
+  "w": 240,
+  "h": 38,
+  "dpr": 2.0
+ },
+ "c-hdr2": {
+  "w": 240,
+  "h": 38,
+  "dpr": 2.0
+ },
+ "c-hdr3": {
+  "w": 240,
+  "h": 38,
+  "dpr": 2.0
+ },
+ "c-tip": {
+  "w": 400,
+  "h": 64,
+  "dpr": 2.0
+ },
+ "c-kw": {
+  "w": 380,
+  "h": 43,
+  "dpr": 2.0
+ },
+ "c-ex": {
+  "w": 330,
+  "h": 39,
+  "dpr": 2.0
+ },
+ "c-card0": {
+  "w": 238,
+  "h": 334,
+  "dpr": 2.0
+ },
+ "c-card1": {
+  "w": 238,
+  "h": 334,
+  "dpr": 2.0
+ },
+ "c-card2": {
+  "w": 238,
+  "h": 334,
+  "dpr": 2.0
+ },
+ "c-card3": {
+  "w": 238,
+  "h": 334,
+  "dpr": 2.0
+ },
+ "m-live": {
+  "count": 14,
+  "w": 390,
+  "h": 844
+ }
+}

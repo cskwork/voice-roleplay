@@ -1,0 +1,531 @@
+/* Palette = the app's own tokens (apps/web/src/styles.css). Font = Pretendard subset (OFL), see fonts/. */
+@font-face {
+  font-family: 'VR Launch Sans';
+  src: url('fonts/vr-launch-sans.woff2') format('woff2');
+  font-weight: 100 900;
+  font-display: block;
+}
+:root {
+  --paper: #f6f5f1;
+  --surface: #ffffff;
+  --surface-2: #f1efe9;
+  --ink: #1d1c1a;
+  --ink-2: #57534c;
+  --ink-3: #6f6a61;
+  --line: #e3e0d8;
+  --line-strong: #cfcbc1;
+  --brand: #3043c4;
+  --brand-strong: #22329a;
+  --brand-weak: #eceefe;
+  --brand-weak-2: #dfe3fd;
+  --ok: #1d6f47;
+  --ok-weak: #e2f2e8;
+  --warn: #7f5200;
+  --warn-weak: #fdf1d4;
+  --listen: #0b6e63;
+  --listen-weak: #dff3ef;
+  --speak: #6a3fb5;
+  --speak-weak: #efe8fb;
+  --danger: #b0261d;
+  --font: 'VR Launch Sans', system-ui, sans-serif;
+}
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+html,
+body {
+  background: #000;
+  overflow: hidden;
+}
+#stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--paper);
+  font-family: var(--font);
+  color: var(--ink);
+  font-feature-settings: 'ss01', 'tnum' 0;
+  -webkit-font-smoothing: antialiased;
+  word-break: keep-all;
+}
+.abs {
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+.full {
+  position: absolute;
+  inset: 0;
+}
+.hide {
+  display: none !important;
+}
+
+/* ---------------------------------------------------------------- backgrounds */
+.glow {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+#world {
+  position: absolute;
+  inset: 0;
+  perspective: 2600px;
+  transform-style: preserve-3d;
+}
+
+/* ---------------------------------------------------------------- phone (drawn, generic) */
+.phone {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 422px;
+  height: 923px;
+  transform-origin: 0 0;
+  border-radius: 66px;
+  background: linear-gradient(145deg, #3a3a40 0%, #141417 38%, #0b0b0d 62%, #2c2c31 100%);
+  box-shadow:
+    inset 0 0 0 1.5px rgb(255 255 255 / 14%),
+    inset 0 0 0 5px #09090b,
+    0 60px 120px -30px rgb(29 28 26 / 38%),
+    0 24px 48px -18px rgb(29 28 26 / 30%);
+}
+.phone .btn-side {
+  position: absolute;
+  width: 5px;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #1b1b1f, #3d3d44);
+}
+.phone .screen {
+  position: absolute;
+  left: 16px;
+  top: 16px;
+  width: 390px;
+  height: 891px;
+  border-radius: 51px;
+  overflow: hidden;
+  background: #fff;
+  isolation: isolate;
+}
+.statusbar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 390px;
+  height: 47px;
+  background: #fff;
+  z-index: 3;
+}
+.statusbar .time {
+  position: absolute;
+  left: 40px;
+  top: 15px;
+  font-size: 16px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  font-feature-settings: 'tnum';
+}
+.statusbar .island {
+  position: absolute;
+  left: 50%;
+  top: 11px;
+  width: 118px;
+  height: 34px;
+  margin-left: -59px;
+  border-radius: 20px;
+  background: #050506;
+}
+.statusbar .icons {
+  position: absolute;
+  right: 30px;
+  top: 17px;
+  display: flex;
+  gap: 6px;
+  align-items: flex-end;
+}
+.sig {
+  display: flex;
+  gap: 2px;
+  align-items: flex-end;
+}
+.sig i {
+  display: block;
+  width: 3px;
+  border-radius: 1px;
+  background: var(--ink);
+}
+.batt {
+  width: 25px;
+  height: 12px;
+  border-radius: 3.5px;
+  border: 1.2px solid rgb(29 28 26 / 45%);
+  padding: 1.5px;
+  position: relative;
+}
+.batt::after {
+  content: '';
+  position: absolute;
+  right: -3.5px;
+  top: 3.5px;
+  width: 1.8px;
+  height: 4px;
+  border-radius: 0 1px 1px 0;
+  background: rgb(29 28 26 / 45%);
+}
+.batt i {
+  display: block;
+  height: 100%;
+  width: 78%;
+  border-radius: 1.5px;
+  background: var(--ink);
+}
+.phone .view {
+  position: absolute;
+  left: 0;
+  top: 47px;
+  width: 390px;
+  height: 844px;
+  overflow: hidden;
+}
+.view img,
+.lscreen img {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.home-ind {
+  position: absolute;
+  left: 50%;
+  bottom: 8px;
+  width: 134px;
+  height: 5px;
+  margin-left: -67px;
+  border-radius: 3px;
+  background: rgb(29 28 26 / 80%);
+  z-index: 4;
+}
+.glare {
+  position: absolute;
+  inset: 0;
+  border-radius: 51px;
+  pointer-events: none;
+  z-index: 5;
+  background: linear-gradient(115deg, rgb(255 255 255 / 0%) 40%, rgb(255 255 255 / 16%) 50%, rgb(255 255 255 / 0%) 60%);
+  background-size: 300% 100%;
+}
+
+/* ---------------------------------------------------------------- laptop (drawn, generic) */
+.laptop {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1488px;
+  height: 954px;
+  transform-origin: 0 0;
+}
+.laptop .lid {
+  position: absolute;
+  inset: 0;
+  border-radius: 34px 34px 10px 10px;
+  background: #0d0d10;
+  box-shadow:
+    inset 0 0 0 2px #2d2d33,
+    0 70px 140px -40px rgb(29 28 26 / 42%);
+}
+.laptop .lscreen {
+  position: absolute;
+  left: 24px;
+  top: 24px;
+  width: 1440px;
+  height: 900px;
+  overflow: hidden;
+  border-radius: 8px;
+  background: #fff;
+}
+.laptop .cam {
+  position: absolute;
+  left: 50%;
+  top: 9px;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  background: #22232a;
+}
+.laptop .deck {
+  position: absolute;
+  left: -110px;
+  right: -110px;
+  top: 952px;
+  height: 30px;
+  border-radius: 2px 2px 26px 26px;
+  background: linear-gradient(180deg, #d9d8dc 0%, #bdbcc2 45%, #8f8e95 100%);
+  box-shadow: 0 30px 60px -20px rgb(29 28 26 / 40%);
+}
+.laptop .deck::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 220px;
+  height: 11px;
+  margin-left: -110px;
+  border-radius: 0 0 12px 12px;
+  background: linear-gradient(180deg, #a9a8ae, #c9c8cd);
+}
+
+/* ---------------------------------------------------------------- floating UI cards */
+.card {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 50% 50%;
+  border-radius: 22px;
+  overflow: hidden;
+  background: #fff;
+  box-shadow:
+    0 1px 2px rgb(29 28 26 / 8%),
+    0 30px 60px -20px rgb(29 28 26 / 25%);
+}
+.card img {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.hintcard {
+  position: absolute;
+  left: 0;
+  top: 0;
+  transform-origin: 0 50%;
+  border-radius: 26px;
+  background: #fffaf0;
+  border: 2px solid #f1ddb0;
+  box-shadow: 0 40px 80px -30px rgb(127 82 0 / 30%);
+  padding: 18px 26px 22px;
+  overflow: hidden;
+}
+.hintcard img {
+  display: block;
+}
+.hintcard .step {
+  position: absolute;
+  right: 24px;
+  top: 22px;
+  font-size: 17px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--warn);
+  opacity: 0.8;
+}
+
+/* ---------------------------------------------------------------- type */
+.t {
+  position: absolute;
+  left: 0;
+  top: 0;
+  white-space: nowrap;
+}
+.eyebrow {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+.eyebrow .num {
+  display: inline-block;
+  padding: 3px 10px;
+  margin-right: 14px;
+  border-radius: 8px;
+  background: var(--brand);
+  color: #fff;
+  letter-spacing: 0.04em;
+  font-feature-settings: 'tnum';
+}
+.head {
+  font-size: 104px;
+  font-weight: 780;
+  letter-spacing: -0.045em;
+  line-height: 1.02;
+}
+.sub {
+  font-size: 30px;
+  font-weight: 480;
+  letter-spacing: -0.012em;
+  line-height: 1.4;
+  color: var(--ink-2);
+}
+.line {
+  display: block;
+}
+.mask {
+  display: inline-block;
+  overflow: hidden;
+  vertical-align: top;
+  padding: 0.04em 0.04em 0.12em;
+  margin: -0.04em -0.04em -0.12em;
+}
+.w {
+  display: inline-block;
+  will-change: auto;
+}
+.hl {
+  position: relative;
+  display: inline-block;
+}
+.hl .box {
+  position: absolute;
+  left: -0.12em;
+  right: -0.12em;
+  top: 0.1em;
+  bottom: 0.02em;
+  border-radius: 0.16em;
+  background: var(--brand);
+  transform-origin: 0 50%;
+  z-index: -1;
+}
+
+/* ---------------------------------------------------------------- callouts */
+.callout {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 22px 13px 16px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: #fff;
+  font-size: 27px;
+  font-weight: 640;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  box-shadow: 0 18px 40px -12px rgb(29 28 26 / 45%);
+  transform-origin: 50% 50%;
+}
+.callout .dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--c, #7d8cff);
+  box-shadow: 0 0 0 5px color-mix(in srgb, var(--c, #7d8cff) 30%, transparent);
+}
+.callout small {
+  font-size: 22px;
+  font-weight: 500;
+  opacity: 0.7;
+}
+.ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  border-radius: 50%;
+  border: 3px solid var(--c, var(--brand));
+  transform-origin: 50% 50%;
+}
+.pin {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 50%;
+  background: var(--c, var(--brand));
+  box-shadow:
+    0 0 0 4px #fff,
+    0 6px 16px rgb(29 28 26 / 30%);
+}
+svg.lines {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+/* ---------------------------------------------------------------- chips, pills */
+.chip {
+  position: absolute;
+  left: 0;
+  top: 0;
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: 1.5px solid rgb(255 255 255 / 22%);
+  color: rgb(255 255 255 / 88%);
+  font-size: 24px;
+  font-weight: 560;
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  background: rgb(255 255 255 / 5%);
+}
+.cta {
+  position: absolute;
+  left: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 34px;
+  border-radius: 999px;
+  background: #fff;
+  color: var(--brand-strong);
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+  box-shadow: 0 24px 60px -20px rgb(10 14 60 / 55%);
+}
+.cta .prompt {
+  opacity: 0.45;
+  font-weight: 600;
+}
+.cta .caret {
+  display: inline-block;
+  width: 3px;
+  height: 36px;
+  border-radius: 2px;
+  background: var(--brand);
+}
+.logo-mark {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 168px;
+  height: 168px;
+  border-radius: 50px;
+  background: #fff;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 40px 90px -30px rgb(8 12 60 / 60%);
+  transform-origin: 50% 50%;
+}
+.counter {
+  font-size: 220px;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  line-height: 1;
+  font-feature-settings: 'tnum';
+  color: var(--ok);
+}
+.strike {
+  position: absolute;
+  left: -0.05em;
+  top: 55%;
+  height: 0.07em;
+  border-radius: 0.04em;
+  background: var(--danger);
+  transform-origin: 0 50%;
+}
+#grain {
+  position: absolute;
+  inset: -64px;
+  pointer-events: none;
+  mix-blend-mode: multiply;
+  opacity: 0.05;
+}

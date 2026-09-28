@@ -1,0 +1,15 @@
+{
+  "name": "voice-roleplay-launch-video",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "capture": "node capture/capture.mjs",
+    "audio": "python3 audio/make_audio.py",
+    "render": "node render/render.mjs",
+    "render:vertical": "node render/render.mjs --format vertical",
+    "preview": "node render/render.mjs --preview"
+  },
+  "devDependencies": {
+    "playwright": "1.63.0"
+  }
+}
