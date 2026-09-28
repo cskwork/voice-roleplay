@@ -59,7 +59,8 @@ class Voice:
 
 def load_voices(voices_dir: Path) -> dict[str, Voice]:
     voices = {}
-    for d in sorted(p for p in voices_dir.iterdir() if p.is_dir()):
+    # A voice is a folder with voice.json; other folders (candidates/, __pycache__/) are not voices.
+    for d in sorted(p for p in voices_dir.iterdir() if (p / "voice.json").is_file()):
         meta = json.loads((d / "voice.json").read_text(encoding="utf-8"))
         mode = meta.get("mode", "zero_shot")
         if mode not in ("zero_shot", "cross_lingual"):

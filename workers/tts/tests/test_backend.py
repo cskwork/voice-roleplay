@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 
 from tts_worker.backend import create_engine, resolve_backend
-from tts_worker.engine import Engine, SetupError
+from tts_worker.engine import Engine, SetupError, load_voices
 from tts_worker.engine_mlx import MlxEngine, _stretch
 
 
@@ -36,3 +36,11 @@ def test_stretch_matches_torch_linear_interpolate(speed):
     mel = np.random.default_rng(0).standard_normal((1, 80, 173)).astype(np.float32)
     ref = torch.nn.functional.interpolate(torch.from_numpy(mel), size=int(173 / speed), mode="linear").numpy()
     np.testing.assert_allclose(_stretch(mel, speed), ref, atol=1e-4)  # torch computes positions in float32
+
+
+def test_load_voices_skips_folders_without_voice_json(tmp_path):
+    (tmp_path / "v1").mkdir()
+    (tmp_path / "v1" / "voice.json").write_text('{"label": "V", "license_note": "n"}')
+    (tmp_path / "v1" / "prompt.txt").write_text("hi")
+    (tmp_path / "candidates").mkdir()  # e.g. content/voices/candidates/, __pycache__/
+    assert list(load_voices(tmp_path)) == ["v1"]

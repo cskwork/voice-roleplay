@@ -1,0 +1,228 @@
+{
+ "voices": {
+  "ljspeech_f": {
+   "prompt": {
+    "seconds": 6.71,
+    "sample_rate": 22050,
+    "asr_errors": 0,
+    "ref_words": 18
+   },
+   "sentences": {
+    "price": {
+     "audio_s": 7.64,
+     "rtf": 0.651,
+     "errors": 0,
+     "ref_words": 19,
+     "speaker_cos": 0.919
+    },
+    "date": {
+     "audio_s": 6.32,
+     "rtf": 0.525,
+     "errors": 0,
+     "ref_words": 12,
+     "speaker_cos": 0.885
+    },
+    "contraction": {
+     "audio_s": 5.2,
+     "rtf": 0.572,
+     "errors": 0,
+     "ref_words": 15,
+     "speaker_cos": 0.904
+    },
+    "question": {
+     "audio_s": 4.6,
+     "rtf": 0.609,
+     "errors": 0,
+     "ref_words": 16,
+     "speaker_cos": 0.836
+    },
+    "long": {
+     "audio_s": 10.08,
+     "rtf": 0.573,
+     "errors": 0,
+     "ref_words": 30,
+     "speaker_cos": 0.944
+    }
+   },
+   "summary": {
+    "wer": 0.0,
+    "errors": 0,
+    "ref_words": 92,
+    "speaker_cos_mean": 0.898,
+    "rtf_median": 0.573
+   }
+  },
+  "libritts_r_1188_m": {
+   "prompt": {
+    "seconds": 7.08,
+    "sample_rate": 24000,
+    "asr_errors": 0,
+    "ref_words": 25
+   },
+   "sentences": {
+    "price": {
+     "audio_s": 6.84,
+     "rtf": 0.508,
+     "errors": 0,
+     "ref_words": 19,
+     "speaker_cos": 0.724
+    },
+    "date": {
+     "audio_s": 6.16,
+     "rtf": 0.532,
+     "errors": 0,
+     "ref_words": 12,
+     "speaker_cos": 0.772
+    },
+    "contraction": {
+     "audio_s": 5.6,
+     "rtf": 0.56,
+     "errors": 0,
+     "ref_words": 15,
+     "speaker_cos": 0.827
+    },
+    "question": {
+     "audio_s": 5.6,
+     "rtf": 0.554,
+     "errors": 0,
+     "ref_words": 16,
+     "speaker_cos": 0.717
+    },
+    "long": {
+     "audio_s": 10.8,
+     "rtf": 0.553,
+     "errors": 0,
+     "ref_words": 30,
+     "speaker_cos": 0.781
+    }
+   },
+   "summary": {
+    "wer": 0.0,
+    "errors": 0,
+    "ref_words": 92,
+    "speaker_cos_mean": 0.764,
+    "rtf_median": 0.553
+   }
+  },
+  "libritts_r_4992_f": {
+   "prompt": {
+    "seconds": 6.68,
+    "sample_rate": 24000,
+    "asr_errors": 0,
+    "ref_words": 19
+   },
+   "sentences": {
+    "price": {
+     "audio_s": 7.4,
+     "rtf": 0.49,
+     "errors": 0,
+     "ref_words": 19,
+     "speaker_cos": 0.688
+    },
+    "date": {
+     "audio_s": 5.64,
+     "rtf": 0.554,
+     "errors": 0,
+     "ref_words": 12,
+     "speaker_cos": 0.858
+    },
+    "contraction": {
+     "audio_s": 6.4,
+     "rtf": 0.52,
+     "errors": 0,
+     "ref_words": 15,
+     "speaker_cos": 0.882
+    },
+    "question": {
+     "audio_s": 4.76,
+     "rtf": 0.595,
+     "errors": 0,
+     "ref_words": 16,
+     "speaker_cos": 0.821
+    },
+    "long": {
+     "audio_s": 11.68,
+     "rtf": 0.553,
+     "errors": 0,
+     "ref_words": 30,
+     "speaker_cos": 0.914
+    }
+   },
+   "summary": {
+    "wer": 0.0,
+    "errors": 0,
+    "ref_words": 92,
+    "speaker_cos_mean": 0.833,
+    "rtf_median": 0.553
+   }
+  },
+  "vctk_p311_m": {
+   "prompt": {
+    "seconds": 6.77,
+    "sample_rate": 48000,
+    "asr_errors": 0,
+    "ref_words": 17
+   },
+   "sentences": {
+    "price": {
+     "audio_s": 6.4,
+     "rtf": 0.524,
+     "errors": 0,
+     "ref_words": 19,
+     "speaker_cos": 0.909
+    },
+    "date": {
+     "audio_s": 5.52,
+     "rtf": 0.56,
+     "errors": 0,
+     "ref_words": 12,
+     "speaker_cos": 0.898
+    },
+    "contraction": {
+     "audio_s": 5.24,
+     "rtf": 0.571,
+     "errors": 0,
+     "ref_words": 15,
+     "speaker_cos": 0.929
+    },
+    "question": {
+     "audio_s": 5.88,
+     "rtf": 0.541,
+     "errors": 0,
+     "ref_words": 16,
+     "speaker_cos": 0.85
+    },
+    "long": {
+     "audio_s": 10.04,
+     "rtf": 0.573,
+     "errors": 0,
+     "ref_words": 30,
+     "speaker_cos": 0.912
+    }
+   },
+   "summary": {
+    "wer": 0.0,
+    "errors": 0,
+    "ref_words": 92,
+    "speaker_cos_mean": 0.9,
+    "rtf_median": 0.56
+   }
+  }
+ },
+ "utc": "2026-09-28T14:02:49+00:00",
+ "tts": {
+  "model_id": "mlx-community/Fun-CosyVoice3-0.5B-2512-fp16",
+  "revision": "18ccb7fbd7246e8cd3420d02f5dd28595cc0fcd9",
+  "flow_steps": 5,
+  "token_hop": 50,
+  "mode": "stream"
+ },
+ "asr": "Qwen/Qwen3-ASR-0.6B (models/Qwen3-ASR-0.6B, transformers backend)",
+ "sentences": {
+  "price": "That comes to $24.99, and you can pay by card or in cash.",
+  "date": "The meeting has been moved to Tuesday, October 14th, 2026.",
+  "contraction": "I'm sorry, but we don't have that size, and it won't arrive until next week.",
+  "question": "Would you like to sit by the window, or would you rather sit near the door?",
+  "long": "When you get off the train, walk two blocks north, turn left at the bakery on the corner, and you'll see the museum entrance right across from the small park."
+ }
+}
