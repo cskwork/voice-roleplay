@@ -1,0 +1,565 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>voice-roleplay: practise speaking English out loud, 100% on your Mac</title>
+<meta name="description" content="Realtime AI roleplay for Korean learners of English, with live captions, a natural voice, barge-in and hints. Speech recognition, the language model and the voice all run locally on an Apple Silicon Mac. Offline after setup; audio is never saved.">
+<link rel="canonical" href="https://cskwork.github.io/voice-roleplay/">
+<meta name="theme-color" content="#3043c4">
+<meta name="color-scheme" content="light">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="voice-roleplay">
+<meta property="og:title" content="voice-roleplay: speak English out loud, 100% on your Mac">
+<meta property="og:description" content="Realtime AI roleplay with live captions, a natural voice and barge-in. Every model runs locally on your Mac. Offline, private, no account.">
+<meta property="og:url" content="https://cskwork.github.io/voice-roleplay/">
+<meta property="og:image" content="https://cskwork.github.io/voice-roleplay/img/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="말하기 연습 (voice-roleplay): Private English speaking practice. $ ./app start">
+<meta property="og:locale" content="en_US">
+<meta property="og:locale:alternate" content="ko_KR">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="voice-roleplay: speak English out loud, 100% on your Mac">
+<meta name="twitter:description" content="Realtime AI roleplay with live captions, a natural voice and barge-in. Every model runs locally on your Mac.">
+<meta name="twitter:image" content="https://cskwork.github.io/voice-roleplay/img/og.png">
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="icon" href="favicon.png" type="image/png" sizes="32x32">
+<link rel="apple-touch-icon" href="img/apple-touch-icon.png">
+<link rel="preload" href="fonts/vr-site-sans.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="styles.css">
+<script>
+  (function () {
+    var d = document.documentElement, l = null;
+    try { l = new URLSearchParams(location.search).get('lang') || localStorage.getItem('vr-lang'); } catch (e) {}
+    if (l === 'ko' || l === 'en') { d.setAttribute('data-lang', l); d.lang = l; }
+    d.classList.add('js');
+  })();
+</script>
+</head>
+<body>
+<svg class="sprite" aria-hidden="true" focusable="false">
+  <symbol id="i-mic" viewBox="0 0 24 24"><path d="M12 3a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3Zm-7 9a7 7 0 0 0 14 0M12 19v3"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8-4.3-4.1 5.9-.9L12 3.5Z"/></symbol>
+  <symbol id="i-hint" viewBox="0 0 24 24"><path d="M9 18h6M10 21h4M12 3a6 6 0 0 0-3.5 10.9c.6.5 1 1.2 1 2V16h5v-.1c0-.8.4-1.5 1-2A6 6 0 0 0 12 3Z"/></symbol>
+  <symbol id="i-speaker" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4Zm12.5-.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></symbol>
+  <symbol id="i-pause" viewBox="0 0 24 24"><path d="M8 5v14M16 5v14"/></symbol>
+  <symbol id="i-play" viewBox="0 0 24 24"><path d="M7 5l12 7-12 7V5Z"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 24 24"><path d="M9 9h10v11H9zM5 15V4h10"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M5 12.5l4.5 4.5L19 7.5"/></symbol>
+  <symbol id="i-miss" viewBox="0 0 24 24"><path d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM12 8v5m0 3.5h.01"/></symbol>
+  <symbol id="i-arrow" viewBox="0 0 24 24"><path d="M5 12h14M13 6l6 6-6 6"/></symbol>
+  <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M6 13l6 6 6-6"/></symbol>
+  <symbol id="i-lock" viewBox="0 0 24 24"><path d="M6 11h12v9H6zM8.5 11V8a3.5 3.5 0 0 1 7 0v3"/></symbol>
+  <symbol id="i-disk" viewBox="0 0 24 24"><path d="M4 5h16v14H4zM4 13h16M8 16.5h.01M3 3l18 18"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h6"/></symbol>
+  <symbol id="i-list" viewBox="0 0 24 24"><path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01"/></symbol>
+  <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M7 18a4 4 0 0 1-.6-8A6 6 0 0 1 18 9.5a4.3 4.3 0 0 1-.5 8.5H7ZM4 4l16 16"/></symbol>
+  <symbol id="i-alert" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M10.3 3.9 2.4 18a2 2 0 0 0 1.7 3h15.8a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></symbol>
+  <symbol id="i-gh" viewBox="0 0 24 24"><path fill="currentColor" stroke="none" d="M12 2a10 10 0 0 0-3.16 19.49c.5.09.68-.22.68-.48v-1.7c-2.78.6-3.37-1.34-3.37-1.34-.45-1.16-1.11-1.47-1.11-1.47-.91-.62.07-.61.07-.61 1 .07 1.53 1.03 1.53 1.03.9 1.52 2.34 1.08 2.91.83.09-.65.35-1.08.63-1.33-2.22-.25-4.55-1.11-4.55-4.94 0-1.09.39-1.98 1.03-2.68-.1-.25-.45-1.27.1-2.64 0 0 .84-.27 2.75 1.02a9.6 9.6 0 0 1 5 0c1.91-1.29 2.75-1.02 2.75-1.02.55 1.37.2 2.39.1 2.64.64.7 1.03 1.59 1.03 2.68 0 3.84-2.34 4.68-4.57 4.93.36.31.68.92.68 1.85v2.74c0 .27.18.58.69.48A10 10 0 0 0 12 2Z"/></symbol>
+</svg>
+
+<a class="skip" href="#main"><span data-l="en">Skip to content</span><span data-l="ko" lang="ko">본문으로 건너뛰기</span></a>
+
+<header class="bar">
+    <a class="brand" href="./" aria-label="voice-roleplay home">
+      <span class="mark" aria-hidden="true"><svg><use href="#i-mic"/></svg></span>
+      <span class="brand-name">voice-roleplay</span>
+      <span class="brand-ko" lang="ko">말하기 연습</span>
+    </a>
+    <nav class="rungs" id="rungs" aria-label="Page steps" data-label-ko="페이지 단계">
+      <svg class="rungs-ic" aria-hidden="true"><use href="#i-hint"/></svg>
+      <a href="#gist" data-rung-link="1" aria-current="step"><b>1<span class="of">/3</span></b> <span data-l="en">The gist</span><span data-l="ko" lang="ko">요점</span></a>
+      <a href="#keywords" data-rung-link="2"><b>2<span class="of">/3</span></b> <span data-l="en">Key words</span><span data-l="ko" lang="ko">핵심 단어</span></a>
+      <a href="#full" data-rung-link="3"><b>3<span class="of">/3</span></b> <span data-l="en">Full example</span><span data-l="ko" lang="ko">전체 예시</span></a>
+    </nav>
+    <div class="bar-actions">
+      <a class="bar-link" href="#start"><span data-l="en">Quick start</span><span data-l="ko" lang="ko">빠른 시작</span></a>
+      <button class="lang" type="button" id="lang-toggle" aria-label="한국어로 보기" data-label-ko="View in English">
+        <span data-l="en" lang="ko">한국어</span><span data-l="ko">English</span>
+      </button>
+      <a class="gh-small" href="https://github.com/cskwork/voice-roleplay" aria-label="voice-roleplay on GitHub">
+        <svg><use href="#i-gh"/></svg><span class="gh-small-label">GitHub</span>
+      </a>
+    </div>
+</header>
+
+<main id="main">
+  <!-- rung 1: the gist -->
+  <section class="hero" id="gist" data-rung="1" aria-labelledby="hero-title">
+    <div class="hero-top">
+      <h1 id="hero-title">
+        <span data-l="en">Speak English <span class="loud">out loud.</span></span>
+        <span data-l="ko" lang="ko">영어, <span class="loud">소리 내어</span> 말해 보세요.</span>
+      </h1>
+      <p class="hook">
+        <span data-l="en">Nobody's listening. Not even the cloud.</span>
+        <span data-l="ko" lang="ko">아무도 듣지 않아요. 클라우드도요.</span>
+      </p>
+    </div>
+    <div class="hero-rest">
+      <p class="pitch" data-l="en">A speaking partner for Korean learners of English. Act out real situations with an AI that listens, answers in a natural voice and stops the moment you cut in. Speech recognition, the language model and the voice all run on your Mac, and after setup it works offline.</p>
+      <p class="pitch" data-l="ko" lang="ko">한국어 학습자를 위한 영어 말하기 상대입니다. 실제 상황을 AI와 영어로 주고받으면, AI는 자연스러운 목소리로 답하고 내가 끼어들면 바로 멈춥니다. 음성 인식, 대화 모델, 음성 합성이 모두 내 Mac에서 돌아가고, 설치가 끝나면 인터넷 없이 동작합니다.</p>
+      <div class="actions">
+        <a class="btn btn-star" href="https://github.com/cskwork/voice-roleplay" data-star>
+          <svg aria-hidden="true"><use href="#i-star"/></svg>
+          <span data-l="en">Star on GitHub</span><span data-l="ko" lang="ko">GitHub에서 Star</span>
+          <span class="star-count" data-star-count hidden></span>
+        </a>
+        <a class="btn btn-ghost" href="#start">
+          <span data-l="en">Get started</span><span data-l="ko" lang="ko">시작하기</span>
+          <svg aria-hidden="true"><use href="#i-down"/></svg>
+        </a>
+      </div>
+      <div class="cmd" data-copy-root>
+        <code><span class="prompt" aria-hidden="true">$</span> <span data-copy-text>git clone https://github.com/cskwork/voice-roleplay.git &amp;&amp; cd voice-roleplay &amp;&amp; ./app setup &amp;&amp; ./app start</span></code>
+        <button type="button" class="copy" data-copy aria-label="Copy command" data-label-ko="명령어 복사">
+          <svg aria-hidden="true"><use href="#i-copy"/></svg>
+          <span class="copy-done" aria-live="polite"></span>
+        </button>
+      </div>
+      <p class="fine">
+        <span data-l="en">Apache-2.0. Apple Silicon Mac, validated on an M3 Pro (36 GB). About 30 GB of disk. No account, no telemetry.</span>
+        <span data-l="ko" lang="ko">Apache-2.0. Apple Silicon Mac (M3 Pro 36 GB에서 검증). 디스크 약 30 GB. 계정도, 텔레메트리도 없습니다.</span>
+      </p>
+    </div>
+
+    <figure class="hero-video">
+      <div class="video-frame">
+        <video id="launch" muted loop playsinline preload="none" poster="img/video-poster.webp" width="1920" height="1080" aria-describedby="video-cap">
+          <source src="media/voice-roleplay-launch-1080p.mp4" type="video/mp4">
+        </video>
+        <div class="video-controls">
+          <button type="button" class="vbtn" id="v-sound">
+            <svg aria-hidden="true"><use href="#i-speaker"/></svg>
+            <span data-l="en">Play with sound</span><span data-l="ko" lang="ko">소리 켜고 보기</span>
+          </button>
+          <button type="button" class="vbtn vbtn-icon" id="v-toggle" aria-label="Pause video" data-label-play="Play video" data-label-pause="Pause video" data-label-play-ko="영상 재생" data-label-pause-ko="영상 일시정지">
+            <svg aria-hidden="true" class="ic-pause"><use href="#i-pause"/></svg>
+            <svg aria-hidden="true" class="ic-play"><use href="#i-play"/></svg>
+          </button>
+        </div>
+      </div>
+      <figcaption id="video-cap">
+        <span data-l="en">The 30-second launch video. Every screen in it is real app output, captured on 2026-09-29. <a href="media/voice-roleplay-launch-1080p.mp4">Download MP4</a></span>
+        <span data-l="ko" lang="ko">30초 소개 영상. 화면은 모두 2026-09-29에 실제 앱에서 캡처했습니다. <a href="media/voice-roleplay-launch-1080p.mp4">MP4 받기</a></span>
+      </figcaption>
+    </figure>
+  </section>
+
+  <figure class="window" aria-labelledby="window-cap">
+    <div class="window-bar" aria-hidden="true">
+      <span class="dots"><i></i><i></i><i></i></span>
+      <span class="url"><svg><use href="#i-lock"/></svg>127.0.0.1:8710</span>
+    </div>
+    <img src="img/desktop-talk.webp" width="1760" height="1100" fetchpriority="low" decoding="async"
+      alt="The realtime roleplay screen in the cafe scenario. On the left, three conversation goals are ticked off. On the right, the learner and the AI barista take turns in English, ending with the AI saying 'No problem! You can pay with cash or card.' The AI is speaking and a stop (barge-in) button is lit."
+      data-alt-ko="카페 시나리오의 실시간 회화 화면. 왼쪽에는 대화 목표 세 개가 모두 체크되어 있고, 오른쪽에는 학습자와 AI 바리스타가 영어로 주고받은 대화가 있습니다. 마지막 AI 대사는 'No problem! You can pay with cash or card.'이고, AI가 말하는 중이라 멈추기(끼어들기) 버튼이 켜져 있습니다.">
+    <figcaption id="window-cap">
+      <span data-l="en">A real session, captured from the app. The interface is in Korean because it is built for Korean learners; the conversation is in English. For the capture, the learner's lines were spoken by macOS <code>say</code>.</span>
+      <span data-l="ko" lang="ko">실제 앱에서 캡처한 회화 화면입니다. 화면 문구는 한국어, 대화는 영어입니다. 캡처할 때 학습자 대사는 macOS <code>say</code> 합성 음성으로 넣었습니다.</span>
+    </figcaption>
+  </figure>
+
+  <!-- ============================================================ rung 2: key words -->
+  <section class="features" id="keywords" data-rung="2" aria-labelledby="feat-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="feat-title">
+          <span data-l="en">Talk like it's real.</span>
+          <span data-l="ko" lang="ko">진짜처럼 말해 보세요.</span>
+        </h2>
+        <p class="lead" data-l="en">Pick a situation, say your part out loud and keep going. When you get stuck, help comes in small steps.</p>
+        <p class="lead" data-l="ko" lang="ko">상황을 고르고, 내 대사를 소리 내어 말하고, 대화를 이어 가세요. 막히면 조금씩 도움을 받을 수 있습니다.</p>
+      </div>
+
+      <div class="feat" data-tabs>
+        <div class="chips" role="tablist" aria-label="Features" data-label-ko="기능">
+          <button type="button" role="tab" id="tab-captions" aria-controls="p-captions" aria-selected="true"><span data-l="en">Live captions</span><span data-l="ko" lang="ko">실시간 자막</span></button>
+          <button type="button" role="tab" id="tab-barge" aria-controls="p-barge" aria-selected="false" tabindex="-1"><span data-l="en">Barge-in</span><span data-l="ko" lang="ko">끼어들기</span></button>
+          <button type="button" role="tab" id="tab-hints" aria-controls="p-hints" aria-selected="false" tabindex="-1"><span data-l="en">Hint ladder</span><span data-l="ko" lang="ko">3단계 힌트</span></button>
+          <button type="button" role="tab" id="tab-summary" aria-controls="p-summary" aria-selected="false" tabindex="-1"><span data-l="en">Goals &amp; summary</span><span data-l="ko" lang="ko">목표와 요약</span></button>
+          <button type="button" role="tab" id="tab-recorded" aria-controls="p-recorded" aria-selected="false" tabindex="-1"><span data-l="en">Recorded practice</span><span data-l="ko" lang="ko">녹음형 연습</span></button>
+          <button type="button" role="tab" id="tab-compare" aria-controls="p-compare" aria-selected="false" tabindex="-1"><span data-l="en">My take vs model voice</span><span data-l="ko" lang="ko">내 발음 vs 모범 음성</span></button>
+        </div>
+
+        <div class="panels">
+          <div class="panel" role="tabpanel" id="p-captions" aria-labelledby="tab-captions" tabindex="0">
+            <div class="panel-copy">
+              <h3><span data-l="en">See your words as you say them.</span><span data-l="ko" lang="ko">말하는 동안 내 말이 보여요.</span></h3>
+              <p data-l="en">A caption follows you while you speak and settles into the final transcript when you pause. Over 200 benchmark turns, the first caption appeared within 0.66 s (p95).</p>
+              <p data-l="ko" lang="ko">말하는 동안 자막이 따라오고, 말을 멈추면 최종 전사로 바뀝니다. 200턴 벤치마크에서 첫 자막은 0.66초 안에 나왔습니다(p95).</p>
+            </div>
+            <div class="shot"><div class="phone"><img src="img/phone-t2-partial.webp" width="720" height="1558" loading="lazy" decoding="async"
+              alt="Cafe roleplay on a phone-sized screen. The AI barista has asked 'Sure, a large latte, hot or iced?' and the learner's reply 'Could I…' is still a dashed live caption marked 'recognising'."
+              data-alt-ko="휴대폰 크기 화면의 카페 역할극. AI 바리스타가 'Sure, a large latte, hot or iced?'라고 물었고, 학습자의 답 'Could I…'가 '인식 중' 표시와 함께 점선 임시 자막으로 보입니다."></div></div>
+          </div>
+
+          <div class="panel" role="tabpanel" id="p-barge" aria-labelledby="tab-barge" tabindex="0">
+            <div class="panel-copy">
+              <h3><span data-l="en">Cut in whenever you want.</span><span data-l="ko" lang="ko">언제든 끼어드세요.</span></h3>
+              <p data-l="en">Start talking while the AI is speaking and it stops, marks where it stopped and listens. Only the words it actually said stay in the conversation. Measured stop time was 0.20 s (p95) across 66 barge-ins.</p>
+              <p data-l="ko" lang="ko">AI가 말하는 중에 말을 시작하면 AI가 멈추고, 멈춘 위치를 표시한 뒤 내 말을 듣습니다. 실제로 말한 부분만 대화에 남습니다. 끼어들기 66회에서 측정한 정지 시간은 0.20초(p95)였습니다.</p>
+            </div>
+            <div class="shot"><div class="phone"><img src="img/phone-barge-cancelled.webp" width="720" height="1558" loading="lazy" decoding="async"
+              alt="Barge-in on a phone-sized screen. The AI line is labelled 'stopped while speaking' with a 'stopped here' marker after 'Of course!', and the learner's new line 'Sorry.' is being recognised."
+              data-alt-ko="휴대폰 크기 화면의 끼어들기. AI 대사에 '말하다 멈춤' 표시와 'Of course!' 뒤의 '여기서 멈춤' 표시가 있고, 학습자의 새 대사 'Sorry.'가 인식 중입니다."></div></div>
+          </div>
+
+          <div class="panel" role="tabpanel" id="p-hints" aria-labelledby="tab-hints" tabindex="0">
+            <div class="panel-copy">
+              <h3><span data-l="en">Stuck? Take a hint.</span><span data-l="ko" lang="ko">막히면 힌트를 받으세요.</span></h3>
+              <p data-l="en">Hints come in three steps, so you take only as much help as you need: the Korean meaning of what was just said, then key words, then a full example sentence. The step-one translation is written by the local model and can be wrong.</p>
+              <p data-l="ko" lang="ko">힌트는 세 단계라 필요한 만큼만 받을 수 있습니다. 방금 들은 말의 한국어 뜻, 핵심 단어, 예시 문장 순서입니다. 1단계 번역은 로컬 모델이 만들기 때문에 틀릴 수 있습니다.</p>
+            </div>
+            <div class="shot shot-hint">
+              <ol class="ladder">
+                <li>
+                  <p class="rung-head"><svg aria-hidden="true"><use href="#i-hint"/></svg><span data-l="en">Hint 1/3 · Korean meaning</span><span data-l="ko" lang="ko">힌트 1/3 · 한국어 뜻</span></p>
+                  <p class="rung-body" data-l="en">The AI's last line, translated into Korean by the local model.</p>
+                  <p class="rung-body" data-l="ko" lang="ko">AI가 방금 한 말을 로컬 모델이 한국어로 옮겨 줍니다.</p>
+                </li>
+                <li>
+                  <p class="rung-head"><svg aria-hidden="true"><use href="#i-hint"/></svg><span data-l="en">Hint 2/3 · Key words</span><span data-l="ko" lang="ko">힌트 2/3 · 핵심 단어</span></p>
+                  <img src="img/hint-tip.webp" width="800" height="128" loading="lazy" decoding="async" alt="Korean tip from the app: ask for the total, or check that the amount you heard is right." data-alt-ko="앱의 한국어 안내: 총 금액을 묻거나, 들은 금액이 맞는지 다시 확인해 보세요.">
+                  <img src="img/hint-keywords.webp" width="760" height="86" loading="lazy" decoding="async" alt="Key words: How much, altogether, total, Is that." data-alt-ko="핵심 단어: How much, altogether, total, Is that.">
+                </li>
+                <li class="on">
+                  <p class="rung-head"><svg aria-hidden="true"><use href="#i-hint"/></svg><span data-l="en">Hint 3/3 · Example sentence</span><span data-l="ko" lang="ko">힌트 3/3 · 예시 문장</span></p>
+                  <img src="img/hint-example.webp" width="660" height="78" loading="lazy" decoding="async" alt="Example sentence: How much is that altogether?" data-alt-ko="예시 문장: How much is that altogether?">
+                </li>
+              </ol>
+            </div>
+          </div>
+
+          <div class="panel" role="tabpanel" id="p-summary" aria-labelledby="tab-summary" tabindex="0">
+            <div class="panel-copy">
+              <h3><span data-l="en">Finish with one thing to fix.</span><span data-l="ko" lang="ko">끝나면 고칠 점 하나를 챙겨요.</span></h3>
+              <p data-l="en">Each scenario has goals, such as asking for the total, and they tick off as you reach them. Afterwards you see what you said, which goals you reached and a more natural way to say a line, with a "say it again" button to practise it right away.</p>
+              <p data-l="ko" lang="ko">시나리오마다 "총 금액 물어보기" 같은 목표가 있고, 달성하면 체크됩니다. 대화가 끝나면 내가 한 말, 달성한 목표, 더 자연스러운 표현을 보여 주고, "다시 말하기" 버튼으로 그 문장을 바로 연습할 수 있습니다.</p>
+            </div>
+            <div class="shot"><div class="phone"><img src="img/phone-summary-feedback.webp" width="720" height="1558" loading="lazy" decoding="async"
+              alt="Session summary on a phone-sized screen: the learner's lines, three goals marked achieved, and a suggestion to say 'I'd like to pay with my phone.' instead of 'I want pay with my phone.', with a 'say it again' button."
+              data-alt-ko="휴대폰 크기 화면의 세션 요약. 학습자가 한 말, 달성 표시된 목표 세 개, 'I want pay with my phone.' 대신 'I'd like to pay with my phone.'이라고 말해 보라는 제안과 '다시 말하기' 버튼이 있습니다."></div></div>
+          </div>
+
+          <div class="panel" role="tabpanel" id="p-recorded" aria-labelledby="tab-recorded" tabindex="0">
+            <div class="panel-copy">
+              <h3><span data-l="en">Or take it slower.</span><span data-l="ko" lang="ko">천천히 연습해도 돼요.</span></h3>
+              <p data-l="en">Recorded practice has four modes: read a sentence, shadow the model voice, answer freely, or roleplay turn by turn. You get a transcript and written feedback on grammar and phrasing.</p>
+              <p data-l="ko" lang="ko">녹음형 연습은 문장 읽기, 따라 말하기, 자유 답변, 턴제 역할극 네 가지입니다. 전사와 함께 문법·표현에 대한 글 피드백을 받습니다.</p>
+            </div>
+            <div class="shot"><div class="phone"><img src="img/phone-practice-recording.webp" width="720" height="1558" loading="lazy" decoding="async"
+              alt="Recorded practice on a phone-sized screen, reading mode. The sentence 'I'd like a large cappuccino with oat milk, please.' is shown with a Korean translation and model-voice buttons, and a recording is in progress at 0:01 of 0:30."
+              data-alt-ko="휴대폰 크기 화면의 녹음형 연습(문장 읽기). 'I'd like a large cappuccino with oat milk, please.' 문장과 한국어 번역, 모범 음성 버튼이 있고, 0:30 중 0:01째 녹음 중입니다."></div></div>
+          </div>
+
+          <div class="panel" role="tabpanel" id="p-compare" aria-labelledby="tab-compare" tabindex="0">
+            <div class="panel-copy">
+              <h3><span data-l="en">Hear yourself next to the model.</span><span data-l="ko" lang="ko">내 목소리와 모범 음성을 나란히.</span></h3>
+              <p data-l="en">Tap a word to play your own recording of it, then the model voice saying the same word. A pitch contour lays both intonation lines side by side. It is a reference for your ear. There is no pronunciation score.</p>
+              <p data-l="ko" lang="ko">단어를 누르면 그 단어의 내 녹음과 모범 음성을 차례로 들을 수 있습니다. 억양 곡선은 두 억양을 나란히 보여 줍니다. 귀로 비교하기 위한 참고 자료이고, 발음 점수는 없습니다.</p>
+            </div>
+            <div class="shot"><div class="phone"><img src="img/phone-result-pron.webp" width="720" height="1558" loading="lazy" decoding="async"
+              alt="Recorded-practice result on a phone-sized screen. The word 'cappuccino' is selected, showing its length and 'my take' and 'model voice' play buttons. Below is a pitch contour comparing the learner's recording and the model voice, labelled 'reference only, not a score'."
+              data-alt-ko="휴대폰 크기 화면의 녹음형 결과. 'cappuccino' 단어가 선택되어 길이와 '내 발음', '모범 음성' 재생 버튼이 보입니다. 아래에는 '참고 지표 · 점수 아님' 표시와 함께 내 녹음과 모범 음성의 억양 곡선이 있습니다."></div></div>
+          </div>
+        </div>
+      </div>
+
+      <p class="scenarios" data-l="en">Four scenarios so far: ordering at a cafe, asking for directions, hotel check-in and a job interview. Their sentences and translations are drafts waiting for native-speaker review.</p>
+      <p class="scenarios" data-l="ko" lang="ko">지금은 시나리오 네 개가 있습니다: 카페 주문, 길 묻기, 호텔 체크인, 면접. 문장과 번역은 원어민 검수를 기다리는 초안입니다.</p>
+    </div>
+  </section>
+
+  <section class="privacy" id="privacy" aria-labelledby="privacy-title">
+    <div class="wrap">
+      <div class="privacy-head">
+        <h2 id="privacy-title">
+          <span data-l="en">Your voice stays on your Mac.</span>
+          <span data-l="ko" lang="ko">내 목소리는 내 Mac 밖으로 나가지 않아요.</span>
+        </h2>
+        <p class="lead" data-l="en">Each of these follows from how the app is built, and you can check every one in the code.</p>
+        <p class="lead" data-l="ko" lang="ko">모두 앱의 구조에서 나오는 성질이라, 코드에서 하나씩 확인할 수 있습니다.</p>
+        <p class="host" aria-hidden="true">127.0.0.1</p>
+      </div>
+      <ul class="facts">
+        <li><svg aria-hidden="true"><use href="#i-lock"/></svg>
+          <p data-l="en">Every server listens on 127.0.0.1 only. There is no LAN or cloud mode.</p>
+          <p data-l="ko" lang="ko">모든 서버가 127.0.0.1에만 바인딩합니다. LAN이나 클라우드 모드는 없습니다.</p></li>
+        <li><svg aria-hidden="true"><use href="#i-disk"/></svg>
+          <p data-l="en">Microphone audio is never written to disk. A recording is released from memory when its job ends, fails or is cancelled.</p>
+          <p data-l="ko" lang="ko">마이크 음성은 디스크에 쓰지 않습니다. 녹음은 작업이 끝나거나 실패·취소되면 메모리에서 해제됩니다.</p></li>
+        <li><svg aria-hidden="true"><use href="#i-doc"/></svg>
+          <p data-l="en">Transcripts live in session memory unless you turn on history, and you can delete all of it from settings.</p>
+          <p data-l="ko" lang="ko">전사는 기록 저장을 켜지 않으면 세션 메모리에만 있고, 설정에서 전부 지울 수 있습니다.</p></li>
+        <li><svg aria-hidden="true"><use href="#i-list"/></svg>
+          <p data-l="en">Logs keep event names, ids, durations and error codes. Transcripts, prompts, model output and audio never go in.</p>
+          <p data-l="ko" lang="ko">로그에는 이벤트 이름, id, 길이, 오류 코드만 남깁니다. 전사, 프롬프트, 모델 출력, 오디오는 기록하지 않습니다.</p></li>
+        <li><svg aria-hidden="true"><use href="#i-cloud"/></svg>
+          <p data-l="en">No telemetry, no CDN and no downloads while it runs. Workers start with <code>HF_HUB_OFFLINE=1</code>.</p>
+          <p data-l="ko" lang="ko">실행 중에는 텔레메트리, CDN, 다운로드가 없습니다. 워커는 <code>HF_HUB_OFFLINE=1</code>로 시작합니다.</p></li>
+        <li><svg aria-hidden="true"><use href="#i-alert"/></svg>
+          <p data-l="en">One caveat: macOS can still leave traces in swap or crash dumps. Turn on disk encryption if that matters to you.</p>
+          <p data-l="ko" lang="ko">주의할 점: macOS의 swap이나 crash dump에는 흔적이 남을 수 있습니다. 중요하다면 디스크 암호화를 켜 두세요.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ============================================================ rung 3: full example -->
+  <section class="how" id="full" data-rung="3" aria-labelledby="how-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="how-title">
+          <span data-l="en">Four local models and a browser tab.</span>
+          <span data-l="ko" lang="ko">로컬 모델 네 개와 브라우저 탭 하나.</span>
+        </h2>
+        <p class="lead" data-l="en">Your browser streams 16 kHz audio to a small FastAPI gateway on your machine. Silero VAD decides when you start and stop talking. Your words go to the speech model, the transcript to the language model, and the reply to the voice model sentence by sentence, so the AI starts speaking before the whole answer exists.</p>
+        <p class="lead" data-l="ko" lang="ko">브라우저가 16 kHz 음성을 내 컴퓨터의 작은 FastAPI 게이트웨이로 보냅니다. Silero VAD가 말의 시작과 끝을 판단하고, 음성은 음성 인식 모델로, 전사는 대화 모델로, 답변은 문장 단위로 음성 합성 모델로 갑니다. 그래서 답변이 다 만들어지기 전에 AI가 말하기 시작합니다.</p>
+      </div>
+      <div class="how-grid">
+        <figure class="diagram">
+          <a href="media/system.png"><img src="img/system-diagram.webp" width="1240" height="750" loading="lazy" decoding="async"
+            alt="System diagram. The browser talks to the gateway on 127.0.0.1:8710 over HTTP and WebSocket. The gateway runs Silero VAD and calls three local workers: Qwen3-ASR on port 8711, CosyVoice3 TTS on 8712 and llama-server with Qwen3-4B on 8713. SQLite stores history only if the learner opts in."
+            data-alt-ko="시스템 구조도. 브라우저가 127.0.0.1:8710의 게이트웨이와 HTTP·WebSocket으로 통신합니다. 게이트웨이는 Silero VAD를 돌리고, 로컬 워커 세 개(8711 Qwen3-ASR, 8712 CosyVoice3 TTS, 8713 llama-server Qwen3-4B)를 호출합니다. SQLite에는 학습자가 동의한 경우에만 기록을 저장합니다."></a>
+          <figcaption><a href="https://github.com/cskwork/voice-roleplay/tree/main/docs/architecture"><span data-l="en">Labels are in Korean: 브라우저 웹앱 browser app, 게이트웨이 gateway, 워커 worker, 캐시 cache. The dashed box reads "local Mac, 127.0.0.1 only, no outside traffic". Full architecture docs</span><span data-l="ko" lang="ko">구조 문서: 시스템, 실시간 한 턴, 세션 상태</span> <svg aria-hidden="true"><use href="#i-arrow"/></svg></a></figcaption>
+        </figure>
+        <div class="table-scroll" tabindex="0" role="region" aria-labelledby="models-cap">
+          <table class="models">
+            <caption id="models-cap"><span data-l="en">What runs where</span><span data-l="ko" lang="ko">무엇이 어디서 도는지</span></caption>
+            <thead><tr>
+              <th scope="col"><span data-l="en">Job</span><span data-l="ko" lang="ko">역할</span></th>
+              <th scope="col"><span data-l="en">Model</span><span data-l="ko" lang="ko">모델</span></th>
+              <th scope="col"><span data-l="en">Runtime</span><span data-l="ko" lang="ko">런타임</span></th>
+              <th scope="col"><span data-l="en">Licence</span><span data-l="ko" lang="ko">라이선스</span></th>
+            </tr></thead>
+            <tbody>
+              <tr><th scope="row"><span data-l="en">Speech recognition</span><span data-l="ko" lang="ko">음성 인식</span></th><td data-k="Model" data-k-ko="모델">Qwen3-ASR-0.6B</td><td data-k="Runtime" data-k-ko="런타임">transformers · MPS</td><td data-k="Licence" data-k-ko="라이선스">Apache-2.0</td></tr>
+              <tr><th scope="row"><span data-l="en">Conversation</span><span data-l="ko" lang="ko">대화</span></th><td data-k="Model" data-k-ko="모델">Qwen3-4B-Instruct-2507 Q4_K_M</td><td data-k="Runtime" data-k-ko="런타임">llama.cpp · Metal</td><td data-k="Licence" data-k-ko="라이선스">Apache-2.0</td></tr>
+              <tr><th scope="row"><span data-l="en">Voice</span><span data-l="ko" lang="ko">음성 합성</span></th><td data-k="Model" data-k-ko="모델">Fun-CosyVoice3-0.5B-2512</td><td data-k="Runtime" data-k-ko="런타임">MLX fp16</td><td data-k="Licence" data-k-ko="라이선스">Apache-2.0</td></tr>
+              <tr><th scope="row"><span data-l="en">Turn-taking</span><span data-l="ko" lang="ko">턴 판단</span></th><td data-k="Model" data-k-ko="모델">Silero VAD</td><td data-k="Runtime" data-k-ko="런타임">ONNX Runtime · CPU</td><td data-k="Licence" data-k-ko="라이선스">MIT</td></tr>
+              <tr><th scope="row"><span data-l="en">Word timing (optional)</span><span data-l="ko" lang="ko">단어 위치 (선택)</span></th><td data-k="Model" data-k-ko="모델">Qwen3-ForcedAligner-0.6B, pyworld</td><td data-k="Runtime" data-k-ko="런타임">MPS · CPU</td><td data-k="Licence" data-k-ko="라이선스">Apache-2.0, MIT</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="numbers" id="numbers" aria-labelledby="numbers-title">
+    <div class="wrap">
+      <div class="section-head">
+        <h2 id="numbers-title">
+          <span data-l="en">Measured, including the misses.</span>
+          <span data-l="ko" lang="ko">못 미친 것까지 그대로 측정했습니다.</span>
+        </h2>
+        <p class="lead" data-l="en">200 realtime turns on an Apple M3 Pro with 36 GB, run on 2026-09-28. Targets come from the project's own requirements document. The learner's voice was synthetic (macOS <code>say</code>), so treat these as best-case numbers.</p>
+        <p class="lead" data-l="ko" lang="ko">Apple M3 Pro 36 GB에서 실시간 200턴, 2026-09-28 측정. 목표는 프로젝트 요구사항 문서의 기준입니다. 학습자 음성은 macOS <code>say</code> 합성 음성이라 가장 좋은 조건의 수치로 보셔야 합니다.</p>
+      </div>
+      <div class="table-scroll" tabindex="0" role="region" aria-labelledby="bench-cap">
+        <table class="bench">
+          <caption id="bench-cap"><span data-l="en">Full-stack benchmark against targets</span><span data-l="ko" lang="ko">전체 스택 벤치마크와 목표</span></caption>
+          <thead><tr>
+            <th scope="col"><span data-l="en">What</span><span data-l="ko" lang="ko">항목</span></th>
+            <th scope="col" class="num"><span data-l="en">Target</span><span data-l="ko" lang="ko">목표</span></th>
+            <th scope="col" class="num"><span data-l="en">Measured</span><span data-l="ko" lang="ko">측정</span></th>
+            <th scope="col"><span data-l="en">Result</span><span data-l="ko" lang="ko">판정</span></th>
+          </tr></thead>
+          <tbody>
+            <tr class="miss"><th scope="row"><span data-l="en">Reply starts (you stop, AI voice plays), p50</span><span data-l="ko" lang="ko">응답 시작 (말을 멈춘 뒤 AI 음성 재생), p50</span></th><td class="num" data-k="Target" data-k-ko="목표">≤ 2.00 s</td><td class="num" data-k="Measured" data-k-ko="측정">3.26 s</td><td data-k="Result" data-k-ko="판정"><span class="verdict"><svg aria-hidden="true"><use href="#i-miss"/></svg><span data-l="en">Missed</span><span data-l="ko" lang="ko">미달</span></span></td></tr>
+            <tr class="miss"><th scope="row"><span data-l="en">Reply starts, p95</span><span data-l="ko" lang="ko">응답 시작, p95</span></th><td class="num" data-k="Target" data-k-ko="목표">≤ 4.00 s</td><td class="num" data-k="Measured" data-k-ko="측정">4.43 s</td><td data-k="Result" data-k-ko="판정"><span class="verdict"><svg aria-hidden="true"><use href="#i-miss"/></svg><span data-l="en">Missed</span><span data-l="ko" lang="ko">미달</span></span></td></tr>
+            <tr class="miss"><th scope="row"><span data-l="en">Voice generation speed (RTF per reply), p95</span><span data-l="ko" lang="ko">음성 합성 속도 (응답별 RTF), p95</span></th><td class="num" data-k="Target" data-k-ko="목표">≤ 0.80</td><td class="num" data-k="Measured" data-k-ko="측정">0.87</td><td data-k="Result" data-k-ko="판정"><span class="verdict"><svg aria-hidden="true"><use href="#i-miss"/></svg><span data-l="en">Missed</span><span data-l="ko" lang="ko">미달</span></span></td></tr>
+            <tr class="met"><th scope="row"><span data-l="en">First live caption, p95</span><span data-l="ko" lang="ko">첫 임시 자막, p95</span></th><td class="num" data-k="Target" data-k-ko="목표">≤ 3.00 s</td><td class="num" data-k="Measured" data-k-ko="측정">0.66 s</td><td data-k="Result" data-k-ko="판정"><span class="verdict"><svg aria-hidden="true"><use href="#i-check"/></svg><span data-l="en">Met</span><span data-l="ko" lang="ko">충족</span></span></td></tr>
+            <tr class="met"><th scope="row"><span data-l="en">Barge-in stops the AI, p95 (66 barge-ins)</span><span data-l="ko" lang="ko">끼어들기 후 AI 정지, p95 (66회)</span></th><td class="num" data-k="Target" data-k-ko="목표">≤ 0.35 s</td><td class="num" data-k="Measured" data-k-ko="측정">0.20 s</td><td data-k="Result" data-k-ko="판정"><span class="verdict"><svg aria-hidden="true"><use href="#i-check"/></svg><span data-l="en">Met</span><span data-l="ko" lang="ko">충족</span></span></td></tr>
+            <tr class="met"><th scope="row"><span data-l="en">Recorded 30 s answer, full result, p95</span><span data-l="ko" lang="ko">녹음형 30초, 전체 결과, p95</span></th><td class="num" data-k="Target" data-k-ko="목표">≤ 25.0 s</td><td class="num" data-k="Measured" data-k-ko="측정">20.3 s</td><td data-k="Result" data-k-ko="판정"><span class="verdict"><svg aria-hidden="true"><use href="#i-check"/></svg><span data-l="en">Met</span><span data-l="ko" lang="ko">충족</span></span></td></tr>
+            <tr class="met"><th scope="row"><span data-l="en">Recorded 120 s answer, full result, p95</span><span data-l="ko" lang="ko">녹음형 120초, 전체 결과, p95</span></th><td class="num" data-k="Target" data-k-ko="목표">≤ 60.0 s</td><td class="num" data-k="Measured" data-k-ko="측정">52.5 s</td><td data-k="Result" data-k-ko="판정"><span class="verdict"><svg aria-hidden="true"><use href="#i-check"/></svg><span data-l="en">Met</span><span data-l="ko" lang="ko">충족</span></span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" data-l="en">Replies start about 3 seconds after you stop talking. Most of that is the 0.9 s end-of-turn silence, speech recognition and the voice model's first chunk. Not measured yet: stop-button latency, 60-minute stability, memory across 10 sessions and recognition accuracy on real learner speech. With every model loaded, the processes used about 22.7 GB of memory. <a href="https://github.com/cskwork/voice-roleplay/blob/main/benchmarks/results/2026-09-29-m3pro.md">Full report</a></p>
+      <p class="note" data-l="ko" lang="ko">말을 멈추고 약 3초 뒤에 답이 시작됩니다. 대부분은 턴 종료 침묵 0.9초, 음성 인식, 음성 합성 첫 청크 시간입니다. 아직 측정하지 않은 것: 멈추기 버튼 지연, 60분 안정성, 10세션 메모리, 실제 학습자 음성의 인식 정확도. 모든 모델을 올렸을 때 메모리는 약 22.7 GB였습니다. <a href="https://github.com/cskwork/voice-roleplay/blob/main/benchmarks/results/2026-09-29-m3pro.md">전체 리포트</a></p>
+    </div>
+  </section>
+
+  <section class="status" id="status" aria-labelledby="status-title">
+    <div class="wrap status-grid">
+      <div>
+        <h2 id="status-title">
+          <span data-l="en">Where it stands.</span>
+          <span data-l="ko" lang="ko">지금 상태.</span>
+        </h2>
+        <p class="lead" data-l="en">This is a development build. It has not passed the project's own release criteria yet.</p>
+        <p class="lead" data-l="ko" lang="ko">개발 중인 버전입니다. 프로젝트의 출시 기준을 아직 통과하지 않았습니다.</p>
+      </div>
+      <div class="status-lists">
+        <h3><span data-l="en">Known limits</span><span data-l="ko" lang="ko">알려진 한계</span></h3>
+        <ul class="limits">
+          <li data-l="en">Validated on one machine: an Apple M3 Pro with 36 GB running macOS. The Linux + NVIDIA (vLLM) path exists in code and has never been run.</li>
+          <li data-l="ko" lang="ko">검증한 장비는 Apple M3 Pro 36 GB(macOS) 한 대입니다. Linux + NVIDIA(vLLM) 경로는 코드에만 있고 실행해 본 적이 없습니다.</li>
+          <li data-l="en">Replies start in about 3.3 s (p50). The target is 2 s.</li>
+          <li data-l="ko" lang="ko">답이 시작되기까지 약 3.3초(p50) 걸립니다. 목표는 2초입니다.</li>
+          <li data-l="en">No pronunciation score. Word-level bands exist behind an experimental flag. They were calibrated on Mandarin speakers only, so they stay off until they are validated on Korean learners.</li>
+          <li data-l="ko" lang="ko">발음 점수는 없습니다. 단어별 등급은 실험 플래그 뒤에만 있고, 중국어 모국어 화자 데이터로만 보정되어 한국인 학습자로 검증하기 전까지 꺼져 있습니다.</li>
+          <li data-l="en">Scenario text, Korean translations and model expressions still need native-speaker and translator review.</li>
+          <li data-l="ko" lang="ko">시나리오 문장, 한국어 번역, 모범 표현은 원어민·번역 검수가 필요합니다.</li>
+        </ul>
+        <h3><span data-l="en">Next</span><span data-l="ko" lang="ko">다음 작업</span></h3>
+        <ul class="next">
+          <li data-l="en">A consented speech set from Korean learners, with human ratings, to validate pronunciation feedback</li>
+          <li data-l="ko" lang="ko">동의받은 한국인 학습자 음성과 사람 평가로 발음 피드백 검증</li>
+          <li data-l="en">Faster reply start</li>
+          <li data-l="ko" lang="ko">응답 시작 시간 단축</li>
+          <li data-l="en">Native-speaker and translator review of every scenario</li>
+          <li data-l="ko" lang="ko">모든 시나리오의 원어민·번역 검수</li>
+          <li data-l="en">A test run on Linux with an NVIDIA GPU</li>
+          <li data-l="ko" lang="ko">Linux + NVIDIA GPU에서 실행 검증</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="start" id="start" aria-labelledby="start-title">
+    <div class="wrap start-grid">
+      <div>
+        <h2 id="start-title">
+          <span data-l="en">Up and running in three commands.</span>
+          <span data-l="ko" lang="ko">명령어 세 개면 됩니다.</span>
+        </h2>
+        <div class="terminal" data-copy-root>
+          <div class="terminal-bar"><span class="dots" aria-hidden="true"><i></i><i></i><i></i></span><span>zsh</span>
+            <button type="button" class="copy" data-copy aria-label="Copy commands" data-label-ko="명령어 복사"><svg aria-hidden="true"><use href="#i-copy"/></svg><span class="copy-done" aria-live="polite"></span></button>
+          </div>
+<pre data-copy-text><span class="c-cmd">git clone https://github.com/cskwork/voice-roleplay.git</span>
+<span class="c-cmd">cd voice-roleplay</span>
+<span class="c-cmd">./app setup</span>   <span class="c-com"># lists what it installs, asks y/N</span>
+<span class="c-cmd">./app start</span>   <span class="c-com"># then open http://127.0.0.1:8710</span></pre>
+        </div>
+        <p class="note" data-l="en"><code>./app doctor</code> checks your machine, model hashes, ports and offline readiness. <code>./app stop</code> cancels running work and shuts every worker down. The first start takes about 25 s to load models, plus about a minute once per scenario to synthesise its opening line.</p>
+        <p class="note" data-l="ko" lang="ko"><code>./app doctor</code>는 장비, 모델 해시, 포트, 오프라인 준비 상태를 확인합니다. <code>./app stop</code>은 진행 중인 작업을 취소하고 워커를 모두 종료합니다. 처음 시작할 때 모델 로딩에 약 25초, 시나리오마다 첫 대사 음성 합성에 한 번 약 1분이 걸립니다.</p>
+      </div>
+      <div class="reqs">
+        <h3><span data-l="en">You need</span><span data-l="ko" lang="ko">필요한 것</span></h3>
+        <ul>
+          <li data-l="en">An Apple Silicon Mac. Tested on an M3 Pro with 36 GB; smaller machines are untested.</li>
+          <li data-l="ko" lang="ko">Apple Silicon Mac. M3 Pro 36 GB에서 테스트했고, 더 작은 사양은 테스트하지 않았습니다.</li>
+          <li data-l="en">About 30 GB of free disk: models take about 19 GB and Python environments about 5.5 GB.</li>
+          <li data-l="ko" lang="ko">디스크 여유 약 30 GB (모델 약 19 GB, Python 환경 약 5.5 GB).</li>
+          <li data-l="en"><a href="https://docs.astral.sh/uv/">uv</a>, git, Node.js 22+ and <code>brew install llama.cpp</code></li>
+          <li data-l="ko" lang="ko"><a href="https://docs.astral.sh/uv/">uv</a>, git, Node.js 22 이상, <code>brew install llama.cpp</code></li>
+          <li data-l="en">Optional: Xcode Command Line Tools, for the word-timing worker</li>
+          <li data-l="ko" lang="ko">선택: 단어 위치 워커용 Xcode Command Line Tools</li>
+          <li data-l="en">A headset. Echo from speakers can trigger barge-in.</li>
+          <li data-l="ko" lang="ko">헤드셋. 스피커 에코가 끼어들기로 인식될 수 있습니다.</li>
+          <li data-l="en">Network during setup only. <code>./app start</code> downloads nothing and refuses to start if a model file is missing.</li>
+          <li data-l="ko" lang="ko">네트워크는 설치할 때만 씁니다. <code>./app start</code>는 아무것도 내려받지 않고, 모델 파일이 없으면 시작하지 않습니다.</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section class="faq" id="faq" aria-labelledby="faq-title">
+    <div class="wrap faq-wrap">
+      <h2 id="faq-title"><span data-l="en">Questions</span><span data-l="ko" lang="ko">자주 묻는 질문</span></h2>
+      <div class="faq-list">
+        <details>
+          <summary><span data-l="en">Does it grade my pronunciation?</span><span data-l="ko" lang="ko">발음을 채점하나요?</span></summary>
+          <p data-l="en">No. Every result has <code>pronunciation_score: null</code>. With the optional word-timing worker installed, recorded practice shows where each word fell, lets you compare your take with the model voice, and draws a pitch contour. None of that is a judgement. <a href="https://github.com/cskwork/voice-roleplay/blob/main/docs/pronunciation.md">Why there's no score yet</a></p>
+          <p data-l="ko" lang="ko">아니요. 모든 결과에서 <code>pronunciation_score</code>는 <code>null</code>입니다. 선택 구성 요소인 단어 위치 워커가 있으면 녹음형 결과에서 단어 위치, 내 발음과 모범 음성 비교, 억양 곡선을 보여 주지만 판정은 하지 않습니다. <a href="https://github.com/cskwork/voice-roleplay/blob/main/docs/pronunciation.md">아직 점수가 없는 이유</a></p>
+        </details>
+        <details>
+          <summary><span data-l="en">Does it really work offline?</span><span data-l="ko" lang="ko">정말 인터넷 없이 되나요?</span></summary>
+          <p data-l="en">Yes, after <code>./app setup</code>. Setup is the only step that uses the network: it downloads the pinned model files and checks each SHA-256. At runtime the workers start in offline mode and the page loads nothing from outside your machine.</p>
+          <p data-l="ko" lang="ko">네, <code>./app setup</code> 이후에는 됩니다. 네트워크는 설치 단계에서만 씁니다. 고정된 모델 파일을 내려받고 SHA-256을 하나씩 확인합니다. 실행 중에는 워커가 오프라인 모드로 시작하고, 화면도 외부에서 아무것도 불러오지 않습니다.</p>
+        </details>
+        <details>
+          <summary><span data-l="en">Windows, Linux or an Intel Mac?</span><span data-l="ko" lang="ko">Windows, Linux, Intel Mac에서도 되나요?</span></summary>
+          <p data-l="en">Only Apple Silicon Macs have been tested. The code has a Linux + NVIDIA path (vLLM for speech recognition), but nobody has run it yet. Reports from other hardware are very welcome.</p>
+          <p data-l="ko" lang="ko">테스트한 것은 Apple Silicon Mac뿐입니다. 코드에는 Linux + NVIDIA 경로(음성 인식에 vLLM)가 있지만 아직 아무도 실행해 보지 않았습니다. 다른 장비에서 돌려 본 결과를 알려 주시면 큰 도움이 됩니다.</p>
+        </details>
+        <details>
+          <summary><span data-l="en">How much memory does it need?</span><span data-l="ko" lang="ko">메모리는 얼마나 필요한가요?</span></summary>
+          <p data-l="en">During the 200-turn benchmark the five processes used about 22.7 GB with everything loaded. That was on a 36 GB Mac. It may run on less, but that hasn't been tried.</p>
+          <p data-l="ko" lang="ko">200턴 벤치마크 중 모든 모델을 올린 다섯 프로세스가 약 22.7 GB를 썼습니다. 36 GB Mac 기준이며, 더 적은 메모리에서 되는지는 확인하지 않았습니다.</p>
+        </details>
+        <details>
+          <summary><span data-l="en">Can I use it on my phone?</span><span data-l="ko" lang="ko">휴대폰에서도 쓸 수 있나요?</span></summary>
+          <p data-l="en">No. The interface has a mobile layout, but the app binds to 127.0.0.1 on your Mac and is not reachable from other devices. There is no phone app.</p>
+          <p data-l="ko" lang="ko">아니요. 화면은 모바일 크기에도 맞춰져 있지만, 앱은 Mac의 127.0.0.1에만 열려 다른 기기에서 접속할 수 없습니다. 휴대폰 앱은 없습니다.</p>
+        </details>
+        <details>
+          <summary><span data-l="en">Why is the interface in Korean?</span><span data-l="ko" lang="ko">왜 화면이 한국어인가요?</span></summary>
+          <p data-l="en">It is built for Korean learners, so tips, translations and feedback are in Korean. The conversation itself is in English.</p>
+          <p data-l="ko" lang="ko">한국어 학습자를 위해 만들었기 때문에 안내, 번역, 피드백이 한국어입니다. 대화는 영어로 합니다.</p>
+        </details>
+        <details>
+          <summary><span data-l="en">Can I reuse the code?</span><span data-l="ko" lang="ko">코드를 가져다 써도 되나요?</span></summary>
+          <p data-l="en">Yes. The code and content are licensed under the <a href="https://github.com/cskwork/voice-roleplay/blob/main/LICENSE">Apache License 2.0</a>. The models and voices are not part of that licence and keep their own terms, listed in the credits below.</p>
+          <p data-l="ko" lang="ko">네. 코드와 콘텐츠는 <a href="https://github.com/cskwork/voice-roleplay/blob/main/LICENSE">Apache License 2.0</a>을 따릅니다. 모델과 음성은 이 라이선스에 포함되지 않고, 아래 출처에 적힌 각자의 조건을 따릅니다.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="credits" id="credits" aria-labelledby="credits-title">
+    <div class="wrap">
+      <h2 id="credits-title"><span data-l="en">Credits</span><span data-l="ko" lang="ko">출처</span></h2>
+      <div class="credits-grid">
+        <div>
+          <h3><span data-l="en">Models</span><span data-l="ko" lang="ko">모델</span></h3>
+          <p>Qwen3-ASR-0.6B, Qwen3-4B-Instruct-2507 (GGUF by unsloth), Qwen3-ForcedAligner-0.6B, Fun-CosyVoice3-0.5B-2512 (MLX conversion by mlx-community), wav2vec2-lv-60-espeak-cv-ft: Apache-2.0. Silero VAD: MIT. CMUdict: BSD-style. pyworld: MIT. llama.cpp: MIT.</p>
+        </div>
+        <div>
+          <h3><span data-l="en">Voices</span><span data-l="ko" lang="ko">음성</span></h3>
+          <p>Voice prompts from LibriTTS-R (Y. Koizumi, H. Zen, S. Karita et al., 2023), <a href="https://www.openslr.org/141/">openslr.org/141</a>, speakers 4992 and 1188, licensed <a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>. Derived from LibriTTS and LibriVox recordings.</p>
+          <p data-l="en">The original readers did not specifically agree to voice cloning. The project owner chose these voices knowing that (see <code>content/voices/*/SOURCE.md</code>).</p>
+          <p data-l="ko" lang="ko">원래 낭독자가 음성 복제에 따로 동의한 것은 아니며, 제품 책임자가 이를 알고 선택했습니다(<code>content/voices/*/SOURCE.md</code>).</p>
+        </div>
+        <div>
+          <h3><span data-l="en">Type and video</span><span data-l="ko" lang="ko">글꼴과 영상</span></h3>
+          <p data-l="en">Set in a subset of <a href="https://github.com/orioncactus/pretendard">Pretendard</a> by Kil Hyung-jin, SIL Open Font License 1.1, renamed "VR Site Sans" as the licence requires (<a href="fonts/OFL.txt">OFL.txt</a>). The launch video's music and sound effects are original.</p>
+          <p data-l="ko" lang="ko">글꼴은 길형진의 <a href="https://github.com/orioncactus/pretendard">Pretendard</a> 일부(SIL Open Font License 1.1)이며, 라이선스에 따라 "VR Site Sans"로 이름을 바꿨습니다(<a href="fonts/OFL.txt">OFL.txt</a>). 소개 영상의 음악과 효과음은 직접 만들었습니다.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="cta" aria-labelledby="cta-title">
+    <div class="wrap cta-inner">
+      <h2 id="cta-title">
+        <span data-l="en">If you want this to get better, star it.</span>
+        <span data-l="ko" lang="ko">더 좋아지길 바란다면 Star를 눌러 주세요.</span>
+      </h2>
+      <p class="lead" data-l="en">Stars help other learners and contributors find the project. Issues and pull requests are welcome, especially native-speaker review of the scenarios and test runs on other hardware.</p>
+      <p class="lead" data-l="ko" lang="ko">Star는 다른 학습자와 기여자가 프로젝트를 찾는 데 도움이 됩니다. 이슈와 PR도 환영합니다. 특히 시나리오 원어민 검수와 다른 장비에서의 실행 결과가 필요합니다.</p>
+      <div class="actions actions-center">
+        <a class="btn btn-star" href="https://github.com/cskwork/voice-roleplay" data-star>
+          <svg aria-hidden="true"><use href="#i-star"/></svg>
+          <span data-l="en">Star on GitHub</span><span data-l="ko" lang="ko">GitHub에서 Star</span>
+          <span class="star-count" data-star-count hidden></span>
+        </a>
+        <a class="btn btn-ghost" href="https://github.com/cskwork/voice-roleplay/issues">
+          <span data-l="en">Open an issue</span><span data-l="ko" lang="ko">이슈 남기기</span>
+          <svg aria-hidden="true"><use href="#i-arrow"/></svg>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="foot">
+  <div class="wrap foot-inner">
+    <p><span class="foot-brand">voice-roleplay</span> <span lang="ko">말하기 연습</span></p>
+    <nav aria-label="Project links">
+      <a href="https://github.com/cskwork/voice-roleplay">GitHub</a>
+      <a href="https://github.com/cskwork/voice-roleplay/blob/main/README.md">README</a>
+      <a href="https://github.com/cskwork/voice-roleplay/blob/main/README.ko.md" lang="ko">한국어 README</a>
+      <a href="https://github.com/cskwork/voice-roleplay/tree/main/docs/architecture"><span data-l="en">Architecture</span><span data-l="ko" lang="ko">구조</span></a>
+      <a href="https://github.com/cskwork/voice-roleplay/blob/main/benchmarks/results/2026-09-29-m3pro.md"><span data-l="en">Benchmark</span><span data-l="ko" lang="ko">벤치마크</span></a>
+    </nav>
+  </div>
+</footer>
+
+
+<script src="app.js" defer></script>
+</body>
+</html>

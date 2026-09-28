@@ -1,0 +1,29 @@
+voice-roleplay
+Copyright 2026 voice-roleplay contributors
+
+This product is licensed under the Apache License, Version 2.0 (see LICENSE).
+
+Model weights are NOT included in this repository. `./app setup` downloads them
+from their publishers at pinned revisions; each keeps its own license
+(see models.lock.json): Qwen3-ASR-0.6B, Qwen3-ForcedAligner-0.6B,
+Qwen3-4B-Instruct-2507 (Apache-2.0), Fun-CosyVoice3-0.5B-2512 and its MLX
+conversion, facebook/wav2vec2-lv-60-espeak-cv-ft (Apache-2.0), CMUdict.
+
+Third-party material included in this repository:
+
+- services/gateway/assets/silero_vad.onnx — Silero VAD, MIT License
+  (services/gateway/assets/SILERO_VAD_LICENSE).
+- content/voices/libritts_r_4992_f, content/voices/libritts_r_1188_m and
+  content/voices/candidates/libritts_r_* — reference clips from LibriTTS-R
+  (Koizumi et al., 2023), derived from LibriTTS / LibriVox, CC BY 4.0.
+  See each folder's SOURCE.md for the exact attribution.
+- content/voices/candidates/vctk_p311_m — CSTR VCTK Corpus 0.92,
+  University of Edinburgh, CC BY 4.0.
+- content/voices/candidates/ljspeech_f — LJ Speech Dataset 1.1, public domain.
+- marketing/launch-video/scene/fonts — subset of Pretendard, SIL Open Font
+  License 1.1 (renamed per the OFL; see marketing/launch-video/CREDITS.md).
+- site/fonts/vr-site-sans.woff2 — subset of Pretendard, SIL Open Font License 1.1
+  (renamed per the OFL; see site/fonts/OFL.txt).
+
+Scenario and pronunciation-guide content (content/) is original work of the
+voice-roleplay contributors and is covered by the Apache License 2.0.
