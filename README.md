@@ -4,6 +4,12 @@
 
 제품 요구사항은 `docs/PRD.md`, 컴포넌트 간 계약은 `contracts/PROTOCOL.md`에 있습니다.
 
+| 학습 홈 | 실시간 회화 | 모바일 |
+|---|---|---|
+| ![학습 홈](docs/screenshots/home.png) | ![실시간 회화](docs/screenshots/realtime.png) | ![모바일 실시간 회화](docs/screenshots/mobile-realtime.png) |
+
+스크린샷은 실제 모델로 실행한 화면입니다. 학습자 음성만 테스트용 합성 음성(macOS `say`)으로 넣었습니다(`tests/e2e/docs/`).
+
 ## 현재 상태
 
 개발 중인 버전이며 출시 기준(PRD §15, §18)을 통과하지 않았습니다.
