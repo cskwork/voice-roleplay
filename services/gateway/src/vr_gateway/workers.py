@@ -1,8 +1,9 @@
-"""Clients for the ASR (PROTOCOL §3) and TTS (PROTOCOL §4) workers."""
+"""Clients for the ASR (PROTOCOL §3), TTS (PROTOCOL §4) and pronunciation (PROTOCOL §12.2) workers."""
 
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import logging
 import time
@@ -246,6 +247,59 @@ class TtsStream:
                 await ws.close()
             except WebSocketException:
                 pass
+
+
+class PronClient:
+    """Pronunciation worker (PROTOCOL §12.2): JSON bodies with base64 PCM16 16 kHz mono audio.
+
+    Errors become WorkerError with the worker's code (NO_SPEECH, TEXT_EMPTY, NOT_IMPLEMENTED, MODEL_NOT_READY, ...)
+    or TIMEOUT when the per-call timeout passes (the request is abandoned)."""
+
+    CODES = frozenset({"NO_SPEECH", "TEXT_EMPTY", "NOT_IMPLEMENTED", "MODEL_NOT_READY", "AUDIO_TOO_LONG", "OUT_OF_MEMORY",
+                       "AUDIO_INVALID", "BAD_REQUEST"})
+
+    def __init__(self, base_url: str, token: str):
+        self.base_url = base_url.rstrip("/")
+        self.http = httpx.AsyncClient(base_url=self.base_url, headers={"X-Worker-Token": token},
+                                      timeout=httpx.Timeout(90, connect=3))
+
+    async def aclose(self) -> None:
+        await self.http.aclose()
+
+    async def health(self) -> dict | None:
+        return await get_health(self.http, "/health")
+
+    async def _post(self, path: str, body: dict, timeout_s: float) -> dict:
+        try:
+            resp = await self.http.post(path, json=body, timeout=timeout_s)
+        except httpx.TimeoutException as exc:
+            raise WorkerError("TIMEOUT") from exc
+        except httpx.HTTPError as exc:
+            raise WorkerError("WORKER_FAILED") from exc
+        if resp.status_code != 200:
+            try:
+                code = resp.json()["error"]["code"]
+            except (ValueError, KeyError, TypeError):
+                code = None
+            raise WorkerError(code if code in self.CODES else "WORKER_FAILED")
+        return resp.json()
+
+    @staticmethod
+    def _b64(pcm16: bytes) -> str:
+        return base64.b64encode(pcm16).decode("ascii")
+
+    async def align(self, pcm16: bytes, text: str, timeout_s: float) -> dict:
+        return await self._post("/align", {"audio_b64": self._b64(pcm16), "text": text}, timeout_s)
+
+    async def prosody(self, pcm16: bytes, words: list[dict] | None, timeout_s: float) -> dict:
+        body: dict = {"audio_b64": self._b64(pcm16)}
+        if words is not None:
+            body["words"] = [{k: w[k] for k in ("i", "start_ms", "end_ms")} for w in words]
+        return await self._post("/prosody", body, timeout_s)
+
+    async def assess(self, pcm16: bytes, reference_text: str, mode: str, timeout_s: float) -> dict:
+        return await self._post("/assess", {"audio_b64": self._b64(pcm16), "reference_text": reference_text,
+                                            "mode": mode}, timeout_s)
 
 
 def elapsed_ms(start: float) -> int:

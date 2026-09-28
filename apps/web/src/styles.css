@@ -2085,3 +2085,174 @@ input[type='range'] {
     padding: 6px 10px;
   }
 }
+
+/* --- pronunciation (PROTOCOL §12.4): word timings, compare playback, contours; bands only when experimental --- */
+.pron .card-head {
+  flex-wrap: wrap;
+}
+.pron-words {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 12px 0 4px;
+}
+.pron-slot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pron-word {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 40px;
+  padding: 6px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+.pron-word:hover {
+  background: var(--surface-2);
+}
+.pron-word.is-on {
+  border-color: var(--brand);
+  background: var(--brand-weak);
+  box-shadow: inset 0 0 0 1px var(--brand);
+}
+.pron-word.is-uncertain span[lang] {
+  text-decoration: underline dotted;
+  text-underline-offset: 4px;
+}
+.pron-word.band-good,
+.pron-band-key.band-good {
+  color: var(--ok);
+}
+.pron-word.band-check,
+.pron-band-key.band-check {
+  color: var(--warn);
+}
+.pron-word.band-practice,
+.pron-band-key.band-practice {
+  color: var(--danger);
+}
+.pron-word.band-good {
+  background: var(--ok-weak);
+}
+.pron-word.band-check {
+  background: var(--warn-weak);
+}
+.pron-word.band-practice {
+  background: var(--danger-weak);
+}
+.pron-band-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+.pron-band-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.pron-pause {
+  font-size: var(--fs-xs);
+  color: var(--ink-3);
+  border-left: 2px dotted var(--line-strong);
+  padding-left: 6px;
+}
+.pron-panel {
+  display: grid;
+  gap: 10px;
+  padding: 12px 14px;
+  margin: 8px 0 16px;
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+.pron-panel-head {
+  margin: 0;
+}
+.pron-panel .disabled-reason {
+  margin: 0;
+}
+.pron-judgement {
+  display: grid;
+  gap: 8px;
+  justify-items: start;
+}
+.pron-heard {
+  margin: 0;
+}
+.pron-judgement p {
+  margin: 0;
+}
+.pron-guide summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.pron-guide-entry h4 {
+  margin: 10px 0 4px;
+  font-size: var(--fs-h3);
+}
+.pron-guide-entry p {
+  margin: 0 0 4px;
+}
+.pron-chart {
+  margin: 0 0 12px;
+}
+.pron-chart figcaption {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pron-legend {
+  display: flex;
+  gap: 16px;
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+  font-size: var(--fs-small);
+  color: var(--ink-2);
+}
+.pron-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.pron-chart-svg {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.pron-chart-mid {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+  stroke-dasharray: 2 4;
+}
+.pron-chart-word {
+  fill: transparent;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+.pron-chart-word:hover {
+  fill: rgb(48 67 196 / 6%);
+}
+.pron-chart-label {
+  font-size: 12px;
+  fill: var(--ink-3);
+}
+.pron-table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: var(--fs-small);
+  margin: 8px 0;
+}
+.pron-table th,
+.pron-table td {
+  text-align: left;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--line);
+}

@@ -8,6 +8,8 @@ import type {
   Health,
   HistoryEntry,
   Job,
+  PronunciationGuide,
+  PronunciationStatusTop,
   ReviewItem,
   Scenario,
   SessionSummary,
@@ -132,6 +134,9 @@ export const api = {
   deleteHistory: () => json<unknown>('DELETE', '/api/history'),
   reviewDue: async () => listOf<ReviewItem>(await json<unknown>('GET', '/api/review/due'), 'items'),
   gradeReview: (id: string, result: 'again' | 'good') => json<unknown>('POST', `/api/review/${encodeURIComponent(id)}/grade`, { result }),
+  /** Saves an expression for spaced review; the gateway accepts it only with history opt-in. */
+  addReview: (body: { text_en: string; text_ko?: string; source_type: 'attempt'; source_id: string }) => json<unknown>('POST', '/api/review', body),
+  pronunciationGuide: () => json<PronunciationGuide>('GET', '/api/pronunciation/guide'),
 
   cachedTts: async (voiceId: string, textId: string, slow = false) =>
     (await request('GET', `/api/tts/cached?voice_id=${encodeURIComponent(voiceId)}&text_id=${encodeURIComponent(textId)}${slow ? '&slow=true' : ''}`)).arrayBuffer(),
@@ -147,7 +152,7 @@ export function normalizeHealth(raw: unknown): Health {
   const b = obj(raw)
   const workers = obj(b.workers)
   const components: Health['components'] = {}
-  for (const k of ['asr', 'tts', 'llm', 'vad'] as const) {
+  for (const k of ['asr', 'tts', 'llm', 'vad', 'pron'] as const) {
     const c = obj(workers[k] ?? b[k] ?? obj(b.components)[k])
     if (Object.keys(c).length) components[k] = { ...c, ready: c.ready === true } as Health['components'][typeof k]
   }
@@ -163,6 +168,7 @@ export function normalizeHealth(raw: unknown): Health {
     components,
     modes: { realtime: mode('realtime'), recorded: mode('recorded') },
     benchmark: (b.benchmark as Health['benchmark']) ?? null,
+    pronunciation: (['timing_only', 'experimental_banded'] as const).find((s) => s === b.pronunciation_assessment) ?? ('assessment_unavailable' as PronunciationStatusTop),
   }
 }
 

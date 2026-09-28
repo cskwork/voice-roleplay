@@ -1,4 +1,4 @@
-"""Start/stop the ASR, TTS and LLM processes with the worker token and an offline environment.
+"""Start/stop the ASR, TTS, LLM and (optional) pronunciation processes with the worker token and an offline environment.
 
 Used in-process by `python -m vr_gateway --manage-workers` (the ./app launcher). Worker output goes to
 var/log/<name>.log; workers themselves are responsible for not logging text or audio (PROTOCOL §2).
@@ -65,7 +65,10 @@ class Supervisor:
 
     def start_all(self) -> None:
         try:
-            for name in self.specs:
+            for name, spec in self.specs.items():
+                if spec.optional and "/" in spec.cmd[0] and not os.path.exists(spec.cmd[0]):
+                    log.warning("worker_skipped name=%s reason=not_installed", name)
+                    continue
                 self.start(name)
         except Exception:
             self.stop_all()  # never leave half a stack running

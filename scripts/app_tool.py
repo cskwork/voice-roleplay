@@ -27,8 +27,10 @@ ROOT = Path(__file__).resolve().parents[1]
 LOCK = ROOT / "models.lock.json"
 HASH_CACHE = ROOT / "var" / "cache" / "model_hashes.json"
 PORTS = {name: int(os.environ.get(f"VR_{name.upper()}_PORT", default))
-         for name, default in (("gateway", 8710), ("asr", 8711), ("tts", 8712), ("llm", 8713))}
+         for name, default in (("gateway", 8710), ("asr", 8711), ("tts", 8712), ("llm", 8713), ("pron", 8714))}
 VENVS = {"gateway": "services/gateway/.venv", "asr": "workers/asr/.venv", "tts": "workers/tts/.venv"}
+# Optional pronunciation worker (PROTOCOL §12): installed by setup, never required by start.
+OPTIONAL_VENVS = {"pron": "workers/pronunciation/.venv"}
 PIDFILES = ROOT / "var" / "run"
 
 
@@ -48,9 +50,10 @@ def sha256(path: Path) -> str:
 
 
 def check_models(full: bool, hash_files: bool = True) -> list[tuple[str, str, str]]:
-    """Rows (name, status, detail). status: ok | missing | size | hash | optional-missing.
+    """Rows (name, status, detail). status: ok | missing | size | hash | optional-missing | feature-missing.
 
-    Hashes are cached in var/cache/model_hashes.json keyed by size and mtime; `full` re-hashes everything."""
+    `feature-missing`: a file of an optional feature (model entry with `optional_feature`, e.g. pronunciation) that
+    setup downloads but start does not require. Hashes are cached in var/cache/model_hashes.json keyed by size and mtime; `full` re-hashes everything."""
     cache = {} if full or not HASH_CACHE.exists() else json.loads(HASH_CACHE.read_text())
     rows = []
     for model in lock_models():
@@ -59,7 +62,10 @@ def check_models(full: bool, hash_files: bool = True) -> list[tuple[str, str, st
             path = ROOT / rel
             required = f.get("required", True)
             if not path.is_file():
-                rows.append((rel, "missing" if required else "optional-missing", "not downloaded"))
+                status = "missing" if required else "optional-missing"
+                if required and model.get("optional_feature"):
+                    status = "feature-missing"
+                rows.append((rel, status, "not downloaded"))
                 continue
             st = path.stat()
             if st.st_size != f["bytes"]:
@@ -81,18 +87,20 @@ def check_models(full: bool, hash_files: bool = True) -> list[tuple[str, str, st
 
 def cmd_verify(args: list[str]) -> int:
     rows = check_models(full="--full" in args)
-    bad = [r for r in rows if r[1] not in ("ok", "optional-missing")]
+    bad = [r for r in rows if r[1] not in ("ok", "optional-missing", "feature-missing")]
     for name, status, detail in rows:
         if status != "ok" or "--verbose" in args:
             print(f"  {status:<16} {name}  ({detail})")
-    print(f"models: {len(rows) - len(bad)}/{len(rows)} files ok" + (f", {len(bad)} problem(s)" if bad else ""))
+    absent = sum(r[1] in ("optional-missing", "feature-missing") for r in rows)
+    print(f"models: {len(rows) - len(bad) - absent}/{len(rows)} files ok" + (f", {absent} optional not downloaded" if absent else "")
+          + (f", {len(bad)} problem(s)" if bad else ""))
     return 1 if bad else 0
 
 
 def cmd_download(args: list[str]) -> int:
     from huggingface_hub import hf_hub_download  # available in workers/asr/.venv
 
-    todo = {(r[0]) for r in check_models(full=False) if r[1] in ("missing", "size", "hash")}
+    todo = {(r[0]) for r in check_models(full=False) if r[1] in ("missing", "size", "hash", "feature-missing")}
     for model in lock_models():
         src = model["source"]
         for f in model["files"]:
@@ -101,6 +109,12 @@ def cmd_download(args: list[str]) -> int:
                 continue
             print(f"  downloading {src['repo']}@{src['revision'][:10]} {f['path']} ({f['bytes'] / 1e6:.0f} MB)", flush=True)
             (ROOT / rel).unlink(missing_ok=True)
+            if src["hub"] == "github":  # plain file at a pinned commit (CMUdict); checked by sha256 below
+                url = src["url_template"].format(repo=src["repo"], revision=src["revision"], path=f["path"])
+                (ROOT / rel).parent.mkdir(parents=True, exist_ok=True)
+                with urllib.request.urlopen(url, timeout=120) as resp:
+                    (ROOT / rel).write_bytes(resp.read())
+                continue
             hf_hub_download(repo_id=src["repo"], filename=f["path"], revision=src["revision"],
                             local_dir=str(ROOT / model["local_dir"]))
     return cmd_verify(["--full"])
@@ -141,7 +155,7 @@ def our_pids() -> dict[str, int]:
 
 
 def venv_python(name: str) -> Path:
-    return ROOT / VENVS[name] / "bin" / "python"
+    return ROOT / {**VENVS, **OPTIONAL_VENVS}[name] / "bin" / "python"
 
 
 def pkg_versions(name: str, pkgs: list[str]) -> str:
@@ -181,6 +195,9 @@ def rows_doctor(full: bool) -> list[tuple[str, str, str]]:
         v = pkg_versions(name, pkgs)
         add(f"env {name}", bool(v) and not any(part.endswith(" -") for part in v.split(", ")[1:]),
             v or f"missing {VENVS[name]} (run ./app setup)")
+    v = pkg_versions("pron", ["torch", "transformers", "qwen-asr", "pyworld"])
+    add("env pron (optional)", (bool(v) and not any(part.endswith(" -") for part in v.split(", ")[1:])) or None,
+        v or f"not installed ({OPTIONAL_VENVS['pron']}): pronunciation analysis off, recorded practice works without it")
     node = run(["node", "--version"])
     add("node", node.startswith("v") or None, node or "not on PATH (only needed for setup: npm ci + build)")
     llama = run(["llama-server", "--version"])
@@ -200,16 +217,20 @@ def rows_doctor(full: bool) -> list[tuple[str, str, str]]:
 
     # Models
     mrows = check_models(full=full)
-    bad = [r for r in mrows if r[1] not in ("ok", "optional-missing")]
-    optional = [r for r in mrows if r[1] == "optional-missing"]
+    bad = [r for r in mrows if r[1] not in ("ok", "optional-missing", "feature-missing")]
+    optional = [r for r in mrows if r[1] in ("optional-missing", "feature-missing")]
     for model in lock_models():
         mine = [r for r in mrows if r[0].startswith(model["local_dir"] + "/")]
-        problems = [f"{Path(r[0]).name}: {r[1]}" for r in mine if r[1] not in ("ok", "optional-missing")]
-        absent = sum(r[1] == "optional-missing" for r in mine)
+        problems = [f"{Path(r[0]).name}: {r[1]}" for r in mine if r[1] not in ("ok", "optional-missing", "feature-missing")]
+        absent = sum(r[1] in ("optional-missing", "feature-missing") for r in mine)
         detail = "; ".join(problems) if problems else f"{len(mine) - absent} files, sha256 ok"
         if absent and not problems:
             detail = "optional, not downloaded" if absent == len(mine) else f"{detail}; {absent} optional file(s) not downloaded"
-        add(f"model {model['id']}", not problems, f"{model['source']['repo']}@{model['source']['revision'][:10]}: {detail}")
+        feature = model.get("optional_feature")
+        if feature and absent and not problems:
+            detail += f" ({feature} feature off; ./app setup downloads it)"
+        add(f"model {model['id']}", (not problems) and (None if feature and absent else True),
+            f"{model['source']['repo']}@{model['source']['revision'][:10]}: {detail}")
     placeholders = [m["id"] for m in json.loads(LOCK.read_text())["models"] if not m.get("files")]
     if placeholders:
         add("lock placeholders", None, f"not pinned yet: {', '.join(placeholders)}")
@@ -225,6 +246,8 @@ def rows_doctor(full: bool) -> list[tuple[str, str, str]]:
     # Ports
     running = our_pids()
     for name, port in PORTS.items():
+        if name == "pron" and not venv_python("pron").exists():
+            continue  # optional worker not installed: its port is irrelevant
         owner = port_owner(port)
         if owner is None:
             add(f"port {port} ({name})", True, "free")
@@ -268,7 +291,11 @@ def cmd_preflight(args: list[str]) -> int:
     for rel, status, detail in check_models(full=False, hash_files=False):
         if status in ("missing", "size", "hash"):
             problems.append(f"model file {rel}: {detail}")
+        elif status == "feature-missing":
+            print(f"  note: optional model file {rel} not downloaded (pronunciation analysis will be unavailable)")
     for name, port in PORTS.items():
+        if name == "pron" and not venv_python("pron").exists():
+            continue
         owner = port_owner(port)
         if owner:
             problems.append(f"port {port} ({name}) is in use by {owner}")
@@ -298,6 +325,12 @@ def cmd_wait_ready(args: list[str]) -> int:
         if health:
             workers, cache = health["workers"], health.get("tts_cache") or {}
             state = " ".join(f"{k}={'ready' if workers[k]['ready'] else 'loading'}" for k in ("asr", "tts", "llm", "vad"))
+            # Optional pronunciation worker: waited for while its process runs; if it exits, start goes on without it.
+            pron_pid = our_worker_pids(("pron",)).get("pron")
+            pron_running = pron_pid is not None and alive(pron_pid)
+            if "pron" in workers:
+                state += f" pron={'ready' if workers['pron']['ready'] else ('loading' if pron_running else 'off')}"
+            pron_pending = "pron" in workers and not workers["pron"]["ready"] and pron_running
             total = cache.get("openings_total") or 0
             finished = (cache.get("openings_ready") or 0) + (cache.get("openings_failed") or 0)
             if workers["tts"]["ready"]:
@@ -306,7 +339,8 @@ def cmd_wait_ready(args: list[str]) -> int:
                 print(f"  {state}", flush=True)
                 last = state
             # Warm-up (PRD §14.3): models loaded and every scenario's opening line pre-synthesized.
-            if health["modes"]["realtime"]["available"] and (cache.get("status") == "done" or (total and finished >= total)):
+            if health["modes"]["realtime"]["available"] and (cache.get("status") == "done" or (total and finished >= total)) \
+                    and not pron_pending:
                 if cache.get("openings_failed"):
                     print(f"  warning: {cache['openings_failed']} opening line(s) failed to synthesize (see var/log/gateway.log)")
                 return 0
@@ -319,9 +353,9 @@ def cmd_wait_ready(args: list[str]) -> int:
     return 1
 
 
-def our_worker_pids() -> dict[str, int]:
+def our_worker_pids(names: tuple[str, ...] = ("asr", "tts", "llm")) -> dict[str, int]:
     out = {}
-    for name in ("asr", "tts", "llm"):
+    for name in names:
         f = PIDFILES / f"{name}.pid"
         if f.exists():
             try:

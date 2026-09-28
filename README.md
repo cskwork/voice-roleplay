@@ -26,9 +26,9 @@
 
 측정되지 않았거나 미달인 것:
 
-- TTS는 Apple Silicon용 MLX 변환(`mlx-community/Fun-CosyVoice3-0.5B-2512-fp16`, 공식 가중치의 제3자 변환)으로 바꾼 뒤 TTS 단독 측정에서 RTF 목표(p95 ≤ 0.8)를 충족했습니다. ASR·LLM과 함께 올린 전체 스택에서 다시 재지는 않았으므로, 실시간 응답 시작 목표(p50 ≤ 2초)는 아직 확인되지 않았습니다. 위 전체 스택 스모크 수치는 PyTorch TTS 기준입니다.
-- `./app benchmark`는 아직 틀만 있습니다(`benchmarks/run.sh`). 200턴 전체 스택 측정, 학습자 평가셋 WER, 60분 안정성 테스트는 하지 않았습니다.
-- 실제 브라우저 종단 간 테스트(Playwright, `tests/e2e/`)는 작성 중에 작업이 중단되어 실행·검증되지 않았습니다. 위 스모크 테스트는 macOS `say`로 만든 음성을 WebSocket에 20 ms 프레임으로 넣은 결과입니다.
+- 전체 스택 벤치마크(2026-09-28, 200턴, `benchmarks/results/2026-09-29-m3pro.md`): 실시간 응답 시작 p50 3.26 s / p95 4.43 s로 PRD 목표(p50 ≤ 2 s, p95 ≤ 4 s) **미달**, 전체 스택에서 TTS RTF p95 0.87로 목표(≤ 0.8) **미달**입니다. 첫 임시 자막 p95 0.66 s, 끼어들기 정지 p95 0.20 s, 녹음형 30초·120초 결과 시간은 목표를 충족했습니다. 학습자 음성이 아닌 macOS `say` 합성 음성 기준입니다.
+- 측정하지 않은 것: 멈추기 버튼 지연, 60분 안정성, 10세션 메모리 회수, 학습자 평가셋 WER.
+- 실제 브라우저 종단 간 테스트(Playwright, `tests/e2e/`, 실제 모델) 16개가 모두 통과했습니다(끼어들기, 턴 종료, 녹음형, API 거절, 오프라인·로그 누출 검사, 발음 워커, 세션 요약 다시 말하기 포함). 학습자 마이크 음성만 macOS `say` 합성 음성으로 대체했습니다.
 
 Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
 
@@ -40,11 +40,11 @@ Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
 
 - 음성 `content/voices/dev_voice_a`, `dev_voice_b`는 CosyVoice 저장소에 들어 있는 중국어 프롬프트 음성으로 만든 개발용입니다(`개발용 — 출시 전 권리 확인된 음성으로 교체 필요`). 권리가 확인된 영어 음성으로 교체해야 합니다.
 - 시나리오 문장, 한국어 번역, 모범 표현은 초안입니다. 원어민 검수와 번역 검수가 필요합니다(`content/README.md`).
-- 발음 점수는 없습니다. 모든 결과에 `pronunciation_score: null`, `assessment_unavailable`로 표시합니다.
+- 발음 점수는 없습니다. 모든 결과에서 `pronunciation_score`는 `null`입니다. 선택 구성 요소인 발음 워커(`workers/pronunciation`)가 있으면 녹음형 결과에 단어 위치, 단어별 "내 발음 / 모범 음성" 비교 재생, 억양 곡선(참고 지표)을 보여 주며 판정은 하지 않습니다(`timing_only`). 워커가 없거나 실패하면 `assessment_unavailable`입니다. 단어 등급은 실험 기능(`VR_PRON_EXPERIMENTAL=1`)이고, 보정 데이터가 중국어 모국어 화자(speechocean762)뿐이라 한국인 학습자에 대해서는 검증되지 않았으므로 기본으로 꺼져 있습니다(`docs/pronunciation.md`).
 
 ## 빠른 시작
 
-필요한 것: Apple Silicon Mac(검증: M3 Pro 36 GB), 디스크 여유 약 25 GB(모델 약 16 GB, Python 환경 약 4 GB), [uv](https://docs.astral.sh/uv/), git, Node.js 22 이상, `brew install llama.cpp`.
+필요한 것: Apple Silicon Mac(검증: M3 Pro 36 GB), 디스크 여유 약 30 GB(모델 약 19 GB, Python 환경 약 5.5 GB), [uv](https://docs.astral.sh/uv/), git, Node.js 22 이상, `brew install llama.cpp`. 선택 구성 요소인 발음 워커는 pyworld를 소스에서 빌드하므로 Xcode Command Line Tools가 필요합니다(없으면 setup이 경고만 하고 발음 분석 없이 설치를 마칩니다).
 
 ```sh
 ./app setup      # 설치 내용을 보여 주고 y/N으로 동의를 받은 뒤 진행 (--yes: 묻지 않음)
@@ -53,7 +53,7 @@ Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
 ./app stop       # 진행 중 작업 취소, 워커 종료, 남은 프로세스 정리
 ```
 
-`./app setup`이 하는 일: 각 Python 컴포넌트를 잠금 파일 그대로 `uv sync --frozen`, `workers/tts/setup.sh`로 `vendor/CosyVoice`를 고정 커밋에 clone, `apps/web`에서 `npm ci && npm run build`, `models.lock.json`에 적힌 파일만 고정 revision으로 내려받고 SHA-256 확인. 네트워크는 setup에서만 씁니다. `./app start`는 아무것도 내려받지 않고, 모델 파일이나 환경이 없으면 시작을 거부합니다.
+`./app setup`이 하는 일: 각 Python 컴포넌트를 잠금 파일 그대로 `uv sync --frozen`(발음 워커는 `workers/pronunciation/setup.sh`), `workers/tts/setup.sh`로 `vendor/CosyVoice`를 고정 커밋에 clone, `apps/web`에서 `npm ci && npm run build`, `models.lock.json`에 적힌 파일만 고정 revision으로 내려받고 SHA-256 확인(발음 분석용 Qwen3-ForcedAligner-0.6B, wav2vec2-lv-60-espeak-cv-ft, CMUdict 포함. 이 세 가지는 없어도 `./app start`가 거부하지 않고 `./app doctor`가 경고만 합니다). 네트워크는 setup에서만 씁니다. `./app start`는 아무것도 내려받지 않고, 모델 파일이나 환경이 없으면 시작을 거부합니다.
 
 처음 시작할 때는 모델 로딩(약 25초)과 시나리오 첫 대사 음성 합성(한 번만, 약 1분)이 끝날 때까지 기다립니다. 첫 대사 음성은 `var/cache/tts/`에 남아 다음부터는 바로 시작합니다.
 
@@ -76,15 +76,17 @@ Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
         │ X-Worker-Token (시작할 때마다 새로 생성)
         ├──▶ ASR worker   :8711  Qwen3-ASR-0.6B (transformers, MPS)
         ├──▶ TTS worker   :8712  Fun-CosyVoice3-0.5B-2512 (MLX 기본, torch 선택)
-        └──▶ llama-server :8713  Qwen3-4B-Instruct-2507 Q4_K_M (slot 0 대화, slot 1 백그라운드)
+        ├──▶ llama-server :8713  Qwen3-4B-Instruct-2507 Q4_K_M (slot 0 대화, slot 1 백그라운드)
+        └──▶ pron worker  :8714  (선택) Qwen3-ForcedAligner-0.6B 단어 위치, pyworld 억양 곡선,
+                                 wav2vec2-lv-60-espeak-cv-ft 음소(실험 플래그일 때만), 녹음형 연습에서만 호출
 ```
 
-게이트웨이는 `./app start`에서 `--manage-workers`로 실행되어 세 워커를 띄우고 멈춥니다. 워커 로그는 `var/log/`, pid는 `var/run/`에 있습니다.
+게이트웨이는 `./app start`에서 `--manage-workers`로 실행되어 워커들을 띄우고 멈춥니다(발음 워커는 설치되어 있을 때만). 워커 로그는 `var/log/`, pid는 `var/run/`에 있습니다.
 
 ## 개인정보 기본값
 
 - 모든 서버는 127.0.0.1에만 바인딩합니다. LAN 접속은 지원하지 않습니다.
-- 마이크 음성은 디스크나 DB에 쓰지 않습니다. 녹음형 연습의 음성은 작업이 끝나거나 취소·실패하면 메모리에서 해제합니다.
+- 마이크 음성은 디스크나 DB에 쓰지 않습니다. 녹음형 연습의 음성은 작업이 끝나거나 취소·실패하면 메모리에서 해제합니다. 결과 화면의 "내 발음" 단어 재생은 브라우저 메모리에 남은 녹음을 쓰며, 녹음 후 5분이 지나거나 페이지를 닫으면 사라집니다. 억양 곡선과 음소 후보는 기록 저장에 동의해도 저장하지 않습니다.
 - 전사와 피드백은 기본적으로 세션 메모리에만 있고, 저장하지 않은 요약은 15분 뒤 사라집니다. 설정에서 기록 저장을 켠 경우에만 `var/data/app.sqlite3`에 저장합니다. 설정 화면에서 전체 삭제할 수 있고, JSON/Markdown 내보내기는 현재 API(`POST /api/history/export`)로만 제공합니다.
 - 로그에는 이벤트 이름, id, 길이, 상태, 오류 코드만 남깁니다. 전사, TTS 문장, 프롬프트, LLM 출력, 오디오는 기록하지 않습니다.
 - 실행 중 외부 통신(텔레메트리, CDN, 모델 다운로드)은 없습니다. 워커는 `HF_HUB_OFFLINE=1`, `TRANSFORMERS_OFFLINE=1`로 시작합니다.
@@ -94,9 +96,10 @@ Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
 
 | 증상 | 확인할 것 |
 |---|---|
-| `./app start`가 "port ... is in use"로 거부 | 이전 실행이 남았으면 `./app stop`. 다른 프로그램이 쓰는 포트라면 `VR_ASR_PORT`, `VR_TTS_PORT`, `VR_LLM_PORT`, `VR_GATEWAY_PORT`로 다른 포트를 지정할 수 있습니다(예: `VR_LLM_PORT=18713 ./app start`). |
+| `./app start`가 "port ... is in use"로 거부 | 이전 실행이 남았으면 `./app stop`. 다른 프로그램이 쓰는 포트라면 `VR_ASR_PORT`, `VR_TTS_PORT`, `VR_LLM_PORT`, `VR_PRON_PORT`, `VR_GATEWAY_PORT`로 다른 포트를 지정할 수 있습니다(예: `VR_LLM_PORT=18713 ./app start`). |
 | "model file ...: not downloaded" 또는 해시 불일치 | `./app setup`을 다시 실행하면 빠졌거나 다른 파일만 다시 받습니다. `./app doctor --full`은 캐시 없이 모든 해시를 다시 계산합니다. |
 | 시작 중 "worker(s) exited" | `var/log/asr.log`, `tts.log`, `llm.log`를 보세요. 종료 코드 2는 설정 문제(메시지에 설치 안내), 3은 모델 로딩 실패입니다. |
+| 결과에 "이번 녹음은 발음 분석을 하지 못했어요" | `/api/health`의 `workers.pron`과 `var/log/pron.log`를 보세요. 발음 워커는 선택 구성 요소라 없어도 시작은 됩니다. 모델 파일이 없으면 종료 코드 2로 끝나니 `./app setup`을 다시 실행하세요. 실시간 회화 중에 제출된 분석은 발음 분석을 건너뜁니다. |
 | AI 음성이 늦게 나옴 | `/api/health`의 TTS `device`가 `mlx`인지 확인하세요(torch 백엔드는 실시간보다 느림). 녹음형 연습이나 다른 무거운 작업이 동시에 돌고 있지 않은지도 확인하세요. |
 | AI 목소리 때문에 대화가 끊김 | 헤드셋을 쓰세요. 에코가 두 번 의심되면 자동 끼어들기가 꺼지고 "눌러 말하기"를 권합니다. |
 | "전송이 2초 넘게 밀리고 있어요" 경고 | 음성이 서버로 늦게 가고 있습니다. 일시정지 후 다시 시작하거나, 계속되면 회화를 끝내고 녹음 연습을 쓰세요. 앱은 밀린 음성을 버리지 않습니다. |
@@ -105,12 +108,15 @@ Apple Silicon에서의 차이 (PRD 기준 프로필은 Linux + NVIDIA):
 ## 테스트
 
 ```sh
-cd services/gateway && .venv/bin/python -m pytest                        # FAKE 워커(표시됨) + 실제 Silero VAD
+cd services/gateway && .venv/bin/python -m pytest                        # FAKE 워커(표시됨, 발음 워커 포함) + 실제 Silero VAD
+cd workers/pronunciation && .venv/bin/python -m pytest                   # 발음 워커 (workers/pronunciation/README.md)
 cd services/gateway && .venv/bin/python -m pytest ../../workers/feedback/tests -m "not integration"
 cd apps/web && npm run build && npx vitest run
 uv run --no-project --with jsonschema --with pytest python -m pytest tests/content
 services/gateway/.venv/bin/python tests/integration/stack_smoke.py      # ./app start 후 실제 모델로 실행
 ```
+
+브라우저 E2E(`tests/e2e/`, 실제 스택): `pronunciation.spec.ts`가 읽기 연습의 단어별 비교 재생, 참고 지표로 표시된 억양 곡선, 플래그 없이 등급·점수가 없는지를 확인합니다.
 
 잠금 정보: `models.lock.json`(모델 파일별 SHA-256, 라이선스, 변환 출처, 런타임 버전, CosyVoice 커밋), `*/uv.lock`, `apps/web/package-lock.json`.
 
@@ -118,6 +124,6 @@ services/gateway/.venv/bin/python tests/integration/stack_smoke.py      # ./app 
 
 voice-roleplay is a local English speaking-practice web app for Korean learners: realtime spoken roleplay with an AI partner, and recorded practice (reading, shadowing, free answers) with transcripts and text-only feedback. ASR (Qwen3-ASR-0.6B), TTS (Fun-CosyVoice3-0.5B-2512) and the LLM (Qwen3-4B-Instruct-2507 Q4_K_M via llama.cpp) all run on the machine, and after `./app setup` nothing needs the network.
 
-Status: development build, validated only on an Apple M3 Pro (36 GB). With the MLX conversion of CosyVoice3 (default on Apple Silicon), TTS alone measured RTF p95 0.72 and first chunk p50 1.15 s; the full-stack realtime latency targets have not been re-measured with it yet. Architecture diagrams are in `docs/architecture/`. The full-stack benchmark is a stub. The two voices are development placeholders that must be replaced with properly licensed English voices, and the scenario content still needs native-speaker and translation review. There is no pronunciation scoring.
+Status: development build, validated only on an Apple M3 Pro (36 GB). With the MLX conversion of CosyVoice3 (default on Apple Silicon), TTS alone measured RTF p95 0.72 and first chunk p50 1.15 s; a 200-turn full-stack benchmark measured response start p50 3.26 s / p95 4.43 s (PRD target p50 ≤ 2 s: unmet) and in-stack TTS RTF p95 0.87 (unmet). All 16 browser E2E specs pass on the real stack. Architecture diagrams are in `docs/architecture/`. The two voices are development placeholders that must be replaced with properly licensed English voices, and the scenario content still needs native-speaker and translation review. There is no pronunciation scoring (`pronunciation_score` is always null). An optional local pronunciation worker (`workers/pronunciation`, port 8714) adds word timings, word-by-word "my take / model voice" playback and pitch contours (a reference measure, no judgement) to recorded-practice results. Word bands exist only behind `VR_PRON_EXPERIMENTAL=1`; their calibration was fitted on Mandarin-L1 speakers (speechocean762) and has not been validated on Korean learners, so they are off by default.
 
 Quick start: `./app setup` (asks for consent), `./app doctor`, `./app start` (prints `http://127.0.0.1:8710`), `./app stop`. Everything binds to 127.0.0.1, audio is never written to disk, and transcripts are stored only if the learner opts in.

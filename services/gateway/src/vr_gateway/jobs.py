@@ -13,6 +13,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
+from . import pronunciation
 from . import vad as vadmod
 from .audio import DecodedAudio
 from .errors import ApiError
@@ -53,6 +54,7 @@ class Attempt:
     target_diff: list[dict] | None = None
     model_audio: dict[str, dict] = field(default_factory=dict)  # audio_id -> {kind, text, wav}
     next_ai: dict | None = None
+    pronunciation: dict | None = None  # PROTOCOL §12.4; bound to transcript revision 1, never recomputed
     no_speech: bool = False
     finished_at: float | None = None
     last_job_id: str | None = None
@@ -355,6 +357,7 @@ class JobManager:
             # Silence or too little speech: no ASR/LLM call, no failure record (PRD §17).
             attempt.no_speech = True
             attempt.metrics = None
+            attempt.pronunciation = pronunciation.unavailable("NO_SPEECH", pronunciation.mode_for(attempt.exercise_type))
             job.audio = None
             return
         scenario = svc.scenarios.get(attempt.scenario_id)
@@ -367,8 +370,7 @@ class JobManager:
             if exc.code != "WORKER_FAILED":
                 raise
             result = await svc.asr.transcribe(pcm, context)  # one retry for transient failures
-        job.audio = None
-        del pcm
+        job.audio = None  # `pcm` is the last copy; dropped once the pronunciation worker has had it
         text = (result.get("text") or "").strip()
         attempt.revisions = [{"revision": 1, "text": text, "source": "asr", "created_at": time.time()}]
         job.transcript_revision = 1
@@ -377,13 +379,32 @@ class JobManager:
         attempt.metrics = svc.brain.compute_metrics(voiced, text)
         if attempt.target_en is not None:
             attempt.target_diff = svc.brain.diff_target(attempt.target_en, text)
-        if attempt.exercise_type in ("free_answer", "roleplay_turn"):
-            attempt.feedback[1] = await self._feedback(attempt, 1, "asr_text")
-        if attempt.exercise_type == "roleplay_turn" and text:
-            await self._next_ai(attempt, text)
+        # Pronunciation (learner side) runs next to the LLM calls; it never fails the job (PROTOCOL §7, §12.4).
+        await svc.health.snapshot()
+        pron_task = asyncio.create_task(self._pron_learner(attempt, pcm, audio.duration_s))
+        del pcm
+        try:
+            if attempt.exercise_type in ("free_answer", "roleplay_turn"):
+                attempt.feedback[1] = await self._feedback(attempt, 1, "asr_text")
+            if attempt.exercise_type == "roleplay_turn" and text:
+                await self._next_ai(attempt, text)
+            attempt.pronunciation = await pron_task
+        finally:
+            pron_task.cancel()  # no-op when finished; frees the audio when the job is cancelled
 
         self._set(job, "synthesizing")
         await self._model_audio(attempt, scenario)
+        try:
+            await pronunciation.analyze_model(svc, attempt)
+        except Exception as exc:  # the learner-side result stays valid
+            log.error("pron_model_error attempt=%s error=%s", attempt.attempt_id, type(exc).__name__)
+
+    async def _pron_learner(self, attempt: Attempt, pcm: bytes, duration_s: float) -> dict:
+        try:
+            return await pronunciation.analyze_learner(self.svc, attempt, pcm, duration_s)
+        except Exception as exc:
+            log.error("pron_error attempt=%s error=%s", attempt.attempt_id, type(exc).__name__)
+            return pronunciation.unavailable("WORKER_FAILED", pronunciation.mode_for(attempt.exercise_type))
 
     async def _reanalyze(self, job: Job, attempt: Attempt) -> None:
         self._set(job, "analyzing")
@@ -468,6 +489,7 @@ class JobManager:
             "result_version": attempt.latest_revision(), "metrics": attempt.metrics,
             "target_diff": attempt.target_diff, "created_at": attempt.created_at,
             "extra": {"no_speech": attempt.no_speech, "next_ai": attempt.next_ai,
+                      "pronunciation": pronunciation.stored(attempt.pronunciation),
                       **({"target_en": attempt.target_en} if attempt.exercise_type == "drill" else {})},
         }, conn=conn)
         for rev in attempt.revisions:
@@ -520,5 +542,6 @@ class JobManager:
             ],
             "audio": attempt.audio_info,
             "pronunciation_score": None,
-            "pronunciation_status": "assessment_unavailable",
+            "pronunciation_status": pronunciation.top_status(attempt.pronunciation),
+            "pronunciation": attempt.pronunciation,
         }

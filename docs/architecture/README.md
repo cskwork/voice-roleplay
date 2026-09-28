@@ -4,7 +4,7 @@
 
 | 구조도 | 내용 | 파일 |
 |---|---|---|
-| 시스템 구조 | 브라우저, 게이트웨이, VAD, ASR·LLM·TTS 워커, 저장소와 경계 | [system.html](system.html) · [system.json](system.architecture.json) |
+| 시스템 구조 | 브라우저, 게이트웨이, VAD, ASR·LLM·TTS 워커, 저장소와 경계 (선택 구성 요소인 발음 워커는 아래 설명에만 있음) | [system.html](system.html) · [system.json](system.architecture.json) |
 | 실시간 한 턴 | 음성 프레임 → 임시 자막 → 확정 전사 → LLM 스트림 → TTS 재생, 그리고 끼어들기 취소 | [realtime-turn.html](realtime-turn.html) · [json](realtime-turn.sequence.json) |
 | 세션 상태 | READY → LISTENING → FINALIZING → RESPONDING 반복, 끼어들기와 오류 복구 | [session-state.html](session-state.html) · [json](session-state.lifecycle.json) |
 
@@ -15,6 +15,7 @@
 - 모든 프로세스는 `127.0.0.1`에만 바인딩합니다. 게이트웨이(:8710)만 브라우저와 통신하고, 워커(:8711 ASR, :8712 TTS, :8713 LLM)는 게이트웨이가 시작할 때 만든 `X-Worker-Token`이 있어야 응답합니다.
 - VAD(Silero, ONNX)는 게이트웨이 프로세스 안에서 CPU로 돌며, 턴 종료와 끼어들기를 판단합니다.
 - SQLite에는 학습자가 기록 저장에 동의한 전사·피드백만 들어갑니다. TTS 캐시는 시나리오 첫 대사 같은 서비스 자산만 담습니다. 마이크 음성은 어디에도 쓰지 않습니다.
+- 그림에는 아직 없는 선택 구성 요소로 발음 워커(:8714, `workers/pronunciation`)가 있습니다. Qwen3-ForcedAligner-0.6B로 단어 위치를, pyworld로 억양 곡선을 구하고, 실험 플래그를 켠 경우에만 wav2vec2 음소 모델로 등급을 냅니다. 녹음형 연습의 분석 단계(`analyzing`, 모범 음성 쪽은 `synthesizing`)에서만 호출되며, 실시간 세션 중에는 호출하지 않습니다. 워커가 없거나 실패해도 녹음형 결과는 그대로 나오고 발음 분석만 "비가용"으로 표시됩니다. 설명: [`docs/pronunciation.md`](../pronunciation.md), 계약: `contracts/PROTOCOL.md` §12.
 
 ## 실시간 한 턴과 끼어들기
 

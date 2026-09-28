@@ -16,7 +16,8 @@ export function stopModelAudio(): void {
   }
 }
 
-async function playWav(wav: ArrayBuffer): Promise<void> {
+/** Plays a WAV (model audio or a word slice); stops whatever this module was playing. */
+export async function playWav(wav: ArrayBuffer): Promise<void> {
   stopModelAudio()
   const el = new Audio(URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })))
   current = el
@@ -67,6 +68,8 @@ export interface Take {
   url: string
   durationMs: number
   id: string
+  /** Date.now() when recording stopped; the browser copy expires 5 minutes later (PRD §16). */
+  recordedAt: number
 }
 
 /** Records 16 kHz mono PCM16 through the capture worklet and encodes a WAV take. */
@@ -102,7 +105,7 @@ export function useRecorder(deviceId: string, maxMs: number) {
     }
     chunks.current = []
     const wav = encodeWav(all, 16000)
-    setTake({ wav, url: URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })), durationMs: (all.length / 16000) * 1000, id: crypto.randomUUID() })
+    setTake({ wav, url: URL.createObjectURL(new Blob([wav], { type: 'audio/wav' })), durationMs: (all.length / 16000) * 1000, id: crypto.randomUUID(), recordedAt: Date.now() })
   }, [])
   stopRef.current = stop
 

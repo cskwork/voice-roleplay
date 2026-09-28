@@ -28,6 +28,7 @@ from .db import Database
 from .errors import ApiError, error_response
 from .health import HealthMonitor
 from .jobs import JobManager
+from .pronunciation import GuideIndex
 from .realtime import RealtimeEngine
 from .scenarios import ScenarioStore
 from .sessions import SessionManager
@@ -71,6 +72,9 @@ class Services:
     # Background LLM work during a realtime session (goals, hints, per-turn feedback, rolling summary) is
     # pinned to llama-server slot 1 so it never evicts the roleplay prefix cached in slot 0 (PROTOCOL §5).
     llm_bg: Any = None
+    # Optional pronunciation worker client (PROTOCOL §12); None when not configured.
+    pron: Any = None
+    pron_guide: GuideIndex = None
     auth: LocalAuth = None
     health: HealthMonitor = None
     sessions: SessionManager = None
@@ -184,7 +188,8 @@ class WsTransport:
 # ---------------------------------------------------------------- factory
 
 
-def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None, brain=None, vad_model=None) -> Services:
+def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None, brain=None, vad_model=None,
+                   pron=None) -> Services:
     if not config.worker_token:
         config.worker_token = secrets.token_urlsafe(32)
     if asr is None or tts is None:
@@ -192,6 +197,10 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None,
 
         asr = asr or AsrClient(config.asr_url, config.worker_token)
         tts = tts or TtsClient(config.tts_url, config.worker_token)
+    if pron is None and config.pron_url:
+        from .workers import PronClient
+
+        pron = PronClient(config.pron_url, config.worker_token)
     if llm is None:
         from vr_feedback.llm import LlmClient
 
@@ -209,7 +218,8 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None,
     svc = Services(
         config=config, db=Database(config.db_path),
         scenarios=ScenarioStore.load(config.scenarios_dir, config.scenario_schema),
-        brain=brain, asr=asr, tts=tts, llm=llm, llm_bg=llm_bg or llm, vad_model=vad_model,
+        brain=brain, asr=asr, tts=tts, llm=llm, llm_bg=llm_bg or llm, vad_model=vad_model, pron=pron,
+        pron_guide=GuideIndex(config.pron_guide, config.pron_lexicon),
     )
     svc.auth = LocalAuth(config)
     svc.health = HealthMonitor(svc)
@@ -250,7 +260,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
                 if session.engine is not None:
                     await session.engine.shutdown("gateway_stop")
             await svc.jobs.stop()
-            for client in {id(c): c for c in (svc.asr, svc.tts, svc.llm, svc.llm_bg)}.values():
+            for client in {id(c): c for c in (svc.asr, svc.tts, svc.llm, svc.llm_bg, svc.pron) if c}.values():
                 close = getattr(client, "aclose", None)
                 if close:
                     await close()
@@ -434,6 +444,15 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         if entry is None:
             raise ApiError("NOT_FOUND")
         return wav_response(entry["wav"])
+
+    @app.get("/api/pronunciation/guide")
+    async def pronunciation_guide():
+        """Pronunciation guide content (content/pronunciation/guide.json, PA-8): static, not about the learner."""
+        try:
+            data = await asyncio.to_thread(config.pron_guide.read_bytes)
+        except OSError:
+            raise ApiError("NOT_FOUND") from None
+        return Response(data, media_type="application/json", headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/jobs/{job_id}")
     async def get_job(job_id: str):

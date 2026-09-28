@@ -171,15 +171,17 @@ export function Settings() {
             </tr>
           </thead>
           <tbody>
-            {(['gateway', 'vad', 'asr', 'tts', 'llm'] as const).map((k) => {
+            {(['gateway', 'vad', 'asr', 'tts', 'llm', 'pron'] as const).map((k) => {
               const c = app.health?.components[k]
+              if (k === 'pron' && !c) return null
+              const aligner = c?.models?.aligner
               return (
                 <tr key={k}>
                   <th scope="row">{k.toUpperCase()}</th>
                   <td data-label="상태">{c ? c.ready ? <Badge tone="ok">준비됨</Badge> : <Badge tone="warn">준비 안 됨</Badge> : <Badge>정보 없음</Badge>}</td>
                   <td data-label="장치">{c?.device ?? '—'}</td>
                   <td data-label="모델 / 버전" className="mono small model-cell">
-                    {[c?.model_id ?? c?.model, (c?.revision ?? c?.model_revision)?.slice(0, 12), c?.backend, c?.streaming_mode, c?.sample_rate && `${c.sample_rate} Hz`]
+                    {[c?.model_id ?? c?.model ?? aligner?.model_id, (c?.revision ?? c?.model_revision ?? aligner?.revision)?.slice(0, 12), c?.backend, c?.streaming_mode, c?.sample_rate && `${c.sample_rate} Hz`]
                       .filter(Boolean)
                       .join(' · ') || '—'}
                   </td>
@@ -191,7 +193,14 @@ export function Settings() {
         <ul className="plain small">
           <li>브라우저 오디오 샘플레이트: {ctxRate ? `${ctxRate.toLocaleString()} Hz` : '—'} (마이크는 16 kHz로 변환)</li>
           <li>보안 컨텍스트: {window.isSecureContext ? '예' : '아니요 — 마이크를 쓰려면 127.0.0.1 또는 localhost로 접속하세요'}</li>
-          <li>발음 평가: 제공되지 않음 (채점 모듈 없음)</li>
+          <li>
+            발음 평가:{' '}
+            {app.health?.pronunciation === 'experimental_banded'
+              ? '점수 없음. 실험 등급이 켜져 있어요 (한국어 학습자 검증 전)'
+              : app.health?.pronunciation === 'timing_only'
+                ? '점수 없음. 단어 위치와 억양 곡선만 보여 줘요'
+                : '제공되지 않음 (발음 분석 워커 없음)'}
+          </li>
         </ul>
         <button type="button" className="btn btn-ghost" onClick={() => void app.refreshHealth()}>
           다시 확인

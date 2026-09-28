@@ -1,6 +1,7 @@
 import { useCallback, useRef, useState } from 'react'
 import { api } from '../lib/api'
 import { messageFor, toApiError } from '../lib/errors'
+import { rememberTake } from '../lib/takes'
 import type { AttemptResult, Job } from '../lib/types'
 import type { Take } from './audio'
 import { useJobPoll } from './audio'
@@ -44,6 +45,7 @@ export function useAttemptRunner(onResult: (r: AttemptResult) => void) {
         attemptId = (await api.createAttempt(body)).attempt_id
         byTake.current.set(take.id, attemptId)
         await api.uploadAudio(attemptId, take.wav)
+        rememberTake(attemptId, take.wav, take.recordedAt) // "내 발음" word playback on the result screen
       }
       current.current = attemptId
       const { job_id } = await api.submitAttempt(attemptId, take.id)

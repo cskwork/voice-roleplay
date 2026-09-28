@@ -22,10 +22,11 @@ class HealthMonitor:
         async with self._lock:
             if not force and self._snapshot and time.monotonic() - self._at < self.svc.config.health_cache_s:
                 return self._snapshot
-            asr, tts, llm = await asyncio.gather(self.svc.asr.health(), self.svc.tts.health(), self._llm())
-            self._snapshot = self._build(asr, tts, llm)
+            asr, tts, llm, pron = await asyncio.gather(self.svc.asr.health(), self.svc.tts.health(), self._llm(),
+                                                       self._pron())
+            self._snapshot = self._build(asr, tts, llm, pron)
             self._at = time.monotonic()
-            self._record_manifest(asr, tts, llm)
+            self._record_manifest(asr, tts, llm, pron)
             return self._snapshot
 
     async def _llm(self) -> bool:
@@ -34,7 +35,10 @@ class HealthMonitor:
         except Exception:
             return False
 
-    def _build(self, asr: dict | None, tts: dict | None, llm_ok: bool) -> dict:
+    async def _pron(self) -> dict | None:
+        return await self.svc.pron.health() if self.svc.pron is not None else None
+
+    def _build(self, asr: dict | None, tts: dict | None, llm_ok: bool, pron: dict | None = None) -> dict:
         asr_ready = bool(asr and asr.get("ready"))
         tts_ready = bool(tts and tts.get("ready"))
         vad_ready = self.svc.vad_model is not None
@@ -46,6 +50,14 @@ class HealthMonitor:
             "llm": {"reachable": llm_ok, "ready": llm_ok, "model_revision": self.svc.config.llm_model_revision},
             "vad": {"ready": vad_ready, "model": "silero-vad 6.2.3 (onnx, cpu)"},
         }
+        pron_status = "assessment_unavailable"
+        if self.svc.pron is not None:  # optional worker (PROTOCOL §12): listed only when configured
+            pron_ready = bool(pron and pron.get("ready"))
+            workers["pron"] = {"reachable": pron is not None, "ready": pron_ready,
+                               **{k: pron.get(k) for k in ("device", "models", "bands_enabled", "calibration_version")
+                                  if pron}}
+            if pron_ready:
+                pron_status = "experimental_banded" if pron.get("bands_enabled") else "timing_only"
         rt_missing = [n for n, ok in (("ASR", asr_ready), ("TTS", tts_ready), ("LLM", llm_ok), ("VAD", vad_ready)) if not ok]
         rec_missing = [n for n, ok in (("ASR", asr_ready), ("VAD", vad_ready)) if not ok]
         busy = self.svc.sessions.active_realtime() is not None
@@ -68,15 +80,19 @@ class HealthMonitor:
             "workers": workers,
             "modes": modes,
             "benchmark": {"status": "not_measured"},
-            "pronunciation_assessment": "assessment_unavailable",
+            "pronunciation_assessment": pron_status,
         }
 
-    def _record_manifest(self, asr: dict | None, tts: dict | None, llm_ok: bool) -> None:
+    def _record_manifest(self, asr: dict | None, tts: dict | None, llm_ok: bool, pron: dict | None = None) -> None:
         """Keep model_manifest in step with what the workers report (diagnostics, PRD §13.4)."""
         seen = []
         for info, runtime in ((asr, "asr"), (tts, "tts")):
             if info and info.get("ready") and info.get("model_id"):
                 seen.append((info["model_id"], info.get("revision"), f"{runtime}:{info.get('device', '')}"))
+        if pron and pron.get("ready"):
+            for model in (pron.get("models") or {}).values():
+                if model and model.get("model_id"):
+                    seen.append((model["model_id"], model.get("revision"), f"pron:{pron.get('device', '')}"))
         if llm_ok:
             seen.append(("llm", self.svc.config.llm_model_revision, "llama.cpp"))
         if seen != self._manifest_seen:
@@ -95,6 +111,11 @@ class HealthMonitor:
     def llm_ready(self) -> bool:
         snap = self._snapshot
         return bool(snap and snap["workers"]["llm"]["ready"])
+
+    def pron_state(self) -> dict | None:
+        """The pronunciation worker's entry of the last snapshot (None when not configured)."""
+        snap = self._snapshot
+        return snap["workers"].get("pron") if snap else None
 
     def tts_ready(self) -> bool:
         snap = self._snapshot

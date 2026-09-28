@@ -3,7 +3,7 @@
 #
 #   ./app setup [--yes]    install runtimes, web build and pinned models (asks first; --yes = no prompt)
 #   ./app doctor [--full]  check hardware, runtimes, model hashes, ports, voices, offline readiness
-#   ./app start            start gateway + ASR/TTS/LLM workers, wait until ready, print the URL (never downloads)
+#   ./app start            start gateway + ASR/TTS/LLM (+ optional pronunciation) workers, wait until ready, print the URL
 #   ./app stop             stop gracefully (jobs cancelled, workers stopped), clean up leftovers
 #   ./app benchmark [...]  run benchmarks/run.sh
 set -euo pipefail
@@ -37,14 +37,16 @@ cmd_setup() {
   [ "${1:-}" = "--yes" ] && yes=1
   cat <<'EOF'
 ./app setup will:
-  1. create Python environments with uv from the lock files (services/gateway, workers/asr, workers/tts)
+  1. create Python environments with uv from the lock files (services/gateway, workers/asr, workers/tts,
+     and the optional pronunciation worker workers/pronunciation, which compiles pyworld: needs Xcode Command Line Tools)
   2. clone vendor/CosyVoice at the pinned commit (workers/tts/setup.sh)
   3. install and build the web app (npm ci && npm run build in apps/web)
-  4. download the model files listed in models.lock.json from Hugging Face at pinned revisions
+  4. download the model files listed in models.lock.json from Hugging Face (and CMUdict from GitHub) at pinned revisions
      (Qwen3-ASR-0.6B ~1.8 GB, Fun-CosyVoice3-0.5B-2512 ~5 GB, its MLX fp16 conversion ~1.7 GB,
-      Qwen3-4B-Instruct-2507 Q4_K_M GGUF ~2.4 GB)
+      Qwen3-4B-Instruct-2507 Q4_K_M GGUF ~2.4 GB; for pronunciation analysis Qwen3-ForcedAligner-0.6B ~1.8 GB,
+      wav2vec2-lv-60-espeak-cv-ft ~1.3 GB, CMUdict ~3.6 MB)
      and verify every file's SHA-256
-This uses the network (PyPI, GitHub, npm, Hugging Face) and about 15 GB of disk. After setup the app runs offline.
+This uses the network (PyPI, GitHub, npm, Hugging Face) and about 25 GB of disk (models ~18 GB, environments ~5.5 GB). After setup the app runs offline.
 EOF
   if [ $yes -ne 1 ]; then
     [ -t 0 ] || die "no terminal to ask for consent; re-run with --yes to agree non-interactively"
@@ -64,6 +66,10 @@ EOF
   say "== [1/4] Python environments (uv sync --frozen)"
   (cd "$ROOT/services/gateway" && uv sync --frozen)
   (cd "$ROOT/workers/asr" && uv sync --frozen)
+  # Optional: without it recorded practice works and reports pronunciation analysis as unavailable.
+  if ! "$ROOT/workers/pronunciation/setup.sh"; then
+    say "warning: the optional pronunciation worker was not installed (see the error above); continuing without it"
+  fi
   say "== [2/4] TTS worker: vendor/CosyVoice + environment"
   "$ROOT/workers/tts/setup.sh"
   say "== [3/4] Web app"
@@ -100,7 +106,7 @@ cmd_start() {
   if ! "$PYTHON" "$TOOL" wait-ready "$pid" "${VR_START_TIMEOUT_S:-900}"; then
     say "Start failed; stopping what was started."
     cmd_stop >/dev/null || true
-    die "see var/log/gateway.log, var/log/asr.log, var/log/tts.log, var/log/llm.log"
+    die "see var/log/gateway.log, var/log/asr.log, var/log/tts.log, var/log/llm.log (and var/log/pron.log)"
   fi
   trap - INT TERM
   say ""
@@ -137,6 +143,7 @@ cmd_stop() {
   stop_worker asr asr_worker
   stop_worker tts tts_worker
   stop_worker llm llama-server
+  stop_worker pron pron_worker
   say "Stopped."
 }
 

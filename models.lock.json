@@ -1,7 +1,7 @@
 {
   "lock_version": 1,
-  "updated": "2026-09-27",
-  "description": "Pinned model files, conversion provenance, licenses and runtime versions (PRD §4, §14.3; PROTOCOL §1). `./app setup` downloads exactly the files with required != false at the pinned revision and verifies every sha256; `./app doctor` re-checks them. Hashes were computed with `shasum -a 256` over models/ on the dev machine; for LFS files they equal the Hugging Face LFS sha256 recorded in models/*/.cache/huggingface.",
+  "updated": "2026-09-29",
+  "description": "Pinned model files, conversion provenance, licenses and runtime versions (PRD §4, §14.3; PROTOCOL §1). `./app setup` downloads exactly the files with required != false at the pinned revision and verifies every sha256; `./app doctor` re-checks them. Models with `optional_feature` are downloaded by setup but not required by `./app start` (a missing file is a doctor warning, a wrong hash is a failure). Hashes were computed with `shasum -a 256` over models/ on the dev machine; for LFS files they equal the Hugging Face LFS sha256 recorded in models/*/.cache/huggingface.",
   "models": [
     {
       "id": "asr",
@@ -317,6 +317,151 @@
           "bytes": 2497281120
         }
       ]
+    },
+    {
+      "id": "pron_aligner",
+      "name": "Qwen3-ForcedAligner-0.6B",
+      "role": "word timings for recorded practice (workers/pronunciation `/align`, qwen-asr 0.0.6 `Qwen3ForcedAligner`, MPS bf16). Optional pronunciation feature (PROTOCOL §12): `./app setup` downloads these files, but `./app start` does not require them; without them the pronunciation worker is not usable and recorded practice reports `pronunciation.status: \"unavailable\"`.",
+      "optional_feature": "pronunciation",
+      "source": {
+        "hub": "huggingface",
+        "repo": "Qwen/Qwen3-ForcedAligner-0.6B",
+        "revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7"
+      },
+      "local_dir": "models/Qwen3-ForcedAligner-0.6B",
+      "license": "apache-2.0",
+      "license_evidence": "models/Qwen3-ForcedAligner-0.6B/README.md front matter `license: apache-2.0`",
+      "conversion": "none (official weights, used as downloaded)",
+      "hash_evidence": "2026-09-29: every file's git blob id equals the Hugging Face tree API `oid` at this revision; model.safetensors sha256 equals the LFS oid.",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "5058416891bc47a2051557765997e8c42f8eb78a0e33c3e775bd17d4b0ba4d50",
+          "bytes": 57456
+        },
+        {
+          "path": "chat_template.json",
+          "sha256": "75a8cfca24f00de72d796fbfed6858fc9614ef3dabd8696684cc3bc03a9c58ff",
+          "bytes": 1161
+        },
+        {
+          "path": "config.json",
+          "sha256": "d616c65d46c4b90bdc651b0a0963ea932732241140f337f9bb6b0335a9c8ef09",
+          "bytes": 5982
+        },
+        {
+          "path": "generation_config.json",
+          "sha256": "948d089b23bca1d214e768d59c4438365665f52ec6d33678f4062206b3fbbb8c",
+          "bytes": 115
+        },
+        {
+          "path": "merges.txt",
+          "sha256": "8831e4f1a044471340f7c0a83d7bd71306a5b867e95fd870f74d0c5308a904d5",
+          "bytes": 1671853
+        },
+        {
+          "path": "model.safetensors",
+          "sha256": "47831d0e82f96b20e9034dba01a075ee06436654719f6a68289e49f1b65ce0e7",
+          "bytes": 1835544544
+        },
+        {
+          "path": "preprocessor_config.json",
+          "sha256": "45e120a4eda2c20c5d7f2ea9354e63536bf35e27aa573fb7cdf78017b378770d",
+          "bytes": 330
+        },
+        {
+          "path": "tokenizer_config.json",
+          "sha256": "3ab80063f8511deb9566e6ad438d17b7a6277fcffd52d92854112f19d36bd81c",
+          "bytes": 12666
+        },
+        {
+          "path": "vocab.json",
+          "sha256": "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910",
+          "bytes": 2776833
+        }
+      ]
+    },
+    {
+      "id": "pron_phones",
+      "name": "wav2vec2-lv-60-espeak-cv-ft",
+      "role": "phone posteriors for the experimental GOP (workers/pronunciation `/assess`, transformers Wav2Vec2ForCTC). Only used with VR_PRON_EXPERIMENTAL=1; without these files `/assess` answers 501 and word timings still work. Optional pronunciation feature (PROTOCOL §12): `./app setup` downloads these files, but `./app start` does not require them; without them the pronunciation worker is not usable and recorded practice reports `pronunciation.status: \"unavailable\"`.",
+      "optional_feature": "pronunciation",
+      "source": {
+        "hub": "huggingface",
+        "repo": "facebook/wav2vec2-lv-60-espeak-cv-ft",
+        "revision": "ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4"
+      },
+      "local_dir": "models/wav2vec2-lv-60-espeak-cv-ft",
+      "license": "apache-2.0",
+      "license_evidence": "models/wav2vec2-lv-60-espeak-cv-ft/README.md front matter `license: apache-2.0`",
+      "conversion": "none (official weights, used as downloaded; the repository has pytorch_model.bin only, loaded with torch.load(weights_only=True))",
+      "hash_evidence": "2026-09-29: every file's git blob id equals the Hugging Face tree API `oid` at this revision; pytorch_model.bin sha256 equals the LFS oid.",
+      "files": [
+        {
+          "path": "README.md",
+          "sha256": "81a55816a87034bcf0828d6181fa88abad32a0cbfcebc2ebc8b336664b69ba60",
+          "bytes": 3035
+        },
+        {
+          "path": "config.json",
+          "sha256": "4609fb49b7e1d28aecb2840da1926c40bd915bc6f1120a940afacf7159bbfb13",
+          "bytes": 1856
+        },
+        {
+          "path": "preprocessor_config.json",
+          "sha256": "a2254a5b58f72cd4de3632f8eee64f3f098b7c1402128d2f419e7d00ae13e335",
+          "bytes": 212
+        },
+        {
+          "path": "pytorch_model.bin",
+          "sha256": "3173bde9e9ce490fa0f989e413c42f25bc1820c020adc1e6b9b87025b3cfcc5e",
+          "bytes": 1263535127
+        },
+        {
+          "path": "special_tokens_map.json",
+          "sha256": "bb7068de1150661a10b55f9e4b12a0e77af8bf91f5e45e1b58afaf1d0e17f675",
+          "bytes": 85
+        },
+        {
+          "path": "tokenizer_config.json",
+          "sha256": "1273ec458332cc55226ec596904bae811420755ace7e5d69462b61c4f480b457",
+          "bytes": 321
+        },
+        {
+          "path": "vocab.json",
+          "sha256": "d732ab2456c0c017930001dc9af0b41b3b93d25b2eb9740bf9d925508d7d87d0",
+          "bytes": 4637
+        }
+      ]
+    },
+    {
+      "id": "pron_lexicon",
+      "name": "CMUdict (cmudict.dict)",
+      "role": "expected phones for `/assess` (workers/pronunciation/pron_worker/lexicon.py) and, in the gateway, linking words to the pronunciation guide (services/gateway/src/vr_gateway/pronunciation.py). Optional pronunciation feature (PROTOCOL §12): `./app setup` downloads these files, but `./app start` does not require them; without them the pronunciation worker is not usable and recorded practice reports `pronunciation.status: \"unavailable\"`.",
+      "optional_feature": "pronunciation",
+      "source": {
+        "hub": "github",
+        "repo": "cmusphinx/cmudict",
+        "revision": "74790861f652b15e4ac49015a90074ad62a27690",
+        "url_template": "https://raw.githubusercontent.com/{repo}/{revision}/{path}"
+      },
+      "local_dir": "models/cmudict",
+      "license": "BSD-2-Clause-style (Carnegie Mellon University)",
+      "license_evidence": "models/cmudict/LICENSE (two-clause redistribution terms, CMU copyright 1993-2015). The GitHub license API reports NOASSERTION because the text is not a verbatim SPDX template.",
+      "conversion": "none (file used as downloaded)",
+      "hash_evidence": "2026-09-29: both files' git blob ids equal the GitHub contents API `sha` at this commit.",
+      "files": [
+        {
+          "path": "cmudict.dict",
+          "sha256": "81917843c7f44ce2b094ac63873c2c7a4cf802040792c455ba3ca406891c3d22",
+          "bytes": 3618488
+        },
+        {
+          "path": "LICENSE",
+          "sha256": "bd4ce8e44170a5f9f481310ca85c51de3c4f851a65e679b40e603b143bd3542a",
+          "bytes": 1754
+        }
+      ]
     }
   ],
   "bundled_assets": [
@@ -346,7 +491,8 @@
     "workers/asr": "workers/asr/uv.lock",
     "workers/tts": "workers/tts/uv.lock (+ vendor/CosyVoice at the commit above)",
     "apps/web": "apps/web/package-lock.json",
-    "llm": "Homebrew llama-server (not locked by this repo; version recorded below, flags in config/llm/server.json)"
+    "llm": "Homebrew llama-server (not locked by this repo; version recorded below, flags in config/llm/server.json)",
+    "workers/pronunciation": "workers/pronunciation/uv.lock (optional; pyworld is built from its sdist by workers/pronunciation/setup.sh)"
   },
   "runtimes_observed": {
     "note": "Versions installed on the dev machine when this lock was written (Apple M3 Pro 36 GB, macOS 26.6.2 arm64). The lock files above are authoritative.",
@@ -382,6 +528,15 @@
     "llama.cpp": {
       "llama-server": "version 0.5.0 (build 11146, commit 7fe450e19)",
       "source": "Homebrew, macOS arm64, Metal"
+    },
+    "workers/pronunciation": {
+      "python": "3.12.11",
+      "torch": "2.14.0",
+      "transformers": "4.57.6",
+      "qwen-asr": "0.0.6",
+      "pyworld": "0.3.5",
+      "fastapi": "0.141.1",
+      "numpy": "2.5.3"
     }
   }
 }

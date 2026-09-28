@@ -1,11 +1,13 @@
 import { useState } from 'react'
 import { Icon } from '../components/Icon'
 import { ModelAudio } from '../components/ModelAudio'
+import { PronunciationCard, PronunciationUnavailable } from '../components/Pronunciation'
 import { Badge, FeedbackCard, JobProgress, Notice, PronunciationNote } from '../components/ui'
 import { diffCount, WordDiff } from '../components/WordDiff'
 import { useJobPoll } from '../hooks/audio'
 import { api } from '../lib/api'
 import { messageFor, toApiError } from '../lib/errors'
+import { unavailableReason } from '../lib/pronunciation'
 import type { AttemptResult, Metrics } from '../lib/types'
 import { navigate, useApp, useVoiceId, type StoredResult } from '../state'
 import { roleplayThread } from './Practice'
@@ -177,6 +179,7 @@ export function Result({ attemptId }: { attemptId: string }) {
 
   const showDiff = !!target && r.transcript != null
   const diffs = showDiff && target ? diffCount(target, r.transcript ?? '', r.target_diff) : 0
+  const pron = r.pronunciation
   const retry = () => navigate('practice', meta.scenarioId, meta.opts, meta.exerciseType, meta.itemId ?? '', r.attempt_id)
 
   return (
@@ -207,6 +210,10 @@ export function Result({ attemptId }: { attemptId: string }) {
         <section className="card">
           <WordDiff target={target} heard={r.transcript ?? ''} serverOps={r.target_diff} level="h2" />
         </section>
+      )}
+
+      {pron && pron.status !== 'unavailable' && (
+        <PronunciationCard attemptId={r.attempt_id} p={pron} modelUrl={pron.prosody.model ? audioOf('target')?.url : undefined} canSaveReview={app.settings.history_opt_in} />
       )}
 
       {meta.exerciseType === 'roleplay_turn' && (
@@ -286,7 +293,12 @@ export function Result({ attemptId }: { attemptId: string }) {
         </section>
       )}
 
-      <PronunciationNote />
+      {pron?.status === 'experimental_banded' ? (
+        <p className="pron-note">정식 발음 평가는 제공되지 않습니다. 위의 단어 표시는 검증 전 실험 기능이에요.</p>
+      ) : (
+        <PronunciationNote />
+      )}
+      {pron?.status === 'unavailable' && !r.no_speech && <PronunciationUnavailable p={pron} reason={unavailableReason(pron.reason)} />}
 
       <div className="page-actions">
         {meta.exerciseType !== 'roleplay_turn' && (

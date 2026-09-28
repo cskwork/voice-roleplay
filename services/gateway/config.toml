@@ -1,6 +1,6 @@
 # Gateway configuration. Paths are relative to the repository root.
-# Environment overrides: VR_GATEWAY_PORT, VR_ASR_PORT, VR_TTS_PORT, VR_LLM_PORT (worker ports, e.g. when a
-# default port is taken; also passed to the workers), VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN.
+# Environment overrides: VR_GATEWAY_PORT, VR_ASR_PORT, VR_TTS_PORT, VR_LLM_PORT, VR_PRON_PORT (worker ports, e.g. when
+# a default port is taken; also passed to the workers), VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN.
 
 [gateway]
 host = "127.0.0.1"
@@ -19,6 +19,8 @@ llm_model_revision = "unsloth/Qwen3-4B-Instruct-2507-GGUF@a06e946bb6b655725eafa3
 asr_url = "http://127.0.0.1:8711"
 tts_url = "http://127.0.0.1:8712"
 llm_url = "http://127.0.0.1:8713"
+# Optional pronunciation worker (PROTOCOL §12). Remove this line to turn pronunciation analysis off.
+pron_url = "http://127.0.0.1:8714"
 
 # Process supervisor. `python -m vr_gateway --manage-workers` starts these with
 # VR_WORKER_TOKEN and offline env, waits for /health, and stops them on exit.
@@ -39,3 +41,12 @@ health_url = "http://127.0.0.1:8712/health"
 server_json = "config/llm/server.json"
 cwd = "."
 health_url = "http://127.0.0.1:8713/health"
+
+# Optional (PROTOCOL §12): skipped when workers/pronunciation/.venv is not installed; exits with code 2 when its model
+# files are missing. Recorded practice works without it (pronunciation.status "unavailable"). VR_PRON_EXPERIMENTAL is
+# passed through from the gateway's environment (bands also need the worker's calibration file).
+[supervisor.pron]
+cmd = ["workers/pronunciation/.venv/bin/python", "-m", "pron_worker"]
+cwd = "workers/pronunciation"
+health_url = "http://127.0.0.1:8714/health"
+optional = true

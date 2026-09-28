@@ -14,7 +14,8 @@ ASSETS_DIR = GATEWAY_DIR / "assets"
 
 MIB = 1024 * 1024
 # Port overrides for a machine where a default port is taken: gateway env var -> (worker env var it sets).
-WORKER_PORT_ENV = {"asr": ("VR_ASR_PORT", "ASR_PORT"), "tts": ("VR_TTS_PORT", "VR_TTS_PORT"), "llm": ("VR_LLM_PORT", None)}
+WORKER_PORT_ENV = {"asr": ("VR_ASR_PORT", "ASR_PORT"), "tts": ("VR_TTS_PORT", "VR_TTS_PORT"), "llm": ("VR_LLM_PORT", None),
+                   "pron": ("VR_PRON_PORT", "VR_PRON_PORT")}
 
 
 @dataclass
@@ -24,6 +25,7 @@ class WorkerProcess:
     cwd: Path
     health_url: str
     env: dict[str, str] = field(default_factory=dict)  # values may use ${VR_WORKER_TOKEN}
+    optional: bool = False  # not installed -> skipped at start instead of failing the stack (pronunciation worker)
 
 
 @dataclass
@@ -42,6 +44,11 @@ class Config:
     asr_url: str = "http://127.0.0.1:8711"
     tts_url: str = "http://127.0.0.1:8712"
     llm_url: str = "http://127.0.0.1:8713"
+    # Optional pronunciation worker (PROTOCOL §12). "" = not configured: attempts get pronunciation.status "unavailable".
+    pron_url: str = ""
+    # Guide content (PA-8) and the CMUdict file used to link a word to guide entries in timing_only mode.
+    pron_guide: Path = REPO_ROOT / "content/pronunciation/guide.json"
+    pron_lexicon: Path = REPO_ROOT / "models/cmudict/cmudict.dict"
     worker_token: str = ""
     processes: list[WorkerProcess] = field(default_factory=list)
 
@@ -81,7 +88,8 @@ def load_config(path: Path | None = None) -> Config:
     cfg = Config()
     cfg.host = gw.get("host", cfg.host)
     cfg.port = int(os.environ.get("VR_GATEWAY_PORT", gw.get("port", cfg.port)))
-    for key in ("web_dist", "scenarios_dir", "scenario_schema", "data_dir", "cache_dir", "log_dir", "run_dir"):
+    for key in ("web_dist", "scenarios_dir", "scenario_schema", "data_dir", "cache_dir", "log_dir", "run_dir",
+                "pron_guide", "pron_lexicon"):
         if key in gw:
             setattr(cfg, key, _repo_path(gw[key]))
     if os.environ.get("VR_DATA_DIR"):
@@ -92,6 +100,7 @@ def load_config(path: Path | None = None) -> Config:
     cfg.asr_url = wk.get("asr_url", cfg.asr_url)
     cfg.tts_url = wk.get("tts_url", cfg.tts_url)
     cfg.llm_url = wk.get("llm_url", cfg.llm_url)
+    cfg.pron_url = wk.get("pron_url", cfg.pron_url)
     cfg.worker_token = os.environ.get("VR_WORKER_TOKEN", "")
     for name, spec in raw.get("supervisor", {}).items():
         env: dict[str, str] = {}
@@ -119,8 +128,8 @@ def load_config(path: Path | None = None) -> Config:
             elif "--port" in cmd:
                 cmd[cmd.index("--port") + 1] = port
         cfg.processes.append(WorkerProcess(name=name, cmd=cmd, cwd=_repo_path(spec.get("cwd", ".")),
-                                           health_url=health_url, env=env))
+                                           health_url=health_url, env=env, optional=bool(spec.get("optional"))))
     for name, (gw_var, _) in WORKER_PORT_ENV.items():  # also without a supervisor entry
-        if os.environ.get(gw_var):
+        if os.environ.get(gw_var) and (name != "pron" or cfg.pron_url):
             setattr(cfg, f"{name}_url", f"http://127.0.0.1:{int(os.environ[gw_var])}")
     return cfg

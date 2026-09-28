@@ -229,6 +229,7 @@ export function Setup() {
           {COMPONENTS.map((c) => (
             <ReadyRow key={c.key} label={c.label} role={c.role} c={health?.components[c.key]} />
           ))}
+          {health?.components.pron && <ReadyRow label="발음 분석 (선택)" role="녹음에서 단어 위치와 억양 곡선을 찾아요. 없어도 녹음 연습은 돼요" c={health.components.pron} />}
         </ul>
         <h3 className="subhead">사용 가능한 모드</h3>
         <ul className="mode-list">

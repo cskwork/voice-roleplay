@@ -252,6 +252,63 @@ class FakeLlm:
         pass
 
 
+class FakePron:
+    """FAKE pronunciation worker (PROTOCOL §12.2): scripted word timings (300 ms per word, 100 ms gaps), a flat
+    150 Hz contour, and for /assess scripted phones/GOP/bands. Not a model; records calls (sizes, texts)."""
+
+    def __init__(self):
+        self.ready = True
+        self.bands_enabled = False
+        self.calibration_version = "FAKE-cal-1"
+        self.calls: list[dict] = []
+        self.fail: dict[str, str] = {}  # endpoint -> WorkerError code
+        self.delay = 0.0
+        # /assess per word (by lowercase word): band + phones; others get band "good" and no phones.
+        self.assessed: dict[str, dict] = {}
+
+    async def health(self):
+        if self.ready is None:
+            return None
+        return {"ready": self.ready, "device": "cpu",
+                "models": {"aligner": {"model_id": "FAKE-aligner", "revision": "fake-a"},
+                           "phones": {"model_id": "FAKE-phones", "revision": "fake-p"}},
+                "prosody_method": "pyworld-harvest", "calibration_version": self.calibration_version,
+                "bands_enabled": self.bands_enabled}
+
+    async def _enter(self, endpoint: str, **info):
+        self.calls.append({"endpoint": endpoint, **info})
+        if self.delay:
+            await asyncio.sleep(self.delay)
+        if endpoint in self.fail:
+            raise WorkerError(self.fail[endpoint])
+
+    @staticmethod
+    def _words(text: str) -> list[dict]:
+        tokens = [t for t in ("".join(c for c in w if c.isalnum() or c == "'") for w in text.split()) if t]
+        return [{"i": i, "word": w, "start_ms": 100 + i * 400, "end_ms": 400 + i * 400} for i, w in enumerate(tokens)]
+
+    async def align(self, pcm16: bytes, text: str, timeout_s: float) -> dict:
+        await self._enter("align", bytes=len(pcm16), text=text, timeout_s=timeout_s)
+        return {"words": self._words(text), "model_revision": "fake-a", "elapsed_ms": 1}
+
+    async def prosody(self, pcm16: bytes, words, timeout_s: float) -> dict:
+        await self._enter("prosody", bytes=len(pcm16), words=len(words or []), timeout_s=timeout_s)
+        frames = len(pcm16) // 320
+        return {"f0_hz": [150.0] * frames, "hop_ms": 10, "method": "pyworld-harvest", "elapsed_ms": 1,
+                "per_word": [{"i": w["i"], "mean_f0": 150.0, "f0_range_st": 0.0,
+                              "duration_ms": w["end_ms"] - w["start_ms"]} for w in words or []]}
+
+    async def assess(self, pcm16: bytes, reference_text: str, mode: str, timeout_s: float) -> dict:
+        await self._enter("assess", bytes=len(pcm16), text=reference_text, mode=mode, timeout_s=timeout_s)
+        words = []
+        for w in self._words(reference_text):
+            spec = self.assessed.get(w["word"].lower(), {})
+            words.append({**w, "phones": spec.get("phones", []), "word_gop": spec.get("word_gop"),
+                          "band": spec.get("band", "good") if self.bands_enabled else None})
+        return {"words": words, "calibration_version": self.calibration_version, "bands_enabled": self.bands_enabled,
+                "model_revisions": {"aligner": "fake-a", "phones": "fake-p"}}
+
+
 class FakeVadStream:
     """FAKE VAD: probability 1.0 for loud 512-sample windows, 0.0 for quiet ones."""
 
@@ -335,7 +392,8 @@ def free_port() -> int:
 
 
 class Gateway:
-    def __init__(self, tmp: Path, *, web_dist: Path | None = None, data_dir: Path | None = None, real_vad=False):
+    def __init__(self, tmp: Path, *, web_dist: Path | None = None, data_dir: Path | None = None, real_vad=False,
+                 pron: FakePron | None = None, pron_lexicon: Path | None = None):
         self.port = free_port()
         scen_dir = tmp / "scenarios"
         scen_dir.mkdir(exist_ok=True)
@@ -343,13 +401,13 @@ class Gateway:
         self.config = Config(
             port=self.port, web_dist=web_dist or tmp / "no-dist", scenarios_dir=scen_dir,
             scenario_schema=tmp / "no-schema.json", data_dir=data_dir or tmp / "data", cache_dir=tmp / "cache",
-            log_dir=tmp / "log", worker_token="test-token",
+            log_dir=tmp / "log", worker_token="test-token", pron_lexicon=pron_lexicon or tmp / "no-cmudict.dict",
         )
-        self.asr, self.tts, self.llm = FakeAsr(), FakeTts(), FakeLlm()
+        self.asr, self.tts, self.llm, self.pron = FakeAsr(), FakeTts(), FakeLlm(), pron
         self.record: dict = {}
         vad_model = None if real_vad else FakeVadModel()
         self.svc = build_services(self.config, asr=self.asr, tts=self.tts, llm=self.llm,
-                                  brain=fake_brain(self.record), vad_model=vad_model)
+                                  brain=fake_brain(self.record), vad_model=vad_model, pron=pron)
         self.app = create_app(self.config, services=self.svc, warm_cache=False)
         self.base = f"http://127.0.0.1:{self.port}"
         self.origin = self.base
