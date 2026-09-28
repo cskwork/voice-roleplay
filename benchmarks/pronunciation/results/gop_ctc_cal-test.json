@@ -1,0 +1,214 @@
+{
+  "system": "gop_ctc_cal",
+  "split": "test",
+  "generated_at": "2026-09-28T14:52:03+00:00",
+  "machine": "arm64 Darwin 25.6.0",
+  "scorer": {
+    "method": "segmentation-free CTC GOP over aligned word windows (prev+word+next, pad 200 ms); expected phones = corpus ARPAbet -> pron_worker.lexicon units",
+    "phones_model": "facebook/wav2vec2-lv-60-espeak-cv-ft",
+    "phones_revision": "ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4",
+    "aligner_model": "Qwen/Qwen3-ForcedAligner-0.6B",
+    "aligner_revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7",
+    "unit_table": "units-2",
+    "device": "mps",
+    "calibration_version": "so762-ctcgop-2026-09-28",
+    "sentence_model": [
+      -9.54522,
+      1.785852,
+      0.071659
+    ]
+  },
+  "dataset": {
+    "name": "speechocean762",
+    "source": {
+      "source": "https://github.com/jimbozhang/speechocean762",
+      "commit": "613968e3b0b789fc33936fb5eba1973176ba7d11",
+      "license": "CC BY 4.0 (OpenSLR 101)",
+      "files_verified": 5263,
+      "blob_list_sha256": "0b53410fba4780114a7beba086dcf5978d092ac1db236a302e66531dc78d62ed"
+    },
+    "utterances": 2500,
+    "speakers": 125,
+    "child_speakers": 64,
+    "words": 15967,
+    "phones": 47369,
+    "audio_hours": 2.691,
+    "scorer_elapsed_s": 528.2,
+    "real_time_factor": 0.0545
+  },
+  "definitions": {
+    "mispronounced_word": "human word accuracy <= 6",
+    "severe": "human word accuracy <= 3",
+    "phone_wrong": "human phone accuracy < 0.5",
+    "child": "age < 18"
+  },
+  "results": {
+    "phone": {
+      "n": 47369,
+      "pearson": 0.4798,
+      "spearman": 0.3856,
+      "coverage": 1.0
+    },
+    "word": {
+      "n": 15967,
+      "pearson": 0.4628,
+      "spearman": 0.3846
+    },
+    "sentence": {
+      "accuracy": {
+        "n": 2500,
+        "pearson": 0.616,
+        "spearman": 0.5709
+      }
+    },
+    "word_per_speaker_pearson": {
+      "n": 123,
+      "min": -0.0728,
+      "p25": 0.1769,
+      "median": 0.254,
+      "p75": 0.3964,
+      "max": 0.8084
+    },
+    "by_age_group": {
+      "adult": {
+        "word": {
+          "n": 8701,
+          "pearson": 0.488,
+          "spearman": 0.4196
+        },
+        "phone": {
+          "n": 25752,
+          "pearson": 0.4812,
+          "spearman": 0.3905
+        }
+      },
+      "child": {
+        "word": {
+          "n": 7266,
+          "pearson": 0.4118,
+          "spearman": 0.3313
+        },
+        "phone": {
+          "n": 21617,
+          "pearson": 0.476,
+          "spearman": 0.3786
+        }
+      }
+    },
+    "flags": {
+      "mispronounced_word_accuracy_le_6": {
+        "n": 15967,
+        "positives": 1297,
+        "flagged": 2520,
+        "flagged_positives": 855,
+        "missed_positives": 442,
+        "miss_rate": 0.3408,
+        "recall": 0.6592,
+        "precision": 0.3393
+      },
+      "severe_word_accuracy_le_3": {
+        "n": 15967,
+        "positives": 858,
+        "flagged": 2520,
+        "flagged_positives": 636,
+        "missed_positives": 222,
+        "miss_rate": 0.2587,
+        "recall": 0.7413,
+        "precision": 0.2524
+      },
+      "any_phone_below_0_5": {
+        "n": 15967,
+        "positives": 783,
+        "flagged": 2520,
+        "flagged_positives": 607,
+        "missed_positives": 176,
+        "miss_rate": 0.2248,
+        "recall": 0.7752,
+        "precision": 0.2409
+      },
+      "flag_rate_on_words_scored_10": 0.1072,
+      "not_flagged_vs_word_accuracy": {
+        "n": 15967,
+        "pearson": 0.4332,
+        "spearman": 0.4172
+      },
+      "flag_rate_by_human_word_accuracy": {
+        "0": {
+          "words": 27,
+          "flagged_rate": 1.0
+        },
+        "1": {
+          "words": 18,
+          "flagged_rate": 1.0
+        },
+        "2": {
+          "words": 26,
+          "flagged_rate": 0.9615
+        },
+        "3": {
+          "words": 787,
+          "flagged_rate": 0.7192
+        },
+        "4": {
+          "words": 6,
+          "flagged_rate": 0.5
+        },
+        "5": {
+          "words": 356,
+          "flagged_rate": 0.5421
+        },
+        "6": {
+          "words": 77,
+          "flagged_rate": 0.2987
+        },
+        "7": {
+          "words": 26,
+          "flagged_rate": 0.2692
+        },
+        "8": {
+          "words": 321,
+          "flagged_rate": 0.3801
+        },
+        "9": {
+          "words": 4,
+          "flagged_rate": 0.25
+        },
+        "10": {
+          "words": 14319,
+          "flagged_rate": 0.1072
+        }
+      },
+      "per_speaker_miss_rate_le_6": {
+        "n": 56,
+        "min": 0.0,
+        "p25": 0.2715,
+        "median": 0.3951,
+        "p75": 0.5595,
+        "max": 1.0,
+        "min_positives_per_speaker": 5
+      },
+      "by_age_group_le_6": {
+        "adult": {
+          "n": 8701,
+          "positives": 901,
+          "flagged": 1563,
+          "flagged_positives": 622,
+          "missed_positives": 279,
+          "miss_rate": 0.3097,
+          "recall": 0.6903,
+          "precision": 0.398
+        },
+        "child": {
+          "n": 7266,
+          "positives": 396,
+          "flagged": 957,
+          "flagged_positives": 233,
+          "missed_positives": 163,
+          "miss_rate": 0.4116,
+          "recall": 0.5884,
+          "precision": 0.2435
+        }
+      }
+    }
+  }
+}

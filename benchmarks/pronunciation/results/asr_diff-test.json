@@ -1,0 +1,157 @@
+{
+  "system": "asr_diff",
+  "split": "test",
+  "generated_at": "2026-09-28T13:59:36+00:00",
+  "machine": "arm64 Darwin 25.6.0",
+  "scorer": {
+    "method": "Qwen3-ASR transcript (no context) + vr_feedback.reading.diff_target; flags only",
+    "asr_model": "Qwen/Qwen3-ASR-0.6B",
+    "asr_revision": "5eb144179a02acc5e5ba31e748d22b0cf3e303b0",
+    "device": "mps",
+    "silence_dbfs": -40.0
+  },
+  "dataset": {
+    "name": "speechocean762",
+    "source": {
+      "source": "https://github.com/jimbozhang/speechocean762",
+      "commit": "613968e3b0b789fc33936fb5eba1973176ba7d11",
+      "license": "CC BY 4.0 (OpenSLR 101)",
+      "files_verified": 5263,
+      "blob_list_sha256": "0b53410fba4780114a7beba086dcf5978d092ac1db236a302e66531dc78d62ed"
+    },
+    "utterances": 2500,
+    "speakers": 125,
+    "child_speakers": 64,
+    "words": 15967,
+    "phones": 47369,
+    "audio_hours": 2.691,
+    "scorer_elapsed_s": 922.3,
+    "real_time_factor": 0.0952
+  },
+  "definitions": {
+    "mispronounced_word": "human word accuracy <= 6",
+    "severe": "human word accuracy <= 3",
+    "phone_wrong": "human phone accuracy < 0.5",
+    "child": "age < 18"
+  },
+  "results": {
+    "phone": null,
+    "word": null,
+    "sentence": null,
+    "flags": {
+      "mispronounced_word_accuracy_le_6": {
+        "n": 15967,
+        "positives": 1297,
+        "flagged": 1822,
+        "flagged_positives": 781,
+        "missed_positives": 516,
+        "miss_rate": 0.3978,
+        "recall": 0.6022,
+        "precision": 0.4286
+      },
+      "severe_word_accuracy_le_3": {
+        "n": 15967,
+        "positives": 858,
+        "flagged": 1822,
+        "flagged_positives": 609,
+        "missed_positives": 249,
+        "miss_rate": 0.2902,
+        "recall": 0.7098,
+        "precision": 0.3342
+      },
+      "any_phone_below_0_5": {
+        "n": 15967,
+        "positives": 783,
+        "flagged": 1822,
+        "flagged_positives": 552,
+        "missed_positives": 231,
+        "miss_rate": 0.295,
+        "recall": 0.705,
+        "precision": 0.303
+      },
+      "flag_rate_on_words_scored_10": 0.0659,
+      "not_flagged_vs_word_accuracy": {
+        "n": 15967,
+        "pearson": 0.4853,
+        "spearman": 0.4575
+      },
+      "flag_rate_by_human_word_accuracy": {
+        "0": {
+          "words": 27,
+          "flagged_rate": 1.0
+        },
+        "1": {
+          "words": 18,
+          "flagged_rate": 1.0
+        },
+        "2": {
+          "words": 26,
+          "flagged_rate": 1.0
+        },
+        "3": {
+          "words": 787,
+          "flagged_rate": 0.6836
+        },
+        "4": {
+          "words": 6,
+          "flagged_rate": 0.3333
+        },
+        "5": {
+          "words": 356,
+          "flagged_rate": 0.3933
+        },
+        "6": {
+          "words": 77,
+          "flagged_rate": 0.3896
+        },
+        "7": {
+          "words": 26,
+          "flagged_rate": 0.3077
+        },
+        "8": {
+          "words": 321,
+          "flagged_rate": 0.271
+        },
+        "9": {
+          "words": 4,
+          "flagged_rate": 0.5
+        },
+        "10": {
+          "words": 14319,
+          "flagged_rate": 0.0659
+        }
+      },
+      "per_speaker_miss_rate_le_6": {
+        "n": 56,
+        "min": 0.0286,
+        "p25": 0.2857,
+        "median": 0.446,
+        "p75": 0.6845,
+        "max": 1.0,
+        "min_positives_per_speaker": 5
+      },
+      "by_age_group_le_6": {
+        "adult": {
+          "n": 8701,
+          "positives": 901,
+          "flagged": 889,
+          "flagged_positives": 521,
+          "missed_positives": 380,
+          "miss_rate": 0.4218,
+          "recall": 0.5782,
+          "precision": 0.5861
+        },
+        "child": {
+          "n": 7266,
+          "positives": 396,
+          "flagged": 933,
+          "flagged_positives": 260,
+          "missed_positives": 136,
+          "miss_rate": 0.3434,
+          "recall": 0.6566,
+          "precision": 0.2787
+        }
+      }
+    }
+  }
+}

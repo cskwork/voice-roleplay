@@ -1,0 +1,482 @@
+{
+  "calibration_version": "so762-ctcgop-2026-09-28",
+  "scorer": {
+    "method": "segmentation-free CTC GOP over aligned word windows (prev+word+next, pad 200 ms); expected phones = corpus ARPAbet -> pron_worker.lexicon units",
+    "phones_model": "facebook/wav2vec2-lv-60-espeak-cv-ft",
+    "phones_revision": "ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4",
+    "aligner_model": "Qwen/Qwen3-ForcedAligner-0.6B",
+    "aligner_revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7",
+    "unit_table": "units-2",
+    "device": "mps"
+  },
+  "eval": {
+    "train": {
+      "raw_gop": {
+        "phone": {
+          "n": 47076,
+          "pearson": 0.5123,
+          "spearman": 0.3907,
+          "coverage": 1.0
+        },
+        "word": {
+          "n": 15849,
+          "pearson": 0.4957,
+          "spearman": 0.4129
+        },
+        "sentence": null,
+        "word_per_speaker_pearson": {
+          "n": 116,
+          "min": -0.0652,
+          "p25": 0.1412,
+          "median": 0.2532,
+          "p75": 0.3956,
+          "max": 0.6904
+        },
+        "by_age_group": {
+          "adult": {
+            "word": {
+              "n": 9482,
+              "pearson": 0.5277,
+              "spearman": 0.4797
+            },
+            "phone": {
+              "n": 28056,
+              "pearson": 0.5444,
+              "spearman": 0.4405
+            }
+          },
+          "child": {
+            "word": {
+              "n": 6367,
+              "pearson": 0.2661,
+              "spearman": 0.2429
+            },
+            "phone": {
+              "n": 19020,
+              "pearson": 0.3518,
+              "spearman": 0.2902
+            }
+          }
+        }
+      },
+      "calibrated": {
+        "phone": {
+          "n": 47076,
+          "pearson": 0.5259,
+          "spearman": 0.4161,
+          "coverage": 1.0
+        },
+        "word": {
+          "n": 15849,
+          "pearson": 0.5332,
+          "spearman": 0.4375
+        },
+        "sentence": {
+          "accuracy": {
+            "n": 2500,
+            "pearson": 0.6993,
+            "spearman": 0.627
+          }
+        },
+        "word_per_speaker_pearson": {
+          "n": 116,
+          "min": -0.0531,
+          "p25": 0.2025,
+          "median": 0.3181,
+          "p75": 0.4397,
+          "max": 0.7422
+        },
+        "by_age_group": {
+          "adult": {
+            "word": {
+              "n": 9482,
+              "pearson": 0.5758,
+              "spearman": 0.5056
+            },
+            "phone": {
+              "n": 28056,
+              "pearson": 0.5561,
+              "spearman": 0.4574
+            }
+          },
+          "child": {
+            "word": {
+              "n": 6367,
+              "pearson": 0.3069,
+              "spearman": 0.2688
+            },
+            "phone": {
+              "n": 19020,
+              "pearson": 0.372,
+              "spearman": 0.3332
+            }
+          }
+        },
+        "flags": {
+          "mispronounced_word_accuracy_le_6": {
+            "n": 15849,
+            "positives": 1554,
+            "flagged": 2680,
+            "flagged_positives": 1127,
+            "missed_positives": 427,
+            "miss_rate": 0.2748,
+            "recall": 0.7252,
+            "precision": 0.4205
+          },
+          "severe_word_accuracy_le_3": {
+            "n": 15849,
+            "positives": 1143,
+            "flagged": 2680,
+            "flagged_positives": 889,
+            "missed_positives": 254,
+            "miss_rate": 0.2222,
+            "recall": 0.7778,
+            "precision": 0.3317
+          },
+          "any_phone_below_0_5": {
+            "n": 15849,
+            "positives": 1094,
+            "flagged": 2680,
+            "flagged_positives": 902,
+            "missed_positives": 192,
+            "miss_rate": 0.1755,
+            "recall": 0.8245,
+            "precision": 0.3366
+          },
+          "flag_rate_on_words_scored_10": 0.1015,
+          "not_flagged_vs_word_accuracy": {
+            "n": 15849,
+            "pearson": 0.5088,
+            "spearman": 0.4959
+          },
+          "flag_rate_by_human_word_accuracy": {
+            "0": {
+              "words": 3,
+              "flagged_rate": 1.0
+            },
+            "1": {
+              "words": 6,
+              "flagged_rate": 0.5
+            },
+            "2": {
+              "words": 40,
+              "flagged_rate": 0.975
+            },
+            "3": {
+              "words": 1094,
+              "flagged_rate": 0.7715
+            },
+            "5": {
+              "words": 349,
+              "flagged_rate": 0.639
+            },
+            "6": {
+              "words": 62,
+              "flagged_rate": 0.2419
+            },
+            "7": {
+              "words": 30,
+              "flagged_rate": 0.7
+            },
+            "8": {
+              "words": 322,
+              "flagged_rate": 0.3634
+            },
+            "9": {
+              "words": 3,
+              "flagged_rate": 0.0
+            },
+            "10": {
+              "words": 13940,
+              "flagged_rate": 0.1015
+            }
+          },
+          "per_speaker_miss_rate_le_6": {
+            "n": 52,
+            "min": 0.1053,
+            "p25": 0.1934,
+            "median": 0.3571,
+            "p75": 0.525,
+            "max": 1.0,
+            "min_positives_per_speaker": 5
+          },
+          "by_age_group_le_6": {
+            "adult": {
+              "n": 9482,
+              "positives": 1359,
+              "flagged": 1993,
+              "flagged_positives": 1032,
+              "missed_positives": 327,
+              "miss_rate": 0.2406,
+              "recall": 0.7594,
+              "precision": 0.5178
+            },
+            "child": {
+              "n": 6367,
+              "positives": 195,
+              "flagged": 687,
+              "flagged_positives": 95,
+              "missed_positives": 100,
+              "miss_rate": 0.5128,
+              "recall": 0.4872,
+              "precision": 0.1383
+            }
+          }
+        }
+      },
+      "band_confusion_rows_human_cols_predicted": {
+        "good": {
+          "good": 12742,
+          "check": 741,
+          "practice": 812
+        },
+        "check": {
+          "good": 173,
+          "check": 81,
+          "practice": 157
+        },
+        "practice": {
+          "good": 254,
+          "check": 196,
+          "practice": 693
+        }
+      }
+    },
+    "test": {
+      "raw_gop": {
+        "phone": {
+          "n": 47369,
+          "pearson": 0.4676,
+          "spearman": 0.3591,
+          "coverage": 1.0
+        },
+        "word": {
+          "n": 15967,
+          "pearson": 0.4219,
+          "spearman": 0.3584
+        },
+        "sentence": null,
+        "word_per_speaker_pearson": {
+          "n": 123,
+          "min": -0.0593,
+          "p25": 0.0832,
+          "median": 0.2141,
+          "p75": 0.3298,
+          "max": 0.7983
+        },
+        "by_age_group": {
+          "adult": {
+            "word": {
+              "n": 8701,
+              "pearson": 0.4366,
+              "spearman": 0.3892
+            },
+            "phone": {
+              "n": 25752,
+              "pearson": 0.4695,
+              "spearman": 0.3699
+            }
+          },
+          "child": {
+            "word": {
+              "n": 7266,
+              "pearson": 0.3868,
+              "spearman": 0.3104
+            },
+            "phone": {
+              "n": 21617,
+              "pearson": 0.4626,
+              "spearman": 0.3445
+            }
+          }
+        }
+      },
+      "calibrated": {
+        "phone": {
+          "n": 47369,
+          "pearson": 0.4798,
+          "spearman": 0.3856,
+          "coverage": 1.0
+        },
+        "word": {
+          "n": 15967,
+          "pearson": 0.4628,
+          "spearman": 0.3846
+        },
+        "sentence": {
+          "accuracy": {
+            "n": 2500,
+            "pearson": 0.616,
+            "spearman": 0.5709
+          }
+        },
+        "word_per_speaker_pearson": {
+          "n": 123,
+          "min": -0.0728,
+          "p25": 0.1769,
+          "median": 0.254,
+          "p75": 0.3964,
+          "max": 0.8084
+        },
+        "by_age_group": {
+          "adult": {
+            "word": {
+              "n": 8701,
+              "pearson": 0.488,
+              "spearman": 0.4196
+            },
+            "phone": {
+              "n": 25752,
+              "pearson": 0.4812,
+              "spearman": 0.3905
+            }
+          },
+          "child": {
+            "word": {
+              "n": 7266,
+              "pearson": 0.4118,
+              "spearman": 0.3313
+            },
+            "phone": {
+              "n": 21617,
+              "pearson": 0.476,
+              "spearman": 0.3786
+            }
+          }
+        },
+        "flags": {
+          "mispronounced_word_accuracy_le_6": {
+            "n": 15967,
+            "positives": 1297,
+            "flagged": 2520,
+            "flagged_positives": 855,
+            "missed_positives": 442,
+            "miss_rate": 0.3408,
+            "recall": 0.6592,
+            "precision": 0.3393
+          },
+          "severe_word_accuracy_le_3": {
+            "n": 15967,
+            "positives": 858,
+            "flagged": 2520,
+            "flagged_positives": 636,
+            "missed_positives": 222,
+            "miss_rate": 0.2587,
+            "recall": 0.7413,
+            "precision": 0.2524
+          },
+          "any_phone_below_0_5": {
+            "n": 15967,
+            "positives": 783,
+            "flagged": 2520,
+            "flagged_positives": 607,
+            "missed_positives": 176,
+            "miss_rate": 0.2248,
+            "recall": 0.7752,
+            "precision": 0.2409
+          },
+          "flag_rate_on_words_scored_10": 0.1072,
+          "not_flagged_vs_word_accuracy": {
+            "n": 15967,
+            "pearson": 0.4332,
+            "spearman": 0.4172
+          },
+          "flag_rate_by_human_word_accuracy": {
+            "0": {
+              "words": 27,
+              "flagged_rate": 1.0
+            },
+            "1": {
+              "words": 18,
+              "flagged_rate": 1.0
+            },
+            "2": {
+              "words": 26,
+              "flagged_rate": 0.9615
+            },
+            "3": {
+              "words": 787,
+              "flagged_rate": 0.7192
+            },
+            "4": {
+              "words": 6,
+              "flagged_rate": 0.5
+            },
+            "5": {
+              "words": 356,
+              "flagged_rate": 0.5421
+            },
+            "6": {
+              "words": 77,
+              "flagged_rate": 0.2987
+            },
+            "7": {
+              "words": 26,
+              "flagged_rate": 0.2692
+            },
+            "8": {
+              "words": 321,
+              "flagged_rate": 0.3801
+            },
+            "9": {
+              "words": 4,
+              "flagged_rate": 0.25
+            },
+            "10": {
+              "words": 14319,
+              "flagged_rate": 0.1072
+            }
+          },
+          "per_speaker_miss_rate_le_6": {
+            "n": 56,
+            "min": 0.0,
+            "p25": 0.2715,
+            "median": 0.3951,
+            "p75": 0.5595,
+            "max": 1.0,
+            "min_positives_per_speaker": 5
+          },
+          "by_age_group_le_6": {
+            "adult": {
+              "n": 8701,
+              "positives": 901,
+              "flagged": 1563,
+              "flagged_positives": 622,
+              "missed_positives": 279,
+              "miss_rate": 0.3097,
+              "recall": 0.6903,
+              "precision": 0.398
+            },
+            "child": {
+              "n": 7266,
+              "positives": 396,
+              "flagged": 957,
+              "flagged_positives": 233,
+              "missed_positives": 163,
+              "miss_rate": 0.4116,
+              "recall": 0.5884,
+              "precision": 0.2435
+            }
+          }
+        }
+      },
+      "band_confusion_rows_human_cols_predicted": {
+        "good": {
+          "good": 13005,
+          "check": 816,
+          "practice": 849
+        },
+        "check": {
+          "good": 220,
+          "check": 86,
+          "practice": 133
+        },
+        "practice": {
+          "good": 222,
+          "check": 159,
+          "practice": 477
+        }
+      }
+    }
+  }
+}

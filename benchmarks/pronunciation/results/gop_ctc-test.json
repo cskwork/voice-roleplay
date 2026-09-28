@@ -1,0 +1,87 @@
+{
+  "system": "gop_ctc",
+  "split": "test",
+  "generated_at": "2026-09-28T14:42:27+00:00",
+  "machine": "arm64 Darwin 25.6.0",
+  "scorer": {
+    "method": "segmentation-free CTC GOP over aligned word windows (prev+word+next, pad 200 ms); expected phones = corpus ARPAbet -> pron_worker.lexicon units",
+    "phones_model": "facebook/wav2vec2-lv-60-espeak-cv-ft",
+    "phones_revision": "ae45363bf3413b374fecd9dc8bc1df0e24c3b7f4",
+    "aligner_model": "Qwen/Qwen3-ForcedAligner-0.6B",
+    "aligner_revision": "c7cbfc2048c462b0d63a45797104fc9db3ad62b7",
+    "unit_table": "units-2",
+    "device": "mps"
+  },
+  "dataset": {
+    "name": "speechocean762",
+    "source": {
+      "source": "https://github.com/jimbozhang/speechocean762",
+      "commit": "613968e3b0b789fc33936fb5eba1973176ba7d11",
+      "license": "CC BY 4.0 (OpenSLR 101)",
+      "files_verified": 5263,
+      "blob_list_sha256": "0b53410fba4780114a7beba086dcf5978d092ac1db236a302e66531dc78d62ed"
+    },
+    "utterances": 2500,
+    "speakers": 125,
+    "child_speakers": 64,
+    "words": 15967,
+    "phones": 47369,
+    "audio_hours": 2.691,
+    "scorer_elapsed_s": 667.3,
+    "real_time_factor": 0.0689
+  },
+  "definitions": {
+    "mispronounced_word": "human word accuracy <= 6",
+    "severe": "human word accuracy <= 3",
+    "phone_wrong": "human phone accuracy < 0.5",
+    "child": "age < 18"
+  },
+  "results": {
+    "phone": {
+      "n": 47369,
+      "pearson": 0.4676,
+      "spearman": 0.3591,
+      "coverage": 1.0
+    },
+    "word": {
+      "n": 15967,
+      "pearson": 0.4219,
+      "spearman": 0.3584
+    },
+    "sentence": null,
+    "word_per_speaker_pearson": {
+      "n": 123,
+      "min": -0.0593,
+      "p25": 0.0832,
+      "median": 0.2141,
+      "p75": 0.3298,
+      "max": 0.7983
+    },
+    "by_age_group": {
+      "adult": {
+        "word": {
+          "n": 8701,
+          "pearson": 0.4366,
+          "spearman": 0.3892
+        },
+        "phone": {
+          "n": 25752,
+          "pearson": 0.4695,
+          "spearman": 0.3699
+        }
+      },
+      "child": {
+        "word": {
+          "n": 7266,
+          "pearson": 0.3868,
+          "spearman": 0.3104
+        },
+        "phone": {
+          "n": 21617,
+          "pearson": 0.4626,
+          "spearman": 0.3445
+        }
+      }
+    }
+  }
+}

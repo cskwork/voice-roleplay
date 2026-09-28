@@ -1,0 +1,152 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "voice-roleplay/benchmarks/pronunciation/korean_set/manifest.schema.json",
+  "title": "Korean-learner pronunciation evaluation set (PA-0) - manifest",
+  "description": "Lives in data/korean_set/manifest.json (gitignored: it holds personal data). One file per dataset version. Ratings live in data/korean_set/ratings/<rater_id>.json and follow #/$defs/rating_file.",
+  "type": "object",
+  "required": ["dataset_version", "guide_version", "consent_form_version", "lexicon", "speakers", "utterances", "raters"],
+  "additionalProperties": false,
+  "properties": {
+    "dataset_version": {"type": "string", "pattern": "^ks-[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+    "guide_version": {"type": "string", "description": "Version of the rating guide in korean_set/README.md, e.g. rg-1"},
+    "consent_form_version": {"type": "string", "description": "Version of the consent form text, e.g. cf-1"},
+    "lexicon": {
+      "type": "object",
+      "required": ["name", "revision", "license"],
+      "description": "Source of the canonical ARPAbet phones in reference_words (license must be recorded before use).",
+      "properties": {"name": {"type": "string"}, "revision": {"type": "string"}, "license": {"type": "string"}}
+    },
+    "speakers": {"type": "array", "items": {"$ref": "#/$defs/speaker"}},
+    "utterances": {"type": "array", "items": {"$ref": "#/$defs/utterance"}},
+    "raters": {"type": "array", "items": {"$ref": "#/$defs/rater"}}
+  },
+  "$defs": {
+    "speaker": {
+      "type": "object",
+      "required": ["speaker_id", "consent", "age_band", "l1", "english_study_years", "self_rated_level"],
+      "additionalProperties": false,
+      "properties": {
+        "speaker_id": {"type": "string", "pattern": "^KS[0-9]{3}$", "description": "Pseudonym. No name, e-mail or phone number anywhere in the manifest."},
+        "consent": {
+          "type": "object",
+          "required": ["consent_id", "form_version", "signed_on", "internal_evaluation", "clip_review", "public_release"],
+          "additionalProperties": false,
+          "properties": {
+            "consent_id": {"type": "string", "description": "Key into the separately stored signed forms"},
+            "form_version": {"type": "string"},
+            "signed_on": {"type": "string", "format": "date"},
+            "internal_evaluation": {"const": true, "description": "Required; without it the speaker is not in the set"},
+            "clip_review": {"type": "boolean"},
+            "public_release": {"type": "boolean"},
+            "withdrawn_on": {"type": ["string", "null"], "format": "date", "description": "Set when consent is withdrawn; audio and ratings must then be deleted and the speaker dropped from the next version"}
+          }
+        },
+        "age_band": {"enum": ["19-24", "25-34", "35-44", "45-54", "55+"]},
+        "gender": {"enum": ["f", "m", "other", "undisclosed"]},
+        "l1": {"const": "ko"},
+        "english_study_years": {"type": "integer", "minimum": 0},
+        "self_rated_level": {"enum": [1, 2, 3, 4, 5], "description": "1 = 거의 말하지 못함 ... 5 = 업무·학업에서 막힘 없이 말함"},
+        "months_in_english_speaking_country": {"type": "integer", "minimum": 0}
+      }
+    },
+    "utterance": {
+      "type": "object",
+      "required": ["utt_id", "speaker_id", "type", "reference_text", "reference_words", "audio_path", "sha256", "duration_ms", "recorded_on", "device"],
+      "additionalProperties": false,
+      "properties": {
+        "utt_id": {"type": "string", "pattern": "^KS[0-9]{3}-[SU][0-9]{2}$", "description": "S = scripted, U = unscripted"},
+        "speaker_id": {"type": "string"},
+        "type": {"enum": ["scripted", "unscripted"]},
+        "prompt_id": {"type": ["string", "null"], "description": "Scripted: id in the prompt list. Unscripted: question id"},
+        "reference_text": {"type": "string", "description": "Scripted: the prompt as shown. Unscripted: the transcript after two-person verification (see rating guide step 1)"},
+        "transcript_verified_by": {"type": "array", "items": {"type": "string"}, "description": "Rater ids (unscripted only)"},
+        "reference_words": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["text", "phones"],
+            "additionalProperties": false,
+            "properties": {
+              "text": {"type": "string"},
+              "phones": {"type": "array", "items": {"type": "string", "pattern": "^[A-Z]{1,2}[012]?$"}, "description": "Canonical ARPAbet with stress digit on vowels, same convention as speechocean762"}
+            }
+          }
+        },
+        "audio_path": {"type": "string", "description": "Relative to data/korean_set/, e.g. audio/KS001/KS001-S01.wav; 16 kHz mono PCM16 WAV"},
+        "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+        "duration_ms": {"type": "integer", "minimum": 1, "maximum": 120000},
+        "recorded_on": {"type": "string", "format": "date"},
+        "device": {"enum": ["laptop_builtin_mic", "headset", "usb_mic", "phone"]},
+        "environment": {"enum": ["quiet_room", "office", "noisy"]},
+        "excluded": {"type": ["string", "null"], "description": "Reason when the utterance is kept but not scored (e.g. clipping, wrong prompt read)"}
+      }
+    },
+    "rater": {
+      "type": "object",
+      "required": ["rater_id", "l1", "background", "calibration_completed_on"],
+      "additionalProperties": false,
+      "properties": {
+        "rater_id": {"type": "string", "pattern": "^R[0-9]{2}$"},
+        "l1": {"type": "string"},
+        "background": {"type": "string", "description": "e.g. 'EFL teacher 6 y, phonetics course'"},
+        "calibration_completed_on": {"type": "string", "format": "date"}
+      }
+    },
+    "rating_file": {
+      "type": "object",
+      "required": ["rater_id", "guide_version", "ratings"],
+      "properties": {
+        "rater_id": {"type": "string"},
+        "guide_version": {"type": "string"},
+        "ratings": {"type": "array", "items": {"$ref": "#/$defs/rating"}}
+      }
+    },
+    "rating": {
+      "type": "object",
+      "required": ["utt_id", "rated_on", "sentence", "words"],
+      "additionalProperties": false,
+      "properties": {
+        "utt_id": {"type": "string"},
+        "rated_on": {"type": "string", "format": "date"},
+        "unusable": {"type": ["string", "null"], "description": "Rater cannot score (noise, wrong text); other fields may then be empty"},
+        "sentence": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "accuracy": {"type": "integer", "minimum": 0, "maximum": 10},
+            "fluency": {"type": "integer", "minimum": 0, "maximum": 10},
+            "prosodic": {"type": "integer", "minimum": 0, "maximum": 10},
+            "completeness": {"type": "number", "minimum": 0, "maximum": 1}
+          }
+        },
+        "words": {
+          "type": "array",
+          "description": "Exactly one entry per reference_words item, same order",
+          "items": {
+            "type": "object",
+            "required": ["accuracy", "stress", "phones"],
+            "additionalProperties": false,
+            "properties": {
+              "accuracy": {"type": "integer", "minimum": 0, "maximum": 10},
+              "stress": {"enum": [5, 10]},
+              "phones": {
+                "type": "array",
+                "description": "One entry per canonical phone, same order",
+                "items": {
+                  "type": "object",
+                  "required": ["score"],
+                  "additionalProperties": false,
+                  "properties": {
+                    "score": {"enum": [0, 1, 2]},
+                    "heard": {"type": ["string", "null"], "description": "For score 0: the ARPAbet phone heard instead, '<del>' if missing, '<unk>' if unrecognisable"}
+                  }
+                }
+              },
+              "inserted": {"type": "array", "items": {"type": "object", "required": ["after_phone_index", "phone"], "properties": {"after_phone_index": {"type": "integer", "minimum": -1}, "phone": {"type": "string"}}}, "description": "Extra phones, e.g. epenthetic vowel in 'bus' -> B AH S UW"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

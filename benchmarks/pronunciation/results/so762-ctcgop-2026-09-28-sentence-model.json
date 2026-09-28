@@ -1,0 +1,16 @@
+{
+  "calibration_version": "so762-ctcgop-2026-09-28",
+  "features": [
+    "intercept",
+    "mean_word",
+    "min_word"
+  ],
+  "coef": [
+    -9.54522,
+    1.785852,
+    0.071659
+  ],
+  "target": "human sentence accuracy 0-10",
+  "fitted_on": "speechocean762 train",
+  "note": "benchmark only, for comparison with published utterance-level results; the worker never computes a sentence score"
+}
