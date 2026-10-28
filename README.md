@@ -110,7 +110,7 @@ below were run.
 ## Testing
 
 These tests need no model files. CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs them on
-every push and pull request:
+every pull request and every push to `main`:
 
 ```sh
 cd services/gateway && uv sync --frozen && .venv/bin/python -m pytest -q -rs       # fake workers + real Silero VAD
