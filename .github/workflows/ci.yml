@@ -1,0 +1,49 @@
+# Runs the tests that need no model files: gateway (fake workers + real Silero VAD), the feedback library,
+# the pronunciation benchmark harness, scenario content, and the web app (typecheck, build, unit tests).
+# ASR, TTS and pronunciation worker tests need their torch environments (and some need model files); run them locally.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: astral-sh/setup-uv@v6
+      - name: Gateway environment
+        working-directory: services/gateway
+        run: uv sync --frozen
+      - name: Gateway tests
+        working-directory: services/gateway
+        run: .venv/bin/python -m pytest -q -rs
+      - name: Feedback library tests
+        working-directory: workers/feedback
+        run: ../../services/gateway/.venv/bin/python -m pytest -q -rs
+      - name: Pronunciation benchmark harness tests
+        working-directory: benchmarks/pronunciation
+        run: ../../services/gateway/.venv/bin/python -m pytest -q -rs tests
+      - name: Content tests
+        run: uv run --no-project --with jsonschema --with pytest python -m pytest -q tests/content
+
+  web:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run build   # tsc --noEmit, then vite build
+      - run: npx vitest run
