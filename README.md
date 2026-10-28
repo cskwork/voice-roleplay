@@ -130,6 +130,10 @@ Results on 2026-10-28:
 | Scenario content | 103 passed | 103 passed |
 | Web (vitest) | 52 passed, 11 files | 52 passed, 11 files |
 
+Fixed on this branch: on a clean `npm ci`, `npm run build` (step 3 of `./app setup`) failed with TS2339 in
+`apps/web/vite.config.ts`. The dev-proxy typings need `@types/node`, which was not declared. Commit 0106928
+adds it, and the CI web job now runs that exact build.
+
 What the skips are:
 - Gateway: 2 tests need `VR_INTEGRATION=1` and the real stack. On Linux, 4 more skip because the real-VAD
   test needs macOS `say` and ffmpeg.
