@@ -136,7 +136,7 @@ export function Setup() {
         <h1 id="setup-title">마이크와 모델을 확인할게요</h1>
         <p className="lead">
           {health?.api
-            ? '말하는 목소리와 대화 글이 OpenAI·OpenRouter·Deepgram(미국)으로 전송돼요. 음성은 저장하지 않아요.'
+            ? '말하는 목소리와 대화 글이 OpenAI·OpenRouter(미국)로 전송돼요. OpenRouter는 글을 OpenAI·Azure·Deepgram에 넘겨 처리해요. 음성은 저장하지 않아요.'
             : '모든 처리는 이 컴퓨터 안에서만 이뤄져요. 음성은 저장하지 않아요.'}
         </p>
       </header>
