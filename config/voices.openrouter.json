@@ -1,0 +1,23 @@
+{
+  "provider": "openrouter",
+  "model": "deepgram/aura-2",
+  "sample_rate": 24000,
+  "voices": [
+    {
+      "voice_id": "aura2_thalia_f",
+      "voice": "aura-2-thalia-en",
+      "label": "여성 · 미국 영어 (Aura-2 Thalia)",
+      "license_note": "Deepgram Aura-2 hosted voice via OpenRouter (API mode). Used under the OpenRouter and Deepgram API terms; no voice files are stored in this repository."
+    },
+    {
+      "voice_id": "aura2_apollo_m",
+      "voice": "aura-2-apollo-en",
+      "label": "남성 · 미국 영어 (Aura-2 Apollo)",
+      "license_note": "Deepgram Aura-2 hosted voice via OpenRouter (API mode). Used under the OpenRouter and Deepgram API terms; no voice files are stored in this repository."
+    }
+  ],
+  "aliases": {
+    "libritts_r_4992_f": "aura2_thalia_f",
+    "libritts_r_1188_m": "aura2_apollo_m"
+  }
+}

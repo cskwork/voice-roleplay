@@ -2,6 +2,10 @@
 
 Starting something new (a realtime session, a recorded-practice attempt, upload, submit or transcript re-analysis)
 ends the running realtime session first instead of refusing (PRD §7, product decision 2026-09-29).
+
+Shared mode (PROTOCOL §7): the same rule applies per learner (`owner` = the browser's vr_sid). Learners never end
+or see each other's sessions, at most `max_sessions` realtime sessions are live at once (CAPACITY_FULL beyond that),
+each realtime session ends after `max_session_s`, and nothing is persisted (history off).
 """
 
 from __future__ import annotations
@@ -27,7 +31,9 @@ DEFAULT_SILENCE_MS = {"easy": 1200, "normal": 900, "hard": 700}
 # WebSocket close codes for a session the gateway ended (PROTOCOL §6.3).
 CLOSE_ENDED = 4000  # POST /api/sessions/{id}/end, `session.end`, or an abandoned session
 CLOSE_SUPERSEDED = 4001  # ended because the learner started something new
-CLOSE_REASONS = {"ended": (CLOSE_ENDED, "session_ended"), "superseded": (CLOSE_SUPERSEDED, "session_superseded")}
+CLOSE_REASONS = {"ended": (CLOSE_ENDED, "session_ended"), "superseded": (CLOSE_SUPERSEDED, "session_superseded"),
+                 # shared mode: the realtime session reached max_session_s
+                 "time_limit": (CLOSE_ENDED, "session_time_limit")}
 # Longest a new request waits for the previous realtime engine to stop (cancel LLM/TTS/ASR, close the socket).
 STOP_TIMEOUT_S = 5.0
 
@@ -59,8 +65,10 @@ class Session:
     last_seen: float = field(default_factory=time.monotonic)
     engine: Any = None
     end_task: asyncio.Task | None = None
-    end_reason: str = "ended"  # ended | superseded
+    end_reason: str = "ended"  # ended | superseded | time_limit
     stopped: asyncio.Event = field(default_factory=asyncio.Event)  # set once the engine stopped and the socket closed
+    owner: str | None = None  # shared mode: the learner's vr_sid; None in single-learner mode
+    time_limit: asyncio.TimerHandle | None = None  # shared mode: ends the realtime session after max_session_s
 
     def next_turn_index(self) -> int:
         self.turn_counter += 1
@@ -115,7 +123,11 @@ class SessionManager:
         # leave two realtime sessions. Only taken by create() and end_realtime_for_new_work(); _finish never takes it.
         self._switch_lock = asyncio.Lock()
 
-    async def create(self, body: dict, settings: dict) -> Session:
+    def owns(self, session: Session, owner: str | None) -> bool:
+        """Single-learner mode: every session is the learner's. Shared mode: only sessions created by this vr_sid."""
+        return not self.services.config.shared or session.owner == owner
+
+    async def create(self, body: dict, settings: dict, owner: str | None = None) -> Session:
         mode = body.get("mode")
         if mode not in MODES:
             raise ApiError("UNSUPPORTED_MODE")
@@ -131,12 +143,25 @@ class SessionManager:
         if mode == "realtime" and not self.services.health.realtime_available():
             raise ApiError("MODEL_NOT_READY")  # checked first: a refused start leaves the running session alone
         if mode != "realtime":
-            return self._register(mode, scenario, difficulty, policy, body, settings)
+            return self._register(mode, scenario, difficulty, policy, body, settings, owner)
         async with self._switch_lock:
-            await self._end_live_realtime()
-            return self._register(mode, scenario, difficulty, policy, body, settings)
+            await self._end_live_realtime(owner)
+            self._check_capacity()
+            return self._register(mode, scenario, difficulty, policy, body, settings, owner)
 
-    def _register(self, mode: str, scenario: dict, difficulty: str, policy: str, body: dict, settings: dict) -> Session:
+    def _check_capacity(self) -> None:
+        """Shared mode: refuse a new realtime session when max_sessions are live (the learner's own previous session
+        was ended just before, so it never counts against them)."""
+        cfg = self.services.config
+        if not cfg.shared:
+            return
+        self.active_realtime(all_owners=True)  # ends sessions abandoned without a connection past the idle grace
+        if len(self.live_realtime()) >= cfg.max_sessions:
+            log.warning("session_refused reason=capacity live=%d cap=%d", len(self.live_realtime()), cfg.max_sessions)
+            raise ApiError("CAPACITY_FULL")
+
+    def _register(self, mode: str, scenario: dict, difficulty: str, policy: str, body: dict, settings: dict,
+                  owner: str | None = None) -> Session:
         silence = settings.get("silence_ms") or scenario.get("difficulty", {}).get(difficulty, {}).get(
             "silence_ms", DEFAULT_SILENCE_MS[difficulty]
         )
@@ -145,51 +170,71 @@ class SessionManager:
             mode=mode,
             scenario=scenario,
             difficulty=difficulty,
-            history_opt_in=bool(body.get("history_opt_in", settings.get("history_opt_in", False))),
+            history_opt_in=bool(body.get("history_opt_in", settings.get("history_opt_in", False)))
+            and self.services.config.history_enabled,
             feedback_policy=policy,
             voice_id=self.services.voice_for(scenario, body.get("voice_id") or settings.get("voice_id")),
             silence_ms=max(700, min(1400, int(silence))),
             goals=[{"goal_id": g["goal_id"], "status": "pending"} for g in scenario.get("goals", [])],
+            owner=owner,
         )
         self.sessions[session.session_id] = session
+        cfg = self.services.config
+        if cfg.shared and mode == "realtime" and cfg.max_session_s > 0:
+            session.time_limit = asyncio.get_running_loop().call_later(
+                cfg.max_session_s, self._time_limit_reached, session)
         if session.history_opt_in:
             self.services.db.upsert_session(session.meta())
         log.info("session_created id=%s mode=%s opt_in=%s", session.session_id, mode, session.history_opt_in)
         return session
 
-    def get(self, session_id: str) -> Session:
+    def get(self, session_id: str, owner: str | None = None) -> Session:
         self.purge()
         session = self.sessions.get(session_id)
-        if session is None:
+        if session is None or not self.owns(session, owner):
             raise ApiError("NOT_FOUND")
         return session
 
-    def active_realtime(self) -> Session | None:
+    def _time_limit_reached(self, session: Session) -> None:
+        if session.state != "ended":
+            log.info("session_time_limit id=%s", session.session_id)
+            self.end_in_background(session, reason="time_limit")
+
+    def active_realtime(self, *, all_owners: bool = False) -> Session | None:
+        """The first live realtime session (connected, or within the reconnect grace); sessions abandoned without a
+        connection past the grace are ended on the way. `all_owners=True` sweeps every session before answering."""
         grace = self.services.config.realtime_idle_grace_s
-        for s in self.sessions.values():
+        found = None
+        for s in list(self.sessions.values()):
             if s.mode != "realtime" or s.state == "ended":
                 continue
             if s.engine is not None or time.monotonic() - s.last_seen < grace:
-                return s
+                if not all_owners:
+                    return s
+                found = found or s
+                continue
             # Abandoned without a connection: end it in the background.
             self.end_in_background(s)
-        return None
+        return found
 
-    def live_realtime(self) -> list[Session]:
-        """Every realtime session that has not ended, connected or not (reconnect grace included)."""
-        return [s for s in self.sessions.values() if s.mode == "realtime" and s.state != "ended"]
+    def live_realtime(self, owner: str | None = None, *, all_owners: bool = True) -> list[Session]:
+        """Every realtime session that has not ended, connected or not (reconnect grace included).
+        `all_owners=False`: only `owner`'s sessions in shared mode (everything in single-learner mode)."""
+        return [s for s in self.sessions.values() if s.mode == "realtime" and s.state != "ended"
+                and (all_owners or self.owns(s, owner))]
 
-    async def end_realtime_for_new_work(self) -> None:
-        """Recorded practice is about to start: end the running realtime session first (same path as POST end)."""
-        if not self.live_realtime():
+    async def end_realtime_for_new_work(self, owner: str | None = None) -> None:
+        """Recorded practice is about to start: end the learner's running realtime session first (same path as
+        POST end). In shared mode other learners' sessions are left alone."""
+        if not self.live_realtime(owner, all_owners=False):
             return
         async with self._switch_lock:
-            await self._end_live_realtime()
+            await self._end_live_realtime(owner)
 
-    async def _end_live_realtime(self) -> None:
+    async def _end_live_realtime(self, owner: str | None = None) -> None:
         """Caller holds _switch_lock. Waits until the engines are stopped and the sockets closed; the end summary
         keeps being built in the background (same task POST /end awaits)."""
-        ended = self.live_realtime()
+        ended = self.live_realtime(owner, all_owners=False)
         for s in ended:
             self.end_in_background(s, reason="superseded")
         for s in ended:
@@ -205,6 +250,8 @@ class SessionManager:
             session.state = "ended"
             session.ended_at = time.time()
             session.end_reason = reason
+            if session.time_limit is not None:
+                session.time_limit.cancel()
             session.end_task = asyncio.create_task(self._finish(session))
 
     async def end(self, session: Session) -> dict:
@@ -216,7 +263,8 @@ class SessionManager:
         engine = session.engine
         try:
             if engine is not None:
-                await engine.shutdown(reason="session_end" if session.end_reason == "ended" else session.end_reason)
+                await engine.shutdown(reason="session_end" if session.end_reason in ("ended", "time_limit")
+                                      else session.end_reason)
                 await engine.close_transport(*CLOSE_REASONS[session.end_reason])
         finally:
             session.stopped.set()

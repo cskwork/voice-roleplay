@@ -107,6 +107,48 @@ cd voice-roleplay
 These launcher commands were not re-run for this README: setup downloads about 19 GiB of models. The tests
 below were run.
 
+### API mode (no model downloads)
+
+The same gateway and web app, with the three heavy models replaced by hosted APIs from two providers:
+OpenRouter for the conversation and feedback (`openai/gpt-4.1-mini`) and for the voice (Deepgram Aura-2,
+`deepgram/aura-2`, through OpenRouter's `/audio/speech`), and OpenAI `gpt-live-transcribe` for live captions and
+transcripts (OpenRouter has no streaming speech-to-text). The only local model is Silero VAD (2.2 MB, already in
+the repo). Needs uv, Node.js 22+ and well under 1 GB of disk; no llama.cpp. Tested only on macOS (Apple Silicon)
+so far. Contract: [`contracts/PROTOCOL.md`](contracts/PROTOCOL.md) §1.1.
+
+```sh
+./app setup --api                      # gateway env + web build only, downloads no models
+export OPENROUTER_API_KEY=... OPENAI_API_KEY=...   # environment only, never written to disk
+./app doctor --api                     # env, web build, VAD hash, keys set/missing (values are never printed)
+./app start --api
+```
+
+Deepgram directly is an opt-in fallback for the voice: `VR_API_TTS_PROVIDER=deepgram` (or `tts_provider =
+"deepgram"` in `services/gateway/config.toml`) plus `DEEPGRAM_API_KEY`. Not yet checked against the real
+OpenRouter endpoint (no key was available when this was written; the tests use a fake server): whether Aura-2
+audio streams progressively (first-byte latency), the actual PCM sample rate and whether a WAV header comes
+first (the adapter assumes 24 kHz and strips a header if one arrives), and whether `speed` is honored (the slow
+setting is retried without it if the provider answers 400). `tests/test_api_real.py` checks this with a key.
+
+For a class on one machine behind a reverse proxy at `https://<site>/voice/`, add shared mode (sessions per
+browser, at most 35 live sessions, 30-minute limit, history off) and build the web app for the prefix:
+
+```sh
+VR_WEB_BASE=/voice/ ./app setup --api
+VR_MODE=api VR_SHARED=1 VR_PUBLIC_ORIGINS=https://<site> VR_PATH_PREFIX=/voice ./app start
+```
+
+**Privacy in API mode.** The "nothing leaves your Mac" promise does not hold in API mode. Learners' voice is
+sent to OpenAI, and the conversation text to OpenRouter, both in the US. OpenRouter passes the text on: the
+conversation to its OpenAI/Azure upstreams, the AI's reply text to Deepgram for the voice. Every OpenRouter request
+asks for zero data retention and no data collection (`provider: {zdr: true, data_collection: "deny"}`; the
+conversation is also pinned to OpenAI/Azure without fallbacks); with the opt-in Deepgram fallback, the reply text
+goes to Deepgram directly with `mip_opt_out=true`. OpenAI keeps realtime abuse-monitoring logs for 30 days
+unless zero data retention is approved for the account. The gateway still writes no audio to disk and logs no
+transcripts, prompts or replies, and shared mode stores no history. Provider calls are billed (estimate in the
+review that planned this mode: about 0.22 USD per 10-minute session, list prices 2026-10-31; not measured yet:
+run `benchmarks/api/bench_api.py` with keys). Pronunciation analysis is off in API mode.
+
 ## Testing
 
 These tests need no model files. CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs them on

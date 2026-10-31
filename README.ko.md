@@ -4,6 +4,8 @@
 
 내 컴퓨터에서만 돌아가는 영어 말하기 연습 서비스입니다. 브라우저에서 AI와 영어로 역할극 대화를 하거나(실시간 모드), 문장 읽기·따라 말하기·자유 답변을 녹음해 전사와 텍스트 피드백을 받습니다(녹음형 모드). 음성 인식(Qwen3-ASR-0.6B), 음성 합성(Fun-CosyVoice3-0.5B-2512), 대화 모델(Qwen3-4B-Instruct-2507, llama.cpp)이 모두 로컬에서 실행되고, 설치가 끝난 뒤에는 인터넷 연결 없이 동작합니다.
 
+**API 모드**(`./app setup --api`, `./app start --api`)는 모델을 받지 않고 두 제공자를 씁니다. OpenRouter는 대화(`openai/gpt-4.1-mini`)와 목소리(Deepgram Aura-2, OpenRouter `/audio/speech`로 `deepgram/aura-2` 호출)를, OpenAI `gpt-live-transcribe`는 음성 인식을 맡습니다(OpenRouter에는 실시간 음성 인식이 없습니다). 로컬 모델은 Silero VAD(2.2 MB) 하나뿐입니다. 이 모드에서는 학습자 음성과 대화 글이 미국의 OpenAI·OpenRouter로 전송되고, OpenRouter는 글을 OpenAI·Azure(대화)와 Deepgram(목소리)에 넘겨 처리합니다. OpenRouter 요청에는 모두 데이터 보존 없음(`zdr: true`)과 데이터 수집 거부(`data_collection: "deny"`)를 붙입니다. 키는 환경 변수 두 개(`OPENROUTER_API_KEY`, `OPENAI_API_KEY`)로만 받습니다. Deepgram을 직접 부르는 방식은 선택 사항으로 남아 있습니다(`VR_API_TTS_PROVIDER=deepgram`과 `DEEPGRAM_API_KEY`). 실제 키로 아직 확인하지 못한 점은 OpenRouter가 Aura-2 음성을 조금씩 흘려 보내는지(첫 소리까지 걸리는 시간), 실제 PCM 샘플레이트와 WAV 머리글 유무, 느린 속도(`speed`)를 따르는지입니다. 자세한 내용은 영어 README의 "API mode"와 `contracts/PROTOCOL.md` §1.1에 있습니다.
+
 제품 요구사항은 `docs/PRD.md`, 컴포넌트 간 계약은 `contracts/PROTOCOL.md`에 있습니다.
 
 | 학습 홈 | 실시간 회화 | 모바일 |

@@ -121,14 +121,18 @@ export function Settings() {
 
       <section className="card form" aria-labelledby="data-h">
         <h2 id="data-h">데이터 보존</h2>
-        <label className="toggle">
-          <input type="checkbox" checked={draft.history_opt_in} onChange={(e) => set('history_opt_in', e.target.checked)} />
-          <span className="toggle-track" aria-hidden="true" />
-          <span>
-            <strong>기록 저장을 기본으로 켜기</strong>
-            <span className="muted small block">전사·피드백만 이 컴퓨터에 저장해요. 음성은 어떤 경우에도 저장하지 않아요. 저장하지 않은 요약은 15분 뒤 사라져요.</span>
-          </span>
-        </label>
+        {app.health?.shared ? (
+          <p className="muted small">여럿이 함께 쓰는 서버라 연습 기록을 저장하지 않아요. 음성도 저장하지 않아요.</p>
+        ) : (
+          <label className="toggle">
+            <input type="checkbox" checked={draft.history_opt_in} onChange={(e) => set('history_opt_in', e.target.checked)} />
+            <span className="toggle-track" aria-hidden="true" />
+            <span>
+              <strong>기록 저장을 기본으로 켜기</strong>
+              <span className="muted small block">전사·피드백만 이 컴퓨터에 저장해요. 음성은 어떤 경우에도 저장하지 않아요. 저장하지 않은 요약은 15분 뒤 사라져요.</span>
+            </span>
+          </label>
+        )}
         {!confirmDelete ? (
           <button type="button" className="btn btn-danger-soft" onClick={() => setConfirmDelete(true)}>
             저장된 기록 모두 삭제

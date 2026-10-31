@@ -58,6 +58,7 @@ class Attempt:
     no_speech: bool = False
     finished_at: float | None = None
     last_job_id: str | None = None
+    owner: str | None = None  # shared mode: the learner's vr_sid
 
     def latest_revision(self) -> int:
         return self.revisions[-1]["revision"] if self.revisions else 0
@@ -96,9 +97,11 @@ class JobManager:
         self.jobs: dict[str, Job] = {}
         self.by_key: dict[str, str] = {}
         self.queue: collections.deque[Job] = collections.deque()
-        self.running: Job | None = None
+        self.running: Job | None = None  # the latest job a runner picked up (one runner in single-learner mode)
+        self.running_jobs: dict[str, Job] = {}
         self._wake = asyncio.Event()
         self._runner: asyncio.Task | None = None
+        self._runners: list[asyncio.Task] = []
         self._index: dict[tuple, int] = {}
 
     # ------------------------------------------------------------ lifecycle
@@ -107,20 +110,23 @@ class JobManager:
         expired = self.svc.db.expire_unfinished_jobs()
         if expired:
             log.info("jobs_expired_on_start count=%d", expired)
-        self._runner = asyncio.create_task(self._run())
+        # One runner = one job at a time (local models share the GPU). Shared mode runs `job_concurrency` runners.
+        self._runners = [asyncio.create_task(self._run()) for _ in range(max(1, self.svc.config.job_concurrency))]
+        self._runner = self._runners[0]
 
     async def stop(self) -> None:
-        if self._runner:
-            self._runner.cancel()
-        if self.running and self.running.task:
-            self.running.task.cancel()
+        for runner in self._runners:
+            runner.cancel()
+        for job in list(self.running_jobs.values()):
+            if job.task:
+                job.task.cancel()
         for job in list(self.queue):
             self._finish(job, "cancelled")
         self.queue.clear()
 
     # ------------------------------------------------------------ attempts
 
-    async def create_attempt(self, body: dict) -> Attempt:
+    async def create_attempt(self, body: dict, owner: str | None = None) -> Attempt:
         etype = body.get("exercise_type")
         if etype not in EXERCISE_TYPES:
             raise ApiError("UNSUPPORTED_MODE")
@@ -139,7 +145,7 @@ class JobManager:
             # "다시 말하기": a suggestion or saved expression, handled like reading (PROTOCOL §7).
             target = " ".join(body["target_text"].split())
             if body.get("session_id"):
-                session_id = self.svc.sessions.get(body["session_id"]).session_id
+                session_id = self.svc.sessions.get(body["session_id"], owner).session_id
             ref = None
         elif etype in ("reading", "shadowing"):
             entry = self.svc.scenarios.text(ref or "")
@@ -152,35 +158,37 @@ class JobManager:
                 raise ApiError("NOT_FOUND")
             question, sample = ex["question_en"], ex.get("sample_answer_en")
         else:
-            session = self.svc.sessions.get(body.get("session_id", ""))
+            session = self.svc.sessions.get(body.get("session_id", ""), owner)
             if session.mode != "turn_based" or session.state == "ended":
                 raise ApiError("INVALID_STATE")
             session_id = session.session_id
-        await self.svc.sessions.end_realtime_for_new_work()
-        settings = self.svc.settings()
+        await self.svc.sessions.end_realtime_for_new_work(owner)
+        settings = self.svc.settings(owner)
         scenario_id = scenario["scenario_id"] if scenario else None
         key = (scenario_id, etype, target if etype == "drill" else ref or session_id)
         self._index[key] = self._index.get(key, 0) + 1
         attempt = Attempt(
             attempt_id="a_" + uuid.uuid4().hex[:16], exercise_type=etype, scenario_id=scenario_id,
             exercise_ref=ref, session_id=session_id,
-            history_opt_in=bool(body.get("history_opt_in", settings.get("history_opt_in", False))),
+            history_opt_in=bool(body.get("history_opt_in", settings.get("history_opt_in", False)))
+            and self.svc.config.history_enabled,
             attempt_index=self._index[key], target_en=target, question_en=question, sample_answer_en=sample,
+            owner=owner,
         )
         self.attempts[attempt.attempt_id] = attempt
         return attempt
 
-    def get_attempt(self, attempt_id: str) -> Attempt:
+    def get_attempt(self, attempt_id: str, owner: str | None = None) -> Attempt:
         self.purge()
         attempt = self.attempts.get(attempt_id)
-        if attempt is None:
+        if attempt is None or (self.svc.config.shared and attempt.owner != owner):
             raise ApiError("NOT_FOUND")
         return attempt
 
     async def set_audio(self, attempt: Attempt, audio: DecodedAudio) -> dict:
         if attempt.last_job_id is not None:
             raise ApiError("INVALID_STATE")  # a submitted take is final; record a new attempt instead
-        await self.svc.sessions.end_realtime_for_new_work()
+        await self.svc.sessions.end_realtime_for_new_work(attempt.owner)
         if attempt.last_job_id is not None:
             raise ApiError("INVALID_STATE")
         attempt.audio = audio
@@ -205,7 +213,8 @@ class JobManager:
             if len(self.queue) >= self.svc.config.job_queue_capacity:
                 raise ApiError("QUEUE_FULL")
             if wait:
-                await self.svc.sessions.end_realtime_for_new_work()
+                attempt = self.attempts.get(attempt_id)
+                await self.svc.sessions.end_realtime_for_new_work(attempt.owner if attempt else None)
         return None
 
     def _idempotent(self, key: str, attempt_id: str, kind: str) -> Job | dict | None:
@@ -276,15 +285,19 @@ class JobManager:
         attempt.last_job_id = job.job_id
         return job.public(), True
 
-    def get_job(self, job_id: str) -> Job:
+    def get_job(self, job_id: str, owner: str | None = None) -> Job:
         self._sweep()
         job = self.jobs.get(job_id)
+        if job is not None and self.svc.config.shared:
+            attempt = self.attempts.get(job.attempt_id)
+            if attempt is None or attempt.owner != owner:
+                job = None
         if job is None:
             raise ApiError("NOT_FOUND")
         return job
 
-    def cancel(self, job_id: str) -> Job:
-        job = self.get_job(job_id)
+    def cancel(self, job_id: str, owner: str | None = None) -> Job:
+        job = self.get_job(job_id, owner)
         if job.state in TERMINAL:
             return job
         if job in self.queue:
@@ -331,6 +344,7 @@ class JobManager:
                 continue
             job = self.queue.popleft()
             self.running = job
+            self.running_jobs[job.job_id] = job
             job.task = asyncio.create_task(self._process(job))
             try:
                 await job.task
@@ -345,7 +359,9 @@ class JobManager:
                 log.error("job_error job=%s error=%s", job.job_id, type(exc).__name__)
                 self._finish(job, "failed", code)
             finally:
-                self.running = None
+                self.running_jobs.pop(job.job_id, None)
+                if self.running is job:
+                    self.running = None
 
     def _set(self, job: Job, state: str) -> None:
         job.state = state
@@ -473,7 +489,7 @@ class JobManager:
         await svc.health.snapshot()
         if not svc.health.tts_ready():
             return
-        voice = svc.voice_for(scenario, svc.settings().get("voice_id"))
+        voice = svc.voice_for(scenario, svc.settings(attempt.owner).get("voice_id"))
         wanted: list[tuple[str, str | None, str]] = []  # (kind, text_id, text)
         if attempt.exercise_type in ("reading", "shadowing"):
             wanted.append(("target", attempt.exercise_ref, attempt.target_en))

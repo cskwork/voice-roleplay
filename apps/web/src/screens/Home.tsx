@@ -50,14 +50,16 @@ export function Home() {
           onChange={setDifficulty}
           options={(['easy', 'normal', 'hard'] as const).map((d) => ({ value: d, label: DIFFICULTY_LABEL[d], note: DIFFICULTY_NOTE[d] }))}
         />
-        <label className="toggle">
-          <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
-          <span className="toggle-track" aria-hidden="true" />
-          <span>
-            <strong>이번 연습 기록 저장</strong>
-            <span className="muted small block">전사와 피드백만 이 컴퓨터에 저장해 복습에 써요. 음성은 저장하지 않아요.</span>
-          </span>
-        </label>
+        {!health?.shared && (
+          <label className="toggle">
+            <input type="checkbox" checked={optIn} onChange={(e) => setOptIn(e.target.checked)} />
+            <span className="toggle-track" aria-hidden="true" />
+            <span>
+              <strong>이번 연습 기록 저장</strong>
+              <span className="muted small block">전사와 피드백만 이 컴퓨터에 저장해 복습에 써요. 음성은 저장하지 않아요.</span>
+            </span>
+          </label>
+        )}
       </section>
 
       {!health && !healthError && <Notice>모델 상태를 확인하는 중이에요…</Notice>}

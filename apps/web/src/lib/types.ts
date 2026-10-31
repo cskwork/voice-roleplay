@@ -90,6 +90,10 @@ export interface ModeAvailability {
 /** Normalized from `GET /api/health` ({gateway, workers:{asr,tts,llm,vad,pron?}, modes, benchmark}). */
 export interface Health {
   ready: boolean
+  /** API mode: speech, chat and voice go to cloud providers instead of local models (PROTOCOL §11). */
+  api: boolean
+  /** Shared mode (many learners behind one gateway): history and review are off. */
+  shared: boolean
   /** `pron` (optional pronunciation worker) is listed only when the gateway has it configured; not part of `ready`. */
   components: Partial<Record<'gateway' | 'vad' | 'asr' | 'tts' | 'llm' | 'pron', ComponentHealth>>
   /** What a new recorded attempt would get (PROTOCOL §12.4). */

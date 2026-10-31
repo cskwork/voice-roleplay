@@ -5,6 +5,13 @@
   doctor   [--full]            hardware, runtimes, models, ports, voices, offline readiness as a table
   preflight                    fast checks before `./app start` (no hashing, no network)
   wait-ready PID [TIMEOUT_S]   poll the gateway's /api/health until realtime mode is available
+  mode                         print the configured mode (local | api)
+
+API mode (VR_MODE=api, `--api`, or `mode = "api"` in services/gateway/config.toml): doctor and preflight check the
+gateway environment, the web build, the bundled Silero VAD file and that OPENROUTER_API_KEY (LLM and speech) and
+OPENAI_API_KEY (transcription) are set, plus DEEPGRAM_API_KEY only when speech goes to Deepgram directly
+(VR_API_TTS_PROVIDER=deepgram or `tts_provider = "deepgram"` in [api]). Key values are never printed or written
+anywhere; only "set"/"missing" is shown.
 
 Exit code 0 = ok, 1 = a check failed. Nothing here logs transcripts or other user data.
 """
@@ -15,6 +22,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import socket
 import subprocess
@@ -32,6 +40,47 @@ VENVS = {"gateway": "services/gateway/.venv", "asr": "workers/asr/.venv", "tts":
 # Optional pronunciation worker (PROTOCOL §12): installed by setup, never required by start.
 OPTIONAL_VENVS = {"pron": "workers/pronunciation/.venv"}
 PIDFILES = ROOT / "var" / "run"
+GATEWAY_CONFIG = ROOT / "services/gateway/config.toml"
+SILERO = ROOT / "services/gateway/assets/silero_vad.onnx"
+SILERO_SHA256 = "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"  # SILERO_VAD_SOURCE.md
+API_KEY_ENV = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY", "deepgram": "DEEPGRAM_API_KEY"}
+API_TTS_PROVIDERS = ("openrouter", "deepgram")  # speech in API mode: via OpenRouter (default) or Deepgram directly
+
+
+def configured_mode(args: list[str] | None = None) -> str:
+    """--api flag, then VR_MODE, then `mode = "..."` in the [gateway] table of config.toml (default local)."""
+    if args and "--api" in args:
+        return "api"
+    env = os.environ.get("VR_MODE", "").strip().lower()
+    if env:
+        return env
+    text = GATEWAY_CONFIG.read_text() if GATEWAY_CONFIG.exists() else ""
+    gateway = text.split("[gateway]", 1)[1].split("\n[", 1)[0] if "[gateway]" in text else ""
+    m = re.search(r'^\s*mode\s*=\s*"(\w+)"', gateway, re.M)
+    return m.group(1) if m else "local"
+
+
+def configured_tts_provider() -> str:
+    """VR_API_TTS_PROVIDER, then `tts_provider = "..."` in the [api] table of config.toml (default openrouter)."""
+    env = os.environ.get("VR_API_TTS_PROVIDER", "").strip().lower()
+    if env:
+        return env
+    text = GATEWAY_CONFIG.read_text() if GATEWAY_CONFIG.exists() else ""
+    api = text.split("\n[api]", 1)[1].split("\n[", 1)[0] if "\n[api]" in text else ""
+    m = re.search(r'^\s*tts_provider\s*=\s*"(\w+)"', api, re.M)
+    return m.group(1).lower() if m else "openrouter"
+
+
+def key_rows() -> list[tuple[str, bool]]:
+    """(env var, set?) for each key the configured providers need. Values are never read beyond a presence check."""
+    names = ["openrouter", "openai", *(["deepgram"] if configured_tts_provider() == "deepgram" else [])]
+    return [(API_KEY_ENV[n], bool(os.environ.get(API_KEY_ENV[n], "").strip())) for n in names]
+
+
+def api_mode_summary() -> str:
+    tts = ("Deepgram Aura-2 TTS direct" if configured_tts_provider() == "deepgram"
+           else "Deepgram Aura-2 TTS via OpenRouter")
+    return f"api (OpenRouter LLM, OpenAI realtime transcription, {tts}; Silero VAD local)"
 
 
 # ---------------------------------------------------------------- models
@@ -265,8 +314,61 @@ def rows_doctor(full: bool) -> list[tuple[str, str, str]]:
     return rows
 
 
+def rows_doctor_api() -> list[tuple[str, str, str]]:
+    """API mode (PROTOCOL §11): no model downloads, no worker environments, no llama-server."""
+    rows: list[tuple[str, str, str]] = []
+
+    def add(check: str, ok: bool | None, detail: str) -> None:
+        rows.append((check, "OK" if ok else ("WARN" if ok is None else "FAIL"), detail))
+
+    provider = configured_tts_provider()
+    add("mode", provider in API_TTS_PROVIDERS,
+        api_mode_summary() if provider in API_TTS_PROVIDERS else
+        f"api: unknown TTS provider {provider!r} (expected {' or '.join(API_TTS_PROVIDERS)})")
+    disk = shutil.disk_usage(ROOT).free / 2**30
+    add("disk free", disk >= 1 or None, f"{disk:.0f} GB free (API mode needs well under 1 GB)")
+    uv = shutil.which("uv") or str(Path.home() / ".local/bin/uv")
+    add("uv", Path(uv).exists(), run([uv, "--version"]) or "not found (https://docs.astral.sh/uv/)")
+    add("python (launcher)", sys.version_info >= (3, 10), sys.version.split()[0])
+    v = pkg_versions("gateway", ["onnxruntime", "fastapi", "websockets", "soxr", "vr-feedback"])
+    add("env gateway", bool(v) and not any(part.endswith(" -") for part in v.split(", ")[1:]),
+        v or f"missing {VENVS['gateway']} (run ./app setup --api)")
+    dist = ROOT / "apps/web/dist/index.html"
+    detail = "apps/web/dist" if dist.exists() else "apps/web/dist missing (run ./app setup --api)"
+    prefix = os.environ.get("VR_PATH_PREFIX", "").strip().strip("/")
+    if dist.exists() and prefix:
+        built_for_prefix = f'src="/{prefix}/' in dist.read_text() or f'href="/{prefix}/' in dist.read_text()
+        detail += f"; built for /{prefix}/" if built_for_prefix else \
+            f"; NOT built for /{prefix}/ (rebuild: VR_WEB_BASE=/{prefix}/ ./app setup --api)"
+        add("web build", built_for_prefix, detail)
+    else:
+        add("web build", dist.exists(), detail)
+    ok = SILERO.is_file() and sha256(SILERO) == SILERO_SHA256
+    add("model silero-vad", ok, f"{SILERO.relative_to(ROOT)} ({SILERO.stat().st_size / 1e6:.1f} MB, sha256 "
+        f"{'ok' if ok else 'mismatch'})" if SILERO.is_file() else "services/gateway/assets/silero_vad.onnx missing")
+    for var, present in key_rows():
+        add(f"key {var}", present, "set (value not shown)" if present else "missing: export it in the gateway's environment")
+    origins = os.environ.get("VR_PUBLIC_ORIGINS", "").strip()
+    add("proxy", True, f"public origins: {origins or '-'}; path prefix: {('/' + prefix) if prefix else '-'}")
+    shared = os.environ.get("VR_SHARED", "").strip().lower() in ("1", "true", "yes", "on")
+    add("shared mode", True, "on (sessions per browser, cap " + (os.environ.get("VR_MAX_SESSIONS") or "35")
+        + ", history off)" if shared else "off (single learner; set VR_SHARED=1 for a class)")
+    owner = port_owner(PORTS["gateway"])
+    if owner is None:
+        add(f"port {PORTS['gateway']} (gateway)", True, "free")
+    else:
+        ours = owner.split()[1] in {str(p) for p in our_pids().values()}
+        add(f"port {PORTS['gateway']} (gateway)", ours, owner + (" — this app" if ours else " — used by another process"))
+    return rows
+
+
+def cmd_mode(args: list[str]) -> int:
+    print(configured_mode(args))
+    return 0
+
+
 def cmd_doctor(args: list[str]) -> int:
-    rows = rows_doctor(full="--full" in args)
+    rows = rows_doctor_api() if configured_mode(args) == "api" else rows_doctor(full="--full" in args)
     w = max(len(r[0]) for r in rows)
     print(f"{'CHECK'.ljust(w)}  STATUS  DETAIL")
     print(f"{'-' * w}  ------  {'-' * 40}")
@@ -277,7 +379,33 @@ def cmd_doctor(args: list[str]) -> int:
     return 1 if fails else 0
 
 
+def preflight_api() -> list[str]:
+    problems = []
+    if not venv_python("gateway").exists():
+        problems.append(f"{VENVS['gateway']} missing (run ./app setup --api)")
+    if not (ROOT / "apps/web/dist/index.html").exists():
+        problems.append("web build missing (apps/web/dist; run ./app setup --api)")
+    if not SILERO.is_file():
+        problems.append("services/gateway/assets/silero_vad.onnx missing")
+    provider = configured_tts_provider()
+    if provider not in API_TTS_PROVIDERS:
+        problems.append(f"unknown TTS provider {provider!r} (VR_API_TTS_PROVIDER or [api] tts_provider: "
+                        f"{' or '.join(API_TTS_PROVIDERS)})")
+    missing = [var for var, present in key_rows() if not present]
+    if missing:
+        problems.append(f"API key(s) not set in the environment: {', '.join(missing)}")
+    owner = port_owner(PORTS["gateway"])
+    if owner:
+        problems.append(f"port {PORTS['gateway']} (gateway) is in use by {owner}")
+    return problems
+
+
 def cmd_preflight(args: list[str]) -> int:
+    if configured_mode(args) == "api":
+        problems = preflight_api()
+        for p in problems:
+            print(f"  - {p}")
+        return 1 if problems else 0
     problems = []
     for name in VENVS:
         if not venv_python(name).exists():
@@ -324,7 +452,8 @@ def cmd_wait_ready(args: list[str]) -> int:
             health = None
         if health:
             workers, cache = health["workers"], health.get("tts_cache") or {}
-            state = " ".join(f"{k}={'ready' if workers[k]['ready'] else 'loading'}" for k in ("asr", "tts", "llm", "vad"))
+            loading = "no key" if health.get("mode") == "api" else "loading"
+            state = " ".join(f"{k}={'ready' if workers[k]['ready'] else loading}" for k in ("asr", "tts", "llm", "vad"))
             # Optional pronunciation worker: waited for while its process runs; if it exits, start goes on without it.
             pron_pid = our_worker_pids(("pron",)).get("pron")
             pron_running = pron_pid is not None and alive(pron_pid)
@@ -377,7 +506,7 @@ def alive(pid: int) -> bool:
 
 
 COMMANDS = {"verify": cmd_verify, "download": cmd_download, "doctor": cmd_doctor, "preflight": cmd_preflight,
-            "wait-ready": cmd_wait_ready}
+            "wait-ready": cmd_wait_ready, "mode": cmd_mode}
 
 if __name__ == "__main__":
     if len(sys.argv) < 2 or sys.argv[1] not in COMMANDS:
