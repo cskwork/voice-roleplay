@@ -66,6 +66,7 @@ def test_config_env_overrides(tmp_path, monkeypatch):
     monkeypatch.setenv("VR_MAX_SESSIONS", "30")
     monkeypatch.setenv("VR_PUBLIC_ORIGINS", "https://Content-Forge.example/, http://localhost:5173")
     monkeypatch.setenv("VR_PATH_PREFIX", "/voice/")
+    monkeypatch.delenv("VR_API_TTS_PROVIDER", raising=False)
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret-value")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("DEEPGRAM_API_KEY", "dg-secret-value")
@@ -78,9 +79,34 @@ def test_config_env_overrides(tmp_path, monkeypatch):
     assert cfg.path_prefix == "/voice"
     assert {"content-forge.example", "localhost:5173"} <= cfg.allowed_hosts
     assert "https://content-forge.example" in cfg.allowed_origins
-    assert cfg.api.key_presence() == {"openrouter": True, "openai": False, "deepgram": True}
+    # Two providers by default: speech goes through OpenRouter, so a Deepgram key is neither needed nor reported.
+    assert cfg.api.tts_provider == "openrouter" and cfg.api.tts_model == "deepgram/aura-2"
+    assert cfg.api.tts_base_url == "https://openrouter.ai/api/v1"
+    assert cfg.api.voices_path() == REPO / "config/voices.openrouter.json"
+    assert cfg.api.key_presence() == {"openrouter": True, "openai": False}
     assert "secret" not in repr(cfg) and cfg.history_enabled is False
     assert cfg.job_concurrency == 4 and cfg.job_queue_capacity >= 30
+
+
+def test_config_deepgram_tts_is_opt_in(tmp_path, monkeypatch):
+    cfg_file = tmp_path / "config.toml"
+    cfg_file.write_text((REPO / "services/gateway/config.toml").read_text())
+    monkeypatch.setenv("VR_MODE", "api")
+    monkeypatch.setenv("VR_API_TTS_PROVIDER", "deepgram")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret-value")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("DEEPGRAM_API_KEY", "dg-secret-value")
+    cfg = load_config(cfg_file)
+    assert cfg.api.tts_provider == "deepgram" and cfg.api.voices_path() == REPO / "config/voices.api.json"
+    assert cfg.api.key_presence() == {"openrouter": True, "openai": False, "deepgram": True}
+    assert "secret" not in repr(cfg)
+    # The same switch in config.toml; an unknown provider is refused.
+    monkeypatch.delenv("VR_API_TTS_PROVIDER")
+    cfg_file.write_text(cfg_file.read_text().replace('tts_provider = "openrouter"', 'tts_provider = "deepgram"'))
+    assert load_config(cfg_file).api.tts_provider == "deepgram"
+    monkeypatch.setenv("VR_API_TTS_PROVIDER", "elevenlabs")
+    with pytest.raises(ValueError):
+        load_config(cfg_file)
 
 
 def test_config_defaults_stay_local(monkeypatch):
@@ -112,10 +138,18 @@ def test_api_mode_builds_adapters_without_network(tmp_path, monkeypatch):
 
     from vr_gateway.adapters.asr_openai import OpenAiAsr
     from vr_gateway.adapters.tts_deepgram import DeepgramTts
+    from vr_gateway.adapters.tts_openrouter import OpenRouterTts
 
-    assert isinstance(svc.asr, OpenAiAsr) and isinstance(svc.tts, DeepgramTts)
+    assert isinstance(svc.asr, OpenAiAsr) and isinstance(svc.tts, OpenRouterTts)
+    assert svc.tts.url == "https://openrouter.ai/api/v1/audio/speech" and svc.tts.model == "deepgram/aura-2"
+    assert svc.tts.voice_for("libritts_r_4992_f") == "aura-2-thalia-en"
     assert isinstance(svc.llm, LlmClient) and svc.llm.remote and svc.llm_bg is svc.llm
     assert svc.pron is None and str(svc.tts_cache.dir).endswith("tts-api")
+    svc.db.close()
+    # Opt-in fallback: Deepgram directly with its own voice list.
+    cfg.api.tts_provider = "deepgram"
+    svc = build_services(cfg)
+    assert isinstance(svc.tts, DeepgramTts) and svc.tts.model_for("libritts_r_4992_f") == "aura-2-thalia-en"
     svc.db.close()
 
 
@@ -129,8 +163,12 @@ def test_health_api_mode_shape_and_key_presence(tmp_path):
         body = g.http.get("/api/health").json()
         assert {"gateway", "workers", "modes", "benchmark", "pronunciation_assessment", "tts_cache"} <= set(body)
         assert body["mode"] == "api" and body["shared"] is False
-        assert body["api_keys"] == {"openrouter": True, "openai": False, "deepgram": True}
+        # Content Forge shows these: only the providers in use, so no Deepgram key by default.
+        assert body["api_keys"] == {"openrouter": True, "openai": False}
         assert body["workers"]["asr"]["ready"] and body["modes"]["realtime"]["available"]  # fakes injected
+        g.svc.config.api.tts_provider = "deepgram"
+        body = g.http.get("/api/health").json()
+        assert body["api_keys"] == {"openrouter": True, "openai": False, "deepgram": True}
     finally:
         g.stop()
 
@@ -147,6 +185,16 @@ def test_health_names_missing_keys_in_api_mode(tmp_path):
         body = g.http.get("/api/health").json()
         assert body["modes"]["realtime"]["available"] is False
         assert body["modes"]["realtime"]["reason_ko"] == "API 키가 설정되지 않음: OPENAI_API_KEY"
+        # Speech and the LLM share the OpenRouter key: named once. Deepgram's key only when it is the TTS provider.
+        g.tts.ready, g.llm.ready = False, False
+        g.svc.health._snapshot = None
+        body = g.http.get("/api/health").json()
+        assert body["modes"]["realtime"]["reason_ko"] == "API 키가 설정되지 않음: OPENAI_API_KEY, OPENROUTER_API_KEY"
+        g.svc.config.api.tts_provider = "deepgram"
+        g.svc.health._snapshot = None
+        body = g.http.get("/api/health").json()
+        assert body["modes"]["realtime"]["reason_ko"] == \
+            "API 키가 설정되지 않음: OPENAI_API_KEY, DEEPGRAM_API_KEY, OPENROUTER_API_KEY"
     finally:
         g.stop()
 
@@ -321,7 +369,8 @@ def test_local_mode_still_supersedes_across_browsers(gw):
 
 
 def run_tool(*args, env_extra: dict) -> subprocess.CompletedProcess:
-    env = {k: v for k, v in os.environ.items() if k not in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "DEEPGRAM_API_KEY")}
+    env = {k: v for k, v in os.environ.items() if k not in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "DEEPGRAM_API_KEY",
+                                                            "VR_API_TTS_PROVIDER")}
     env.update(env_extra)
     return subprocess.run([sys.executable, str(REPO / "scripts/app_tool.py"), *args], capture_output=True, text=True,
                           env=env, timeout=60)
@@ -331,12 +380,22 @@ def test_doctor_api_reports_keys_without_printing_them():
     out = run_tool("doctor", "--api", env_extra={"OPENROUTER_API_KEY": "or-SECRET-123", "OPENAI_API_KEY": "sk-SECRET-456"})
     text = out.stdout + out.stderr
     assert "SECRET" not in text
-    assert "key OPENROUTER_API_KEY" in text and "set (value not shown)" in text
-    assert "key DEEPGRAM_API_KEY" in text and "missing" in text
+    assert "key OPENROUTER_API_KEY" in text and "key OPENAI_API_KEY" in text and "set (value not shown)" in text
+    # Two keys by default: speech goes through OpenRouter, Deepgram's key is not asked for.
+    assert "DEEPGRAM" not in text and "Deepgram Aura-2 TTS via OpenRouter" in text
     assert "model silero-vad" in text and "sha256 ok" in text
-    assert out.returncode == 1  # a key is missing
     pre = run_tool("preflight", "--api", env_extra={})
-    assert pre.returncode == 1 and "OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY" in pre.stdout
+    assert pre.returncode == 1 and "API key(s) not set in the environment: OPENROUTER_API_KEY, OPENAI_API_KEY\n" in pre.stdout
+    # Deepgram directly (opt-in) asks for its key too.
+    dg = run_tool("doctor", "--api", env_extra={"VR_API_TTS_PROVIDER": "deepgram", "OPENROUTER_API_KEY": "or-SECRET-123",
+                                                "OPENAI_API_KEY": "sk-SECRET-456"})
+    text = dg.stdout + dg.stderr
+    assert "SECRET" not in text and "Deepgram Aura-2 TTS direct" in text
+    assert "key DEEPGRAM_API_KEY" in text and "missing" in text and dg.returncode == 1
+    pre = run_tool("preflight", "--api", env_extra={"VR_API_TTS_PROVIDER": "deepgram"})
+    assert "OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY" in pre.stdout
+    pre = run_tool("preflight", "--api", env_extra={"VR_API_TTS_PROVIDER": "elevenlabs"})
+    assert pre.returncode == 1 and "unknown TTS provider 'elevenlabs'" in pre.stdout
     assert run_tool("mode", env_extra={"VR_MODE": "api"}).stdout.strip() == "api"
 
 

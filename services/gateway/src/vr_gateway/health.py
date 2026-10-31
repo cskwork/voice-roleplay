@@ -8,6 +8,8 @@ from __future__ import annotations
 
 import asyncio
 import time
+
+from .config import API_KEY_ENV
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -65,10 +67,15 @@ class HealthMonitor:
         rt_missing = [n for n, ok in (("ASR", asr_ready), ("TTS", tts_ready), ("LLM", llm_ok), ("VAD", vad_ready)) if not ok]
         rec_missing = [n for n, ok in (("ASR", asr_ready), ("VAD", vad_ready)) if not ok]
         if self.svc.config.mode == "api":
-            # Name the missing key variable, never its value.
-            env = {"ASR": "OPENAI_API_KEY", "TTS": "DEEPGRAM_API_KEY", "LLM": "OPENROUTER_API_KEY", "VAD": "silero_vad.onnx"}
-            rt_reason = f"API 키가 설정되지 않음: {', '.join(env[n] for n in rt_missing)}" if rt_missing else None
-            rec_reason = f"API 키가 설정되지 않음: {', '.join(env[n] for n in rec_missing)}" if rec_missing else None
+            # Name the missing key variable, never its value. TTS uses OpenRouter's key unless Deepgram is configured.
+            env = {"ASR": API_KEY_ENV["openai"], "TTS": API_KEY_ENV[self.svc.config.api.tts_provider],
+                   "LLM": API_KEY_ENV["openrouter"], "VAD": "silero_vad.onnx"}
+
+            def names(missing: list[str]) -> str:
+                return ", ".join(dict.fromkeys(env[n] for n in missing))
+
+            rt_reason = f"API 키가 설정되지 않음: {names(rt_missing)}" if rt_missing else None
+            rec_reason = f"API 키가 설정되지 않음: {names(rec_missing)}" if rec_missing else None
         else:
             rt_reason = f"준비되지 않은 모델: {', '.join(rt_missing)}" if rt_missing else None
             rec_reason = f"준비되지 않은 모델: {', '.join(rec_missing)}" if rec_missing else None

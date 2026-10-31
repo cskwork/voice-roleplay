@@ -26,6 +26,9 @@ MIB = 1024 * 1024
 MODES = ("local", "api")
 # Environment variables holding provider keys in API mode (PROTOCOL §1). Only presence is ever reported.
 API_KEY_ENV = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY", "deepgram": "DEEPGRAM_API_KEY"}
+# Speech in API mode: Deepgram Aura-2 through OpenRouter (default) or Deepgram directly (opt-in fallback), each with
+# its own voice list.
+TTS_VOICES = {"openrouter": "config/voices.openrouter.json", "deepgram": "config/voices.api.json"}
 # Port overrides for a machine where a default port is taken: gateway env var -> (worker env var it sets).
 WORKER_PORT_ENV = {"asr": ("VR_ASR_PORT", "ASR_PORT"), "tts": ("VR_TTS_PORT", "VR_TTS_PORT"), "llm": ("VR_LLM_PORT", None),
                    "pron": ("VR_PRON_PORT", "VR_PRON_PORT")}
@@ -52,9 +55,14 @@ class ApiConfig:
     llm_timeout_s: float = 60.0
     asr_url: str = "wss://api.openai.com/v1/realtime?intent=transcription"
     asr_model: str = "gpt-live-transcribe"
+    tts_provider: str = "openrouter"  # openrouter | deepgram
+    # tts_provider "openrouter" (default): POST {tts_base_url}/audio/speech with tts_model, zero data retention.
+    tts_base_url: str = "https://openrouter.ai/api/v1"
+    tts_model: str = "deepgram/aura-2"
+    # tts_provider "deepgram" (opt-in fallback): Deepgram's own endpoints, needs DEEPGRAM_API_KEY.
     tts_url: str = "wss://api.deepgram.com/v1/speak"
     tts_rest_url: str = "https://api.deepgram.com/v1/speak"
-    voices: Path = REPO_ROOT / "config/voices.api.json"
+    voices: Path | None = None  # None = the provider's default voice list (TTS_VOICES)
     # The optional local pronunciation worker stays off in API mode unless turned on here (needs its local models).
     pronunciation: bool = False
     keys: dict[str, str] = field(default_factory=dict, repr=False)
@@ -62,8 +70,16 @@ class ApiConfig:
     def key(self, provider: str) -> str:
         return self.keys.get(provider, "")
 
+    def providers(self) -> list[str]:
+        """Providers this configuration calls: OpenRouter (LLM, and TTS by default) and OpenAI (ASR); Deepgram only
+        when it is the TTS provider."""
+        return ["openrouter", "openai", *(["deepgram"] if self.tts_provider == "deepgram" else [])]
+
     def key_presence(self) -> dict[str, bool]:
-        return {name: bool(self.keys.get(name)) for name in API_KEY_ENV}
+        return {name: bool(self.keys.get(name)) for name in self.providers()}
+
+    def voices_path(self) -> Path:
+        return self.voices or REPO_ROOT / TTS_VOICES[self.tts_provider]
 
 
 def read_api_keys(environ=os.environ) -> dict[str, str]:
@@ -236,9 +252,13 @@ def _load_modes(cfg: Config, gw: dict, api: dict, shared: dict) -> None:
     if cfg.mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {cfg.mode!r}")
     a = cfg.api
-    for key in ("llm_base_url", "llm_model", "asr_url", "asr_model", "tts_url", "tts_rest_url"):
+    for key in ("llm_base_url", "llm_model", "asr_url", "asr_model", "tts_provider", "tts_base_url", "tts_model",
+                "tts_url", "tts_rest_url"):
         if key in api:
             setattr(a, key, str(api[key]))
+    a.tts_provider = (os.environ.get("VR_API_TTS_PROVIDER", "").strip() or a.tts_provider).lower()
+    if a.tts_provider not in TTS_VOICES:
+        raise ValueError(f"tts_provider must be one of {tuple(TTS_VOICES)}, got {a.tts_provider!r}")
     if "llm_providers" in api:
         a.llm_providers = [str(p) for p in api["llm_providers"]]
     if "llm_timeout_s" in api:

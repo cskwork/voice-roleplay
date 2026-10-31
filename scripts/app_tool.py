@@ -8,8 +8,10 @@
   mode                         print the configured mode (local | api)
 
 API mode (VR_MODE=api, `--api`, or `mode = "api"` in services/gateway/config.toml): doctor and preflight check the
-gateway environment, the web build, the bundled Silero VAD file and that OPENROUTER_API_KEY, OPENAI_API_KEY and
-DEEPGRAM_API_KEY are set. Key values are never printed or written anywhere; only "set"/"missing" is shown.
+gateway environment, the web build, the bundled Silero VAD file and that OPENROUTER_API_KEY (LLM and speech) and
+OPENAI_API_KEY (transcription) are set, plus DEEPGRAM_API_KEY only when speech goes to Deepgram directly
+(VR_API_TTS_PROVIDER=deepgram or `tts_provider = "deepgram"` in [api]). Key values are never printed or written
+anywhere; only "set"/"missing" is shown.
 
 Exit code 0 = ok, 1 = a check failed. Nothing here logs transcripts or other user data.
 """
@@ -42,6 +44,7 @@ GATEWAY_CONFIG = ROOT / "services/gateway/config.toml"
 SILERO = ROOT / "services/gateway/assets/silero_vad.onnx"
 SILERO_SHA256 = "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"  # SILERO_VAD_SOURCE.md
 API_KEY_ENV = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY", "deepgram": "DEEPGRAM_API_KEY"}
+API_TTS_PROVIDERS = ("openrouter", "deepgram")  # speech in API mode: via OpenRouter (default) or Deepgram directly
 
 
 def configured_mode(args: list[str] | None = None) -> str:
@@ -57,9 +60,27 @@ def configured_mode(args: list[str] | None = None) -> str:
     return m.group(1) if m else "local"
 
 
+def configured_tts_provider() -> str:
+    """VR_API_TTS_PROVIDER, then `tts_provider = "..."` in the [api] table of config.toml (default openrouter)."""
+    env = os.environ.get("VR_API_TTS_PROVIDER", "").strip().lower()
+    if env:
+        return env
+    text = GATEWAY_CONFIG.read_text() if GATEWAY_CONFIG.exists() else ""
+    api = text.split("\n[api]", 1)[1].split("\n[", 1)[0] if "\n[api]" in text else ""
+    m = re.search(r'^\s*tts_provider\s*=\s*"(\w+)"', api, re.M)
+    return m.group(1).lower() if m else "openrouter"
+
+
 def key_rows() -> list[tuple[str, bool]]:
-    """(env var, set?) for each provider key. Values are never read beyond a presence check."""
-    return [(var, bool(os.environ.get(var, "").strip())) for var in API_KEY_ENV.values()]
+    """(env var, set?) for each key the configured providers need. Values are never read beyond a presence check."""
+    names = ["openrouter", "openai", *(["deepgram"] if configured_tts_provider() == "deepgram" else [])]
+    return [(API_KEY_ENV[n], bool(os.environ.get(API_KEY_ENV[n], "").strip())) for n in names]
+
+
+def api_mode_summary() -> str:
+    tts = ("Deepgram Aura-2 TTS direct" if configured_tts_provider() == "deepgram"
+           else "Deepgram Aura-2 TTS via OpenRouter")
+    return f"api (OpenRouter LLM, OpenAI realtime transcription, {tts}; Silero VAD local)"
 
 
 # ---------------------------------------------------------------- models
@@ -300,7 +321,10 @@ def rows_doctor_api() -> list[tuple[str, str, str]]:
     def add(check: str, ok: bool | None, detail: str) -> None:
         rows.append((check, "OK" if ok else ("WARN" if ok is None else "FAIL"), detail))
 
-    add("mode", True, "api (OpenRouter LLM, OpenAI realtime transcription, Deepgram Aura-2 TTS; Silero VAD local)")
+    provider = configured_tts_provider()
+    add("mode", provider in API_TTS_PROVIDERS,
+        api_mode_summary() if provider in API_TTS_PROVIDERS else
+        f"api: unknown TTS provider {provider!r} (expected {' or '.join(API_TTS_PROVIDERS)})")
     disk = shutil.disk_usage(ROOT).free / 2**30
     add("disk free", disk >= 1 or None, f"{disk:.0f} GB free (API mode needs well under 1 GB)")
     uv = shutil.which("uv") or str(Path.home() / ".local/bin/uv")
@@ -363,6 +387,10 @@ def preflight_api() -> list[str]:
         problems.append("web build missing (apps/web/dist; run ./app setup --api)")
     if not SILERO.is_file():
         problems.append("services/gateway/assets/silero_vad.onnx missing")
+    provider = configured_tts_provider()
+    if provider not in API_TTS_PROVIDERS:
+        problems.append(f"unknown TTS provider {provider!r} (VR_API_TTS_PROVIDER or [api] tts_provider: "
+                        f"{' or '.join(API_TTS_PROVIDERS)})")
     missing = [var for var, present in key_rows() if not present]
     if missing:
         problems.append(f"API key(s) not set in the environment: {', '.join(missing)}")

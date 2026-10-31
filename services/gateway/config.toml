@@ -1,9 +1,10 @@
 # Gateway configuration. Paths are relative to the repository root.
 # Environment overrides: VR_GATEWAY_PORT, VR_ASR_PORT, VR_TTS_PORT, VR_LLM_PORT, VR_PRON_PORT (worker ports, e.g. when
 # a default port is taken; also passed to the workers), VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN,
-# VR_MODE (local | api), VR_API_LLM_MODEL, VR_PUBLIC_ORIGINS (comma-separated), VR_PATH_PREFIX, VR_SHARED (1/0),
-# VR_MAX_SESSIONS, VR_MAX_SESSION_S, VR_JOB_CONCURRENCY.
-# API mode keys come only from the environment: OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY.
+# VR_MODE (local | api), VR_API_LLM_MODEL, VR_API_TTS_PROVIDER (openrouter | deepgram), VR_PUBLIC_ORIGINS
+# (comma-separated), VR_PATH_PREFIX, VR_SHARED (1/0), VR_MAX_SESSIONS, VR_MAX_SESSION_S, VR_JOB_CONCURRENCY.
+# API mode keys come only from the environment: OPENROUTER_API_KEY (LLM and speech) and OPENAI_API_KEY (transcription);
+# DEEPGRAM_API_KEY only with tts_provider = "deepgram".
 
 [gateway]
 host = "127.0.0.1"
@@ -34,10 +35,15 @@ llm_providers = ["openai", "azure"]
 # Live captions and final transcripts: OpenAI realtime transcription session (manual commit, our VAD decides).
 asr_url = "wss://api.openai.com/v1/realtime?intent=transcription"
 asr_model = "gpt-live-transcribe"
-# Streaming speech: Deepgram Aura-2 (every request carries mip_opt_out=true). Voice list: config/voices.api.json.
+# Speech: "openrouter" (default) = Deepgram Aura-2 through OpenRouter's /audio/speech with the OpenRouter key, raw PCM,
+# every request carries provider {zdr: true, data_collection: "deny"}. Voice list: config/voices.openrouter.json.
+# "deepgram" = opt-in fallback straight to Deepgram (needs DEEPGRAM_API_KEY; every request carries mip_opt_out=true;
+# voice list config/voices.api.json). `voices = "..."` overrides the provider's default voice list.
+tts_provider = "openrouter"
+tts_base_url = "https://openrouter.ai/api/v1"
+tts_model = "deepgram/aura-2"
 tts_url = "wss://api.deepgram.com/v1/speak"
 tts_rest_url = "https://api.deepgram.com/v1/speak"
-voices = "config/voices.api.json"
 # The local pronunciation worker needs its own model files; off in API mode unless set to true.
 pronunciation = false
 

@@ -5,7 +5,8 @@
 #   ./app setup --api      API mode: gateway environment + web build only, no model downloads (VR_WEB_BASE=/voice/ for a proxy)
 #   ./app doctor [--full]  check hardware, runtimes, model hashes, ports, voices, offline readiness (--api: keys, VAD, build)
 #   ./app start [--api]    start gateway + ASR/TTS/LLM (+ optional pronunciation) workers, wait until ready, print the URL
-#                          (--api or VR_MODE=api: hosted providers, no workers; needs OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY)
+#                          (--api or VR_MODE=api: hosted providers, no workers; needs OPENROUTER_API_KEY and OPENAI_API_KEY,
+#                          plus DEEPGRAM_API_KEY only with VR_API_TTS_PROVIDER=deepgram)
 #   ./app stop             stop gracefully (jobs cancelled, workers stopped), clean up leftovers
 #   ./app benchmark [...]  run benchmarks/run.sh
 set -euo pipefail
@@ -49,7 +50,8 @@ cmd_setup_api() {
   1. create the gateway Python environment with uv from its lock file (services/gateway)
   2. install and build the web app (npm ci && npm run build in apps/web), base path ${VR_WEB_BASE:-/}
 It downloads no model files: the only local model is Silero VAD (2.2 MB), already in services/gateway/assets.
-At runtime, learners' voice and conversation text are sent to OpenAI, OpenRouter and Deepgram (US) - see README "Privacy".
+At runtime, learners' voice and conversation text are sent to OpenAI and OpenRouter (US); OpenRouter passes the text on
+to OpenAI, Azure and Deepgram - see README "Privacy".
 This uses the network (PyPI, npm) and well under 1 GB of disk.
 EOF
   if [ "$yes" -ne 1 ]; then
@@ -64,7 +66,7 @@ EOF
   say "== [2/2] Web app"
   (cd "$ROOT/apps/web" && npm ci && VR_WEB_BASE="${VR_WEB_BASE:-/}" npm run build)
   say ""
-  say "Setup complete. Next: export the three API keys, then ./app doctor --api and ./app start --api"
+  say "Setup complete. Next: export the two API keys (OPENROUTER_API_KEY, OPENAI_API_KEY), then ./app doctor --api and ./app start --api"
 }
 
 cmd_setup() {

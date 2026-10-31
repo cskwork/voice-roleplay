@@ -108,7 +108,7 @@ class Services:
         A saved setting can name a voice that has since been removed (e.g. the former dev voices); that falls back
         instead of failing every synthesis. Unchecked while the worker's voice list is unknown."""
         default = (scenario or {}).get("default_voice_id", "")
-        # API mode: scenarios name local voices; the TTS adapter maps them to hosted ones (config/voices.api.json).
+        # API mode: scenarios name local voices; the TTS adapter maps them to hosted ones (config/voices.*.json).
         default = getattr(self.tts, "aliases", {}).get(default, default)
         known = self.health.tts_voice_ids() if self.health else None
         if wanted and (known is None or wanted in known):
