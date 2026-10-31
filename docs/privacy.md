@@ -15,11 +15,14 @@ non-loopback sockets in any process, and a unique spoken phrase never appears un
 API mode (`./app start --api`, [`contracts/PROTOCOL.md`](../contracts/PROTOCOL.md) §1.1) replaces the local models with hosted
 APIs, so the points above about nothing leaving the machine do not apply to it:
 
-- Learners' microphone audio is streamed to OpenAI (`gpt-live-transcribe`), the conversation text to OpenRouter and its
-  OpenAI/Azure upstreams, and the AI's reply text to Deepgram (Aura-2). All three process in the US.
-- Requests ask for the least retention each provider offers: OpenRouter `provider.zdr: true` and `data_collection: "deny"`,
-  Deepgram `mip_opt_out=true` on every request. OpenAI's realtime endpoint keeps abuse-monitoring logs for 30 days unless the
-  account has approved zero data retention.
+- Learners' microphone audio is streamed to OpenAI (`gpt-live-transcribe`) and the conversation text to OpenRouter, both in the
+  US. OpenRouter passes the text on: the conversation to its OpenAI/Azure upstreams, and the AI's reply text to Deepgram
+  (Aura-2, `deepgram/aura-2`) for the voice.
+- Requests ask for the least retention each provider offers: every OpenRouter request (conversation and voice) carries
+  `provider.zdr: true` and `data_collection: "deny"`. OpenAI's realtime endpoint keeps abuse-monitoring logs for 30 days unless
+  the account has approved zero data retention.
+- Deepgram directly is an opt-in fallback for the voice (`VR_API_TTS_PROVIDER=deepgram`, `DEEPGRAM_API_KEY`): then the reply text
+  goes to Deepgram without OpenRouter in between, with `mip_opt_out=true` on every request.
 - API keys are read from environment variables only; the gateway never writes them to disk, logs them or returns them
   (`/api/health` shows only whether each is set).
 - The gateway itself still writes no audio to disk and logs no transcripts, prompts or replies. Shared mode (a class on one

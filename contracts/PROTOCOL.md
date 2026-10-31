@@ -44,15 +44,19 @@ calls hosted providers through adapters with the same interfaces as the worker c
 | Component | Provider, model | Adapter | Key (environment only) |
 |---|---|---|---|
 | ASR (live captions + final transcripts, recorded practice) | OpenAI realtime transcription, `gpt-live-transcribe` | `vr_gateway/adapters/asr_openai.py` | `OPENAI_API_KEY` |
-| TTS | Deepgram Aura-2 (`config/voices.api.json`) | `vr_gateway/adapters/tts_deepgram.py` | `DEEPGRAM_API_KEY` |
+| TTS (default, `[api] tts_provider = "openrouter"`) | Deepgram Aura-2 through OpenRouter `/audio/speech`, `deepgram/aura-2` (`config/voices.openrouter.json`) | `vr_gateway/adapters/tts_openrouter.py` | `OPENROUTER_API_KEY` |
+| TTS (opt-in fallback, `tts_provider = "deepgram"` or env `VR_API_TTS_PROVIDER=deepgram`) | Deepgram Aura-2 directly (`config/voices.api.json`) | `vr_gateway/adapters/tts_deepgram.py` | `DEEPGRAM_API_KEY` |
 | LLM (roleplay + background JSON) | OpenRouter, `openai/gpt-4.1-mini` (`VR_API_LLM_MODEL` overrides) | `vr_feedback/llm.py` `LlmClient.openrouter` | `OPENROUTER_API_KEY` |
 | Pronunciation | off (`[api] pronunciation = false`); §12.1 still forbids cloud pronunciation APIs | — | — |
 
+- By default two providers and two keys: OpenRouter (LLM and TTS) and OpenAI (ASR; OpenRouter has no streaming speech-to-text).
 - Keys are read from the environment at start, never from files, never written to disk, never logged or returned. `/api/health`
-  reports only whether each is set (§6.2). A missing key makes that component "not ready" (the gateway still starts).
-- Data leaves the machine: learners' voice goes to OpenAI, conversation text to OpenRouter and its OpenAI/Azure upstreams,
-  AI reply text to Deepgram (all US). OpenRouter requests carry `provider: {order: ["openai","azure"], allow_fallbacks: false,
-  zdr: true, data_collection: "deny", require_parameters: true}`; every Deepgram request carries `mip_opt_out=true`.
+  reports only whether each key in use is set (§6.2). A missing key makes that component "not ready" (the gateway still starts).
+- Data leaves the machine: learners' voice goes to OpenAI and conversation text to OpenRouter (both US). OpenRouter passes the
+  conversation on to its OpenAI/Azure upstreams and the AI reply text to Deepgram. OpenRouter chat requests carry
+  `provider: {order: ["openai","azure"], allow_fallbacks: false, zdr: true, data_collection: "deny", require_parameters: true}`,
+  speech requests `provider: {zdr: true, data_collection: "deny"}`. With the Deepgram fallback the reply text goes to Deepgram
+  directly and every request carries `mip_opt_out=true`.
 - The browser ⇄ gateway contract (§6) is unchanged; output audio stays PCM16 24 kHz in ≤ 100 ms frames.
 - Worker auth (below) does not apply to providers; each adapter sends only its provider's `Authorization` header.
 
@@ -134,10 +138,30 @@ A stream over 45.5 s, an `error` / `...transcription.failed` event or a dropped 
   `libritts_r_4992_f` and `libritts_r_1188_m` (LibriTTS-R, CC BY 4.0; the attribution text is in SOURCE.md and `license_note`).
 - Text normalization before synthesis: expand prices/numbers/dates/times only where needed for correct reading; never pass markup, JSON, or Korean.
 
-### 4.1 API-mode TTS adapter (in-process, `adapters/tts_deepgram.py`)
+### 4.1 API-mode TTS adapters (in-process)
 Same calls as the worker client: `health()`, `synthesize_wav(voice_id, text, speed)`, `stream_session()` whose
-`synthesize(request_id, voice_id, text, speed)` yields `("start", 24000)`, `("audio", bytes)`…, then `("done", info)` or
-`("cancelled", None)`, plus `cancel(request_id)` and `close()`.
+`synthesize(request_id, voice_id, text, speed)` yields `("start", sample_rate)`, `("audio", bytes)`…, then `("done", info)` or
+`("cancelled", None)`, plus `cancel(request_id)` and `close()`. `health()` makes no provider call: ready = key set.
+
+**Default: Deepgram Aura-2 through OpenRouter (`adapters/tts_openrouter.py`).**
+- One streaming `POST https://openrouter.ai/api/v1/audio/speech` per sentence (`[api] tts_base_url`), headers
+  `Authorization: Bearer <OPENROUTER_API_KEY>` and `X-OpenRouter-Title: voice-roleplay`, body
+  `{"model":"deepgram/aura-2","input":<text>,"voice":<voice>,"response_format":"pcm","provider":{"zdr":true,"data_collection":"deny"}}`
+  plus `"speed"` only when the clamped speed (0.7–1.5) is not 1.0. The response body is forwarded as it arrives.
+- OpenRouter documents `pcm` as 16-bit little-endian but not its sample rate: the voices file's `sample_rate` (24000) is used,
+  unless the body starts with a WAV header, which is stripped (its `fmt ` rate is used in `start`). Frames keep 16-bit alignment
+  across network chunks; a dangling last byte is dropped.
+- A 400 answer to a request that carried `speed` is retried once without it; that client then stops sending `speed` (OpenRouter:
+  providers without speed support "either ignore it or return a 400 for a non-default value").
+- Cancel: queued → never sent; waiting for headers → the request is abandoned; mid-stream → the HTTP response is closed at once.
+  No audio frame is yielded after `cancel`. Non-200 answers and connection loss map to `TTS_FAILED`; `synthesize_wav` (a plain
+  POST, wrapped as WAV locally) maps them to `WORKER_FAILED`, a missing key to `MODEL_NOT_READY`.
+- Voices: `config/voices.openrouter.json` (`aura2_thalia_f` = `aura-2-thalia-en`, `aura2_apollo_m` = `aura-2-apollo-en`; `aliases`
+  map the scenarios' local voice ids to them). `health()` reports `model_id: "openrouter/deepgram/aura-2"`, `provider: "openrouter"`.
+- Not yet verified against the real endpoint (tests use a fake server): whether Aura-2 audio streams progressively (first-byte
+  latency), the actual PCM rate and whether a WAV header precedes it, and whether `speed` is honored.
+
+**Opt-in fallback: Deepgram directly (`adapters/tts_deepgram.py`, `tts_provider = "deepgram"`, `DEEPGRAM_API_KEY`).**
 - Streaming: one Deepgram WebSocket per realtime session, `wss://api.deepgram.com/v1/speak?model=<aura-2 model>&encoding=linear16&sample_rate=24000&speed=<s>&mip_opt_out=true`;
   per request `{"type":"Speak","text"}` + `{"type":"Flush"}`, ended by `Flushed`. Voice and speed are fixed per connection on
   Deepgram, so a change reopens it. `speed` is clamped to 0.7–1.5 (Aura-2's range; `slow` = 0.85 is inside it).
@@ -146,7 +170,8 @@ Same calls as the worker client: `health()`, `synthesize_wav(voice_id, text, spe
 - `synthesize_wav`: `POST https://api.deepgram.com/v1/speak` with the same parameters and `container=none`, wrapped as WAV locally.
 - Voices: `config/voices.api.json` (`aura2_thalia_f` = `aura-2-thalia-en`, `aura2_apollo_m` = `aura-2-apollo-en`); `aliases` map
   the scenarios' local voice ids to them. Provider errors and connection loss map to `TTS_FAILED`.
-- The reviewed-text cache lives in `var/cache/tts-api/` and warms only the opening lines (each synthesis is billed).
+
+Both: the reviewed-text cache lives in `var/cache/tts-api/` and warms only the opening lines (each synthesis is billed).
 
 ## 5. LLM — llama-server `http://127.0.0.1:8713`
 
@@ -214,7 +239,8 @@ As PRD §13.1 (route list with request fields: `services/gateway/README.md`). Er
 | `WORKER_FAILED` | 502 | | | |
 
 `GET /api/health` (public) adds to its existing fields `mode` (`"local"` or `"api"`) and `shared` (bool); in API mode
-`api_keys: {"openrouter": bool, "openai": bool, "deepgram": bool}` (presence only, never values); in shared mode
+`api_keys: {"openrouter": bool, "openai": bool}` (presence only, never values; `"deepgram": bool` is added only with
+`tts_provider = "deepgram"`); in shared mode
 `sessions: {"live", "max", "max_session_s"}`. In API mode `workers.asr|tts|llm.ready` means "key set" (no provider call is made
 for health), and `modes.*.reason_ko` names the missing key variable.
 
@@ -405,8 +431,8 @@ by file name) any file that fails the schema or does not have exactly 3 goals. F
 - `benchmark` — runs `benchmarks/run.sh`.
 - API mode (`--api`, or `VR_MODE=api`): `setup --api` runs `uv sync --frozen` for the gateway and the web build only
   (`VR_WEB_BASE` sets the build base) and downloads **no model files**; `doctor --api` checks the gateway environment, the web
-  build (and its base when `VR_PATH_PREFIX` is set), the Silero VAD hash, and that `OPENROUTER_API_KEY`, `OPENAI_API_KEY`,
-  `DEEPGRAM_API_KEY` are set (printing only set/missing); `start --api` needs no model files, starts no workers and waits for
+  build (and its base when `VR_PATH_PREFIX` is set), the Silero VAD hash, and that `OPENROUTER_API_KEY` and `OPENAI_API_KEY`
+  (plus `DEEPGRAM_API_KEY` with `tts_provider = "deepgram"`) are set (printing only set/missing); `start --api` needs no model files, starts no workers and waits for
   `/api/health` as usual. `benchmarks/api/bench_api.py` measures the providers when keys are set (exit 2 without keys).
 
 ## 12. Pronunciation (PRD §8.4, v0.2)

@@ -1,7 +1,9 @@
 """Real-provider checks for API mode. Billed calls: they run only with VR_API_REAL=1 and the provider's key set,
 and are skipped otherwise (CI and default local runs make no network calls).
 
-    VR_API_REAL=1 OPENAI_API_KEY=... DEEPGRAM_API_KEY=... OPENROUTER_API_KEY=... .venv/bin/python -m pytest -q tests/test_api_real.py
+    VR_API_REAL=1 OPENAI_API_KEY=... OPENROUTER_API_KEY=... .venv/bin/python -m pytest -q -s tests/test_api_real.py
+
+DEEPGRAM_API_KEY additionally runs the check of the opt-in direct Deepgram fallback.
 """
 
 from __future__ import annotations
@@ -15,6 +17,7 @@ from conftest import REPO
 
 from vr_gateway.adapters.asr_openai import OpenAiAsr
 from vr_gateway.adapters.tts_deepgram import DeepgramTts
+from vr_gateway.adapters.tts_openrouter import OpenRouterTts
 
 pytestmark = pytest.mark.asyncio
 CLIP = REPO / "tests/fixtures/audio/e2e_cafe_01.wav"
@@ -52,6 +55,35 @@ async def test_real_deepgram_stream_and_cancel():
             await stream.cancel("r2")
             seen.append("cancel-sent")
     assert seen[-1] in ("cancelled", "done")
+    await stream.close()
+    await tts.aclose()
+
+
+@needs("OPENROUTER_API_KEY")
+async def test_real_openrouter_tts_stream_and_cancel():
+    """Deepgram Aura-2 through OpenRouter. Prints what the fake-server tests cannot know (run with -s): the sample rate
+    the provider answered with, first chunk vs whole request (streamed progressively or not), whether `speed` was kept."""
+    tts = OpenRouterTts(os.environ["OPENROUTER_API_KEY"], REPO / "config/voices.openrouter.json")
+    stream = tts.stream_session()
+    events = [e async for e in stream.synthesize("r1", "aura2_thalia_f", "Hi there! What can I get for you?", 0.85)]
+    kinds = [k for k, _ in events]
+    assert kinds[0] == "start" and "audio" in kinds and kinds[-1] == "done"
+    rate, info = events[0][1], events[-1][1]
+    assert rate in (16000, 22050, 24000, 44100, 48000)
+    assert all(len(v) % 2 == 0 for k, v in events if k == "audio")
+    assert 500 <= info["audio_ms"] <= 10000
+    print(f"\nopenrouter tts: rate {rate} Hz, first chunk {info['first_chunk_ms']} ms of {info['elapsed_ms']} ms, "
+          f"{kinds.count('audio')} chunks, audio {info['audio_ms']} ms, speed kept: {tts.speed_supported}")
+    seen = []
+    async for kind, _ in stream.synthesize("r2", "aura2_thalia_f", "This sentence is long enough to be cut off "
+                                           "before it finishes, which is what a barge-in does.", 1.0):
+        if "cancel-sent" in seen:
+            assert kind != "audio"
+        seen.append(kind)
+        if kind == "audio" and "cancel-sent" not in seen:
+            await stream.cancel("r2")
+            seen.append("cancel-sent")
+    assert seen[-1] == "cancelled"
     await stream.close()
     await tts.aclose()
 

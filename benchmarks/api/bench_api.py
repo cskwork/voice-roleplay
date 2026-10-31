@@ -2,8 +2,9 @@
 
     services/gateway/.venv/bin/python benchmarks/api/bench_api.py [--only asr,tts,llm] [--fast] [--out DIR]
 
-Needs OPENAI_API_KEY (ASR), DEEPGRAM_API_KEY (TTS) and OPENROUTER_API_KEY (LLM) in the environment; a component
-whose key is missing is skipped, and with no key at all the script exits with code 2 before any network call.
+Needs OPENAI_API_KEY (ASR) and OPENROUTER_API_KEY (LLM and TTS) in the environment (DEEPGRAM_API_KEY instead for TTS
+with VR_API_TTS_PROVIDER=deepgram); a component whose key is missing is skipped, and with no key at all the script
+exits with code 2 before any network call.
 Calls are billed by the providers (one run: 12 short clips ~ 0.05 USD of transcription, ~1.5k characters of TTS,
 ~6 short chat completions).
 
@@ -13,7 +14,10 @@ references; they are not learner speech, so WER here says nothing about Korean-a
 - ASR: each clip is streamed through the same adapter the gateway uses (`OpenAiAsr`), paced in real time unless
   `--fast`; "final latency" = commit sent -> final transcript received. WER is word-level after lowercasing and
   removing punctuation.
-- TTS: `DeepgramTts` streaming session; "first byte" = Speak+Flush sent -> first audio frame.
+- TTS: `OpenRouterTts` (Deepgram Aura-2 through OpenRouter; `DeepgramTts` with VR_API_TTS_PROVIDER=deepgram)
+  streaming session; "first byte" = request sent -> first audio frame. Also records the sample rate(s) the provider
+  answered with, total time per sentence (first byte close to total = not streamed progressively) and whether the
+  slow sentence's `speed` was accepted - the points not yet verified against the real OpenRouter endpoint.
 - LLM: `LlmClient.openrouter` streaming with the cafe scenario's roleplay prompt; "first token" = request sent ->
   first content delta.
 
@@ -38,7 +42,10 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "services/gateway/src"))
 sys.path.insert(0, str(ROOT / "workers/feedback/src"))
 
-KEYS = {"asr": "OPENAI_API_KEY", "tts": "DEEPGRAM_API_KEY", "llm": "OPENROUTER_API_KEY"}
+# Speech goes through OpenRouter by default; VR_API_TTS_PROVIDER=deepgram measures Deepgram directly (opt-in fallback).
+TTS_PROVIDER = os.environ.get("VR_API_TTS_PROVIDER", "").strip().lower() or "openrouter"
+KEYS = {"asr": "OPENAI_API_KEY", "tts": "DEEPGRAM_API_KEY" if TTS_PROVIDER == "deepgram" else "OPENROUTER_API_KEY",
+        "llm": "OPENROUTER_API_KEY"}
 CLIPS = sorted((ROOT / "tests/fixtures/audio").glob("e2e_cafe_*.wav"))
 TTS_SENTENCES = [
     "Hi there! What can I get for you today?",
@@ -112,21 +119,35 @@ async def bench_asr(fast: bool) -> dict:
             "wer_mean": round(statistics.fmean(wers), 3) if wers else None, "clips": rows}
 
 
-async def bench_tts() -> dict:
-    from vr_gateway.adapters.tts_deepgram import DeepgramTts
+def make_tts():
+    if TTS_PROVIDER == "deepgram":
+        from vr_gateway.adapters.tts_deepgram import DeepgramTts
 
-    tts = DeepgramTts(os.environ["DEEPGRAM_API_KEY"], ROOT / "config/voices.api.json")
+        return DeepgramTts(os.environ["DEEPGRAM_API_KEY"], ROOT / "config/voices.api.json"), "deepgram/aura-2-thalia-en"
+    from vr_gateway.adapters.tts_openrouter import OpenRouterTts
+
+    tts = OpenRouterTts(os.environ["OPENROUTER_API_KEY"], ROOT / "config/voices.openrouter.json")
+    return tts, f"openrouter:{tts.model} (aura-2-thalia-en)"
+
+
+async def bench_tts() -> dict:
+    tts, model = make_tts()
     stream = tts.stream_session()
-    firsts, rtf = [], []
+    firsts, totals, rtf, rates = [], [], [], set()
     try:
+        # The last sentence is slow (0.85, the learner's "slow" setting): shows whether `speed` is accepted.
         for i, text in enumerate(TTS_SENTENCES):
+            speed = 0.85 if i == len(TTS_SENTENCES) - 1 else 1.0
             started = time.perf_counter()
             first = None
-            async for kind, value in stream.synthesize(f"bench-{i}", "aura2_thalia_f", text, 1.0):
-                if kind == "audio" and first is None:
+            async for kind, value in stream.synthesize(f"bench-{i}", "aura2_thalia_f", text, speed):
+                if kind == "start":
+                    rates.add(value)
+                elif kind == "audio" and first is None:
                     first = (time.perf_counter() - started) * 1000
                 elif kind == "done":
                     total = (time.perf_counter() - started) * 1000
+                    totals.append(total)
                     audio_ms = value["audio_ms"] or 1
                     rtf.append(total / audio_ms)
             firsts.append(first or 0.0)
@@ -134,8 +155,10 @@ async def bench_tts() -> dict:
     finally:
         await stream.close()
         await tts.aclose()
-    return {"model": "deepgram/aura-2-thalia-en", "first_byte_ms": summary(firsts),
-            "rtf": summary([round(x, 3) for x in rtf])}
+    # first byte close to total = the provider sent the audio in one piece rather than streaming it.
+    return {"model": model, "first_byte_ms": summary(firsts), "total_ms": summary(totals),
+            "rtf": summary([round(x, 3) for x in rtf]), "sample_rates": sorted(rates),
+            "speed_supported": getattr(tts, "speed_supported", True)}
 
 
 async def bench_llm() -> dict:
