@@ -52,7 +52,7 @@ DEFAULT_SETTINGS = {
 CSP = (
     "default-src 'self'; script-src 'self' blob:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data: blob:; media-src 'self' blob:; font-src 'self'; connect-src 'self' {ws}; "
-    "object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    "object-src 'none'; base-uri 'none'; frame-ancestors {frame}"
 )
 MISSING_BUILD = """<!doctype html><html lang="ko"><meta charset="utf-8"><title>voice-roleplay</title>
 <body><h1>웹 빌드가 없습니다</h1><p><code>apps/web</code>를 빌드한 뒤 다시 열어 주세요.
@@ -338,7 +338,10 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         if not request.url.path.startswith("/api/"):
             ws = " ".join(f"ws://{h}" for h in sorted(config.allowed_hosts))
             ws += "".join(f" wss://{origin_host(o)}" for o in config.public_origins if o.startswith("https://"))
-            response.headers["Content-Security-Policy"] = CSP.format(ws=ws)
+            # Behind a same-origin proxy (Content Forge at /voice/) the host page embeds us in an iframe on that same
+            # origin, so allow 'self' there; standalone stays un-framable.
+            frame = "'self'" if config.path_prefix else "'none'"
+            response.headers["Content-Security-Policy"] = CSP.format(ws=ws, frame=frame)
         else:
             # Route template only (ids stay out of logs as a habit); no bodies, no queries.
             route = request.scope.get("route")

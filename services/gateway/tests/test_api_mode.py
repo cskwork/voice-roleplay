@@ -162,6 +162,8 @@ def test_prefix_routes_and_public_origin(shared):
         cookie = page.headers["set-cookie"]
         assert "Path=/voice/" in cookie and "SameSite=Strict" in cookie and "HttpOnly" in cookie
         assert "wss://content-forge.example" in page.headers["content-security-policy"]
+        # Content Forge embeds the app in a same-origin iframe, so framing is allowed only for 'self' behind the prefix.
+        assert "frame-ancestors 'self'" in page.headers["content-security-policy"]
         redirect = fresh.get("/voice", follow_redirects=False)
         assert redirect.status_code == 308 and redirect.headers["location"] == "/voice/"
         health = fresh.get("/voice/api/health")
