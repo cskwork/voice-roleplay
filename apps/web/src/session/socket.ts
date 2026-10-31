@@ -1,4 +1,5 @@
 import { queuedAudioMs } from '../lib/backlog'
+import { PREFIX } from '../lib/base'
 import { decodeFrame, encodeFrame, FrameError, type OutputAudioHeader } from '../lib/envelope'
 
 export interface ServerEvent {
@@ -36,7 +37,7 @@ export class RealtimeSocket {
 
   connect(): Promise<void> {
     const proto = location.protocol === 'https:' ? 'wss:' : 'ws:'
-    const ws = new WebSocket(`${proto}//${location.host}/api/sessions/${encodeURIComponent(this.sessionId)}/realtime`)
+    const ws = new WebSocket(`${proto}//${location.host}${PREFIX}/api/sessions/${encodeURIComponent(this.sessionId)}/realtime`)
     ws.binaryType = 'arraybuffer'
     this.ws = ws
     return new Promise((resolve, reject) => {

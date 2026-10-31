@@ -1,4 +1,8 @@
-"""Aggregated readiness of workers and supported modes (GET /api/health)."""
+"""Aggregated readiness of workers and supported modes (GET /api/health).
+
+In API mode the "workers" are the provider adapters: they report ready when their key is configured, without a
+network call (PROTOCOL §6.2). `mode_info()` adds `mode`, `shared` and, in API mode, `api_keys` (presence only).
+"""
 
 from __future__ import annotations
 
@@ -60,16 +64,25 @@ class HealthMonitor:
                 pron_status = "experimental_banded" if pron.get("bands_enabled") else "timing_only"
         rt_missing = [n for n, ok in (("ASR", asr_ready), ("TTS", tts_ready), ("LLM", llm_ok), ("VAD", vad_ready)) if not ok]
         rec_missing = [n for n, ok in (("ASR", asr_ready), ("VAD", vad_ready)) if not ok]
-        busy = self.svc.sessions.active_realtime() is not None
+        if self.svc.config.mode == "api":
+            # Name the missing key variable, never its value.
+            env = {"ASR": "OPENAI_API_KEY", "TTS": "DEEPGRAM_API_KEY", "LLM": "OPENROUTER_API_KEY", "VAD": "silero_vad.onnx"}
+            rt_reason = f"API 키가 설정되지 않음: {', '.join(env[n] for n in rt_missing)}" if rt_missing else None
+            rec_reason = f"API 키가 설정되지 않음: {', '.join(env[n] for n in rec_missing)}" if rec_missing else None
+        else:
+            rt_reason = f"준비되지 않은 모델: {', '.join(rt_missing)}" if rt_missing else None
+            rec_reason = f"준비되지 않은 모델: {', '.join(rec_missing)}" if rec_missing else None
+        # Shared mode: other learners' sessions never block anyone, so "session_active" stays false there.
+        busy = self.svc.sessions.active_realtime() is not None and not self.svc.config.shared
         modes = {
             "realtime": {
                 "available": not rt_missing,
-                "reason_ko": f"준비되지 않은 모델: {', '.join(rt_missing)}" if rt_missing else None,
+                "reason_ko": rt_reason,
                 "session_active": busy,
             },
             "recorded": {
                 "available": not rec_missing,
-                "reason_ko": f"준비되지 않은 모델: {', '.join(rec_missing)}" if rec_missing else None,
+                "reason_ko": rec_reason,
                 "feedback_available": llm_ok,
                 "model_audio_available": tts_ready,
                 # Kept for compatibility, always false: starting recorded work ends the realtime session (PRD §7).
@@ -100,6 +113,16 @@ class HealthMonitor:
             self._manifest_seen = seen
             for row in seen:
                 self.svc.db.upsert_manifest(*row)
+
+    def mode_info(self) -> dict:
+        cfg = self.svc.config
+        info: dict = {"mode": cfg.mode, "shared": cfg.shared}
+        if cfg.mode == "api":
+            info["api_keys"] = cfg.api.key_presence()  # booleans only
+        if cfg.shared:
+            info["sessions"] = {"live": len(self.svc.sessions.live_realtime()), "max": cfg.max_sessions,
+                                "max_session_s": cfg.max_session_s}
+        return info
 
     def realtime_available(self) -> bool:
         snap = self._snapshot

@@ -79,13 +79,16 @@ class TtsCache:
 
         The TTS worker is far from real time on this machine and shares the GPU with ASR and the LLM, so warming
         pauses while a realtime session is active (PRD §14.2: no background work competing with a live
-        conversation). A session's own opening line is synthesized on demand if it is not cached yet."""
+        conversation). A session's own opening line is synthesized on demand if it is not cached yet.
+        API mode warms only the opening lines and never pauses (no local GPU to share)."""
         jobs: list[tuple[str, str]] = []
         scenarios = self.svc.scenarios.summaries()
+        api = self.svc.config.mode == "api"
         for sc in scenarios:
             if sc.get("opening_line"):
                 jobs.append((sc["default_voice_id"], sc["opening_line"]["text_id"]))
-        for sc in scenarios:
+        # API mode: only the opening lines up front (each synthesis is billed); the rest is cached on first use.
+        for sc in [] if api else scenarios:
             for entry in text_entries(sc):
                 key = (sc["default_voice_id"], entry["text_id"])
                 if key not in jobs:
@@ -93,7 +96,7 @@ class TtsCache:
         self.openings_total = openings = sum(1 for sc in scenarios if sc.get("opening_line"))
         done = failed = 0
         for i, (voice_id, text_id) in enumerate(jobs):
-            while self.svc.sessions.active_realtime() is not None:
+            while not api and self.svc.sessions.active_realtime() is not None:  # local GPU is shared
                 self.status = "paused"
                 await asyncio.sleep(2)
             self.status = "warming"

@@ -394,7 +394,8 @@ def free_port() -> int:
 
 class Gateway:
     def __init__(self, tmp: Path, *, web_dist: Path | None = None, data_dir: Path | None = None, real_vad=False,
-                 pron: FakePron | None = None, pron_lexicon: Path | None = None):
+                 pron: FakePron | None = None, pron_lexicon: Path | None = None, **config_kw):
+        """`config_kw`: extra Config fields (mode, shared, public_origins, path_prefix, max_sessions, ...)."""
         self.port = free_port()
         scen_dir = tmp / "scenarios"
         scen_dir.mkdir(exist_ok=True)
@@ -403,6 +404,7 @@ class Gateway:
             port=self.port, web_dist=web_dist or tmp / "no-dist", scenarios_dir=scen_dir,
             scenario_schema=tmp / "no-schema.json", data_dir=data_dir or tmp / "data", cache_dir=tmp / "cache",
             log_dir=tmp / "log", worker_token="test-token", pron_lexicon=pron_lexicon or tmp / "no-cmudict.dict",
+            **config_kw,
         )
         self.asr, self.tts, self.llm, self.pron = FakeAsr(), FakeTts(), FakeLlm(), pron
         self.record: dict = {}

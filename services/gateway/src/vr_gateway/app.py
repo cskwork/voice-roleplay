@@ -21,9 +21,9 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from . import review as reviewmod
 from .audio import parse_wav
-from .auth import LocalAuth, LocalAuthMiddleware, cookie_sid
+from .auth import LocalAuth, LocalAuthMiddleware, PathPrefixMiddleware, cookie_sid
 from .brain import Brain
-from .config import Config
+from .config import Config, origin_host
 from .db import Database
 from .errors import ApiError, error_response
 from .health import HealthMonitor
@@ -81,9 +81,26 @@ class Services:
     jobs: JobManager = None
     tts_cache: TtsCache = None
     background: set = field(default_factory=set)
+    # Shared mode: settings per browser (vr_sid), in memory only (never in SQLite, which is not per learner).
+    shared_settings: dict = field(default_factory=dict)
 
-    def settings(self) -> dict:
+    def settings(self, owner: str | None = None) -> dict:
+        if self.config.shared:
+            return {**DEFAULT_SETTINGS, **self.shared_settings.get(owner or "", {}), "history_opt_in": False}
         return {**DEFAULT_SETTINGS, **self.db.get_settings()}
+
+    def put_settings(self, values: dict, owner: str | None = None) -> None:
+        if self.config.shared:
+            values = {k: v for k, v in values.items() if k != "history_opt_in"}  # history is off in shared mode
+            self.shared_settings.setdefault(owner or "", {}).update(values)
+            return
+        self.db.put_settings(values)
+
+    def owner_of(self, headers) -> str | None:
+        """The learner a request belongs to in shared mode (its vr_sid); None in single-learner mode."""
+        if not self.config.shared:
+            return None
+        return cookie_sid({k.lower(): v for k, v in headers})
 
     def voice_for(self, scenario: dict | None, wanted: str | None) -> str:
         """`wanted` (request or saved setting) if the TTS worker offers it, else the scenario default.
@@ -91,6 +108,8 @@ class Services:
         A saved setting can name a voice that has since been removed (e.g. the former dev voices); that falls back
         instead of failing every synthesis. Unchecked while the worker's voice list is unknown."""
         default = (scenario or {}).get("default_voice_id", "")
+        # API mode: scenarios name local voices; the TTS adapter maps them to hosted ones (config/voices.api.json).
+        default = getattr(self.tts, "aliases", {}).get(default, default)
         known = self.health.tts_voice_ids() if self.health else None
         if wanted and (known is None or wanted in known):
             return wanted
@@ -208,6 +227,14 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None,
                    pron=None) -> Services:
     if not config.worker_token:
         config.worker_token = secrets.token_urlsafe(32)
+    if config.mode == "api" and (asr is None or tts is None or llm is None):
+        # API mode (PROTOCOL §1): hosted providers instead of the local workers; injected clients still win.
+        from .adapters import build_api_clients
+
+        api_asr, api_tts, api_llm, api_llm_bg = build_api_clients(config)
+        asr, tts = asr or api_asr, tts or api_tts
+        if llm is None:
+            llm, llm_bg = api_llm, llm_bg or api_llm_bg
     if asr is None or tts is None:
         from .workers import AsrClient, TtsClient
 
@@ -241,7 +268,8 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None,
     svc.health = HealthMonitor(svc)
     svc.sessions = SessionManager(svc)
     svc.jobs = JobManager(svc)
-    svc.tts_cache = TtsCache(svc, config.cache_dir / "tts")
+    # API voices are different audio: keep their cache apart from the local voices' cache.
+    svc.tts_cache = TtsCache(svc, config.cache_dir / ("tts-api" if config.mode == "api" else "tts"))
     return svc
 
 
@@ -266,7 +294,8 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         if warm_cache:
             task = asyncio.create_task(_warm_tts_cache(svc))
             svc.background.add(task)
-        log.info("gateway_started port=%d scenarios=%d", config.port, len(svc.scenarios.scenarios))
+        log.info("gateway_started port=%d scenarios=%d mode=%s shared=%s prefix=%s", config.port,
+                 len(svc.scenarios.scenarios), config.mode, config.shared, config.path_prefix or "-")
         try:
             yield
         finally:
@@ -308,6 +337,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         response.headers["Referrer-Policy"] = "no-referrer"
         if not request.url.path.startswith("/api/"):
             ws = " ".join(f"ws://{h}" for h in sorted(config.allowed_hosts))
+            ws += "".join(f" wss://{origin_host(o)}" for o in config.public_origins if o.startswith("https://"))
             response.headers["Content-Security-Policy"] = CSP.format(ws=ws)
         else:
             # Route template only (ids stay out of logs as a habit); no bodies, no queries.
@@ -320,7 +350,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     @app.get("/api/health")
     async def health():
-        return {**await svc.health.snapshot(), "tts_cache": svc.tts_cache.progress()}
+        return {**await svc.health.snapshot(), "tts_cache": svc.tts_cache.progress(), **svc.health.mode_info()}
 
     @app.get("/api/bootstrap")
     async def bootstrap(request: Request):
@@ -339,14 +369,15 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         return sc
 
     @app.get("/api/settings")
-    async def get_settings():
-        return svc.settings()
+    async def get_settings(request: Request):
+        return svc.settings(svc.owner_of(request.scope["headers"]))
 
     @app.put("/api/settings")
     async def put_settings(request: Request):
         body = await read_model(request, SettingsIn, svc)
-        svc.db.put_settings(body.model_dump(exclude_unset=True))
-        return svc.settings()
+        owner = svc.owner_of(request.scope["headers"])
+        svc.put_settings(body.model_dump(exclude_unset=True), owner)
+        return svc.settings(owner)
 
     # ------------------------------------------------------------ sessions
 
@@ -355,13 +386,14 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         body = await read_model(request, SessionIn, svc)
         if body.mode == "realtime":
             await svc.health.snapshot(force=True)
-        session = await svc.sessions.create(body.model_dump(exclude_none=True), svc.settings())
+        owner = svc.owner_of(request.scope["headers"])
+        session = await svc.sessions.create(body.model_dump(exclude_none=True), svc.settings(owner), owner=owner)
         return {**session.meta(), "scenario": session.scenario, "goals": session.goals,
                 "realtime_url": f"/api/sessions/{session.session_id}/realtime" if session.mode == "realtime" else None}
 
     @app.get("/api/sessions/{session_id}")
-    async def get_session(session_id: str):
-        session = svc.sessions.get(session_id)
+    async def get_session(session_id: str, request: Request):
+        session = svc.sessions.get(session_id, owner=svc.owner_of(request.scope["headers"]))
         engine = session.engine
         return {**session.meta(), "goals": session.goals, "summary": session.summary,
                 "connected": engine is not None,
@@ -371,14 +403,15 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
                                                  "playback_status", "spoken_segments")} for t in session.turns]}
 
     @app.post("/api/sessions/{session_id}/end")
-    async def end_session(session_id: str):
-        session = svc.sessions.get(session_id)
+    async def end_session(session_id: str, request: Request):
+        session = svc.sessions.get(session_id, owner=svc.owner_of(request.scope["headers"]))
         return await svc.sessions.end(session)
 
     @app.websocket("/api/sessions/{session_id}/realtime")
     async def realtime(ws: WebSocket, session_id: str):
         session = svc.sessions.sessions.get(session_id)
-        if session is None or session.mode != "realtime" or session.state == "ended":
+        if session is None or session.mode != "realtime" or session.state == "ended" \
+                or not svc.sessions.owns(session, svc.owner_of(ws.scope["headers"])):
             await ws.close(code=4404)
             return
         if session.engine is not None:
@@ -420,7 +453,8 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         body = await read_model(request, AttemptIn, svc)
         if body.target_text is not None and not ENGLISH_TEXT.match(body.target_text):
             raise ApiError("INVALID_REQUEST", message_ko="영어 문장만 연습할 수 있습니다.")
-        attempt = await svc.jobs.create_attempt(body.model_dump(exclude_none=True))
+        attempt = await svc.jobs.create_attempt(body.model_dump(exclude_none=True),
+                                                owner=svc.owner_of(request.scope["headers"]))
         return {"attempt_id": attempt.attempt_id, "attempt_index": attempt.attempt_index,
                 "exercise_type": attempt.exercise_type, "target_en": attempt.target_en,
                 "question_en": attempt.question_en, "history_opt_in": attempt.history_opt_in,
@@ -428,7 +462,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     @app.put("/api/attempts/{attempt_id}/audio")
     async def put_audio(attempt_id: str, request: Request):
-        attempt = svc.jobs.get_attempt(attempt_id)
+        attempt = svc.jobs.get_attempt(attempt_id, svc.owner_of(request.scope["headers"]))
         data = await read_body(request, config.max_wav_bytes, "AUDIO_TOO_LARGE")
         decoded = await asyncio.to_thread(parse_wav, data, config.max_audio_s)
         del data
@@ -436,7 +470,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     @app.post("/api/attempts/{attempt_id}/submit", status_code=202)
     async def submit(attempt_id: str, request: Request):
-        attempt = svc.jobs.get_attempt(attempt_id)
+        attempt = svc.jobs.get_attempt(attempt_id, svc.owner_of(request.scope["headers"]))
         key = request.headers.get("idempotency-key") or f"auto:{attempt_id}:submit"
         if len(key) > 128:
             raise ApiError("INVALID_REQUEST")
@@ -444,12 +478,12 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         return JSONResponse(job, status_code=202 if created else 200)
 
     @app.get("/api/attempts/{attempt_id}/result")
-    async def attempt_result(attempt_id: str):
-        return svc.jobs.result(svc.jobs.get_attempt(attempt_id))
+    async def attempt_result(attempt_id: str, request: Request):
+        return svc.jobs.result(svc.jobs.get_attempt(attempt_id, svc.owner_of(request.scope["headers"])))
 
     @app.patch("/api/attempts/{attempt_id}/transcript", status_code=202)
     async def patch_transcript(attempt_id: str, request: Request):
-        attempt = svc.jobs.get_attempt(attempt_id)
+        attempt = svc.jobs.get_attempt(attempt_id, svc.owner_of(request.scope["headers"]))
         body = await read_model(request, TranscriptIn, svc)
         key = request.headers.get("idempotency-key") or f"auto:{attempt_id}:rev:{uuid.uuid4().hex}"
         if len(key) > 128:
@@ -458,8 +492,8 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         return JSONResponse(job, status_code=202 if created else 200)
 
     @app.get("/api/attempts/{attempt_id}/model-audio/{audio_id}")
-    async def model_audio(attempt_id: str, audio_id: str):
-        entry = svc.jobs.get_attempt(attempt_id).model_audio.get(audio_id)
+    async def model_audio(attempt_id: str, audio_id: str, request: Request):
+        entry = svc.jobs.get_attempt(attempt_id, svc.owner_of(request.scope["headers"])).model_audio.get(audio_id)
         if entry is None:
             raise ApiError("NOT_FOUND")
         return wav_response(entry["wav"])
@@ -474,28 +508,33 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         return Response(data, media_type="application/json", headers={"Cache-Control": "no-cache"})
 
     @app.get("/api/jobs/{job_id}")
-    async def get_job(job_id: str):
-        return svc.jobs.get_job(job_id).public()
+    async def get_job(job_id: str, request: Request):
+        return svc.jobs.get_job(job_id, svc.owner_of(request.scope["headers"])).public()
 
     @app.delete("/api/jobs/{job_id}")
-    async def cancel_job(job_id: str):
-        return svc.jobs.cancel(job_id).public()
+    async def cancel_job(job_id: str, request: Request):
+        return svc.jobs.cancel(job_id, svc.owner_of(request.scope["headers"])).public()
 
     # ------------------------------------------------------------ history & review
 
+    # Shared mode stores no history or review items (PROTOCOL §7): these answer as an empty store.
+    def stored_history() -> dict:
+        return svc.db.history() if config.history_enabled else {"sessions": [], "attempts": []}
+
     @app.get("/api/history")
     async def history():
-        return svc.db.history()
+        return stored_history()
 
     @app.delete("/api/history")
     async def delete_history():
-        svc.db.delete_history()
+        if config.history_enabled:
+            svc.db.delete_history()
         return {"deleted": True}
 
     @app.post("/api/history/export")
     async def export_history(request: Request):
         body = await read_model(request, ExportIn, svc, allow_empty=True)
-        data = svc.db.history()
+        data = stored_history()
         stamp = time.strftime("%Y%m%d-%H%M%S")
         if body.format == "json":
             content = json.dumps(data, ensure_ascii=False, indent=2)
@@ -506,12 +545,12 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     @app.get("/api/review/due")
     async def review_due():
-        return {"items": reviewmod.due_items(svc.db)}
+        return {"items": reviewmod.due_items(svc.db) if config.history_enabled else []}
 
     @app.post("/api/review", status_code=201)
     async def review_add(request: Request):
         body = await read_model(request, ReviewIn, svc)
-        if not svc.settings().get("history_opt_in"):
+        if not svc.settings(svc.owner_of(request.scope["headers"])).get("history_opt_in"):
             raise ApiError("INVALID_STATE", message_ko="기록 저장에 동의한 경우에만 복습 표현을 저장할 수 있습니다.")
         item = {"item_id": "r_" + uuid.uuid4().hex[:16], **body.model_dump()}
         svc.db.add_review_item(item)
@@ -520,6 +559,8 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
     @app.post("/api/review/{item_id}/grade")
     async def review_grade(item_id: str, request: Request):
         body = await read_model(request, GradeIn, svc)
+        if not config.history_enabled:
+            raise ApiError("NOT_FOUND")
         return reviewmod.grade(svc.db, item_id, body.result)
 
     # ------------------------------------------------------------ TTS
@@ -558,6 +599,9 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     # Outermost, so it also guards WebSocket upgrades and rejects oversize bodies before routing.
     app.add_middleware(LocalAuthMiddleware, auth=svc.auth)
+    if config.path_prefix:
+        # Outside the auth check: a proxied "/voice/api/..." is checked and routed as "/api/...".
+        app.add_middleware(PathPrefixMiddleware, prefix=config.path_prefix)
 
     # ------------------------------------------------------------ static web build
 

@@ -1,6 +1,9 @@
 # Gateway configuration. Paths are relative to the repository root.
 # Environment overrides: VR_GATEWAY_PORT, VR_ASR_PORT, VR_TTS_PORT, VR_LLM_PORT, VR_PRON_PORT (worker ports, e.g. when
-# a default port is taken; also passed to the workers), VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN.
+# a default port is taken; also passed to the workers), VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN,
+# VR_MODE (local | api), VR_API_LLM_MODEL, VR_PUBLIC_ORIGINS (comma-separated), VR_PATH_PREFIX, VR_SHARED (1/0),
+# VR_MAX_SESSIONS, VR_MAX_SESSION_S, VR_JOB_CONCURRENCY.
+# API mode keys come only from the environment: OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY.
 
 [gateway]
 host = "127.0.0.1"
@@ -12,8 +15,39 @@ data_dir = "var/data"
 cache_dir = "var/cache"
 log_dir = "var/log"
 run_dir = "var/run"
-# Recorded in feedback objects; matches models.lock.json.
+# Recorded in feedback objects; matches models.lock.json. (API mode records "openrouter:<llm_model>" instead.)
 llm_model_revision = "unsloth/Qwen3-4B-Instruct-2507-GGUF@a06e946bb6b655725eafa393f4a9745d460374c9:Q4_K_M"
+# "local": the ASR/TTS/LLM workers below. "api": hosted providers ([api]); no worker processes, no model files
+# except Silero VAD (services/gateway/assets). See contracts/PROTOCOL.md §1.
+mode = "local"
+# Reverse proxy (e.g. Content Forge serving this app at https://<site>/voice/): its origins are accepted as Origin and
+# their hosts as Host, and the prefix is stripped before routing. Empty = only http://127.0.0.1:<port> and localhost.
+public_origins = []
+path_prefix = ""
+
+[api]
+# Conversation and background JSON (goals, hints, feedback, summaries) through OpenRouter, pinned to OpenAI/Azure with
+# zero data retention and no data collection.
+llm_base_url = "https://openrouter.ai/api/v1"
+llm_model = "openai/gpt-4.1-mini"
+llm_providers = ["openai", "azure"]
+# Live captions and final transcripts: OpenAI realtime transcription session (manual commit, our VAD decides).
+asr_url = "wss://api.openai.com/v1/realtime?intent=transcription"
+asr_model = "gpt-live-transcribe"
+# Streaming speech: Deepgram Aura-2 (every request carries mip_opt_out=true). Voice list: config/voices.api.json.
+tts_url = "wss://api.deepgram.com/v1/speak"
+tts_rest_url = "https://api.deepgram.com/v1/speak"
+voices = "config/voices.api.json"
+# The local pronunciation worker needs its own model files; off in API mode unless set to true.
+pronunciation = false
+
+[shared]
+# Several learners on one gateway: sessions per browser (vr_sid cookie), at most max_sessions live realtime sessions,
+# each ended after max_session_s; history and review storage off. Off for the single-learner local app.
+enabled = false
+max_sessions = 35
+max_session_s = 1800
+job_concurrency = 4
 
 [workers]
 asr_url = "http://127.0.0.1:8711"

@@ -1,3 +1,4 @@
+import { withPrefix } from './base'
 import { ApiError, messageFor } from './errors'
 import type {
   AttemptResult,
@@ -33,7 +34,7 @@ async function readError(res: Response): Promise<ApiError> {
 
 async function send(input: string, init: RequestInit = {}): Promise<Response> {
   try {
-    return await fetch(input, { credentials: 'same-origin', ...init })
+    return await fetch(withPrefix(input), { credentials: 'same-origin', ...init })
   } catch {
     throw new ApiError('NETWORK', messageFor('NETWORK'))
   }
@@ -117,7 +118,7 @@ export const api = {
    */
   endSessionOnUnload: (id: string): void => {
     if (!csrfToken) return
-    fetch(`/api/sessions/${encodeURIComponent(id)}/end`, {
+    fetch(withPrefix(`/api/sessions/${encodeURIComponent(id)}/end`), {
       method: 'POST',
       keepalive: true,
       credentials: 'same-origin',

@@ -1,6 +1,10 @@
 """Local auth (PROTOCOL §6.1): vr_sid cookie, CSRF header for mutations, Host/Origin allowlist.
 
 Implemented as a plain ASGI middleware so it covers HTTP and WebSocket upgrades alike.
+
+`PathPrefixMiddleware` (reverse proxy, PROTOCOL §6.1): with `path_prefix = "/voice"`, "/voice/api/..." is checked and
+routed as "/api/..."; requests without the prefix still work (direct local access). The session cookie of a prefixed
+request is scoped to the prefix path.
 """
 
 from __future__ import annotations
@@ -18,6 +22,7 @@ COOKIE = "vr_sid"
 CSRF_HEADER = b"x-vr-csrf"
 SAFE_METHODS = {"GET", "HEAD", "OPTIONS"}
 PUBLIC_API = {"/api/health"}
+PREFIX_KEY = "vr_path_prefix"  # ASGI scope key set by PathPrefixMiddleware: the prefix the request came in under
 
 
 class LocalAuth:
@@ -116,7 +121,8 @@ class LocalAuthMiddleware:
         # Static pages: hand out a session cookie on first load.
         if method in SAFE_METHODS and not self.auth.valid_sid(sid):
             new_sid = self.auth.new_sid()
-            cookie = f"{COOKIE}={new_sid}; HttpOnly; SameSite=Strict; Path=/".encode()
+            cookie_path = f"{scope.get(PREFIX_KEY) or ''}/"
+            cookie = f"{COOKIE}={new_sid}; HttpOnly; SameSite=Strict; Path={cookie_path}".encode()
 
             async def send_with_cookie(message):
                 if message["type"] == "http.response.start":
@@ -139,3 +145,28 @@ class LocalAuthMiddleware:
                         (b"content-length", str(len(body)).encode())],
         })
         await send({"type": "http.response.body", "body": body})
+
+
+class PathPrefixMiddleware:
+    """Strip a reverse-proxy path prefix ("/voice") before auth and routing; "/voice" alone redirects to "/voice/"."""
+
+    def __init__(self, app, prefix: str):
+        self.app = app
+        self.prefix = prefix.rstrip("/")
+
+    async def __call__(self, scope, receive, send):
+        if scope["type"] in ("http", "websocket") and self.prefix:
+            path = scope["path"]
+            if path == self.prefix and scope["type"] == "http":
+                query = scope.get("query_string", b"")
+                location = (self.prefix + "/" + ("?" + query.decode("latin-1") if query else "")).encode("latin-1")
+                await send({"type": "http.response.start", "status": 308,
+                            "headers": [(b"location", location), (b"content-length", b"0")]})
+                await send({"type": "http.response.body", "body": b""})
+                return
+            if path.startswith(self.prefix + "/"):
+                raw = scope.get("raw_path") or path.encode("latin-1")
+                prefix_b = self.prefix.encode("latin-1")
+                scope = {**scope, "path": path[len(self.prefix):], PREFIX_KEY: self.prefix,
+                         "raw_path": raw[len(prefix_b):] if raw.startswith(prefix_b) else raw}
+        await self.app(scope, receive, send)

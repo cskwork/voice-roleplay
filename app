@@ -2,8 +2,10 @@
 # voice-roleplay local launcher (PRD §14.3, PROTOCOL §11).
 #
 #   ./app setup [--yes]    install runtimes, web build and pinned models (asks first; --yes = no prompt)
-#   ./app doctor [--full]  check hardware, runtimes, model hashes, ports, voices, offline readiness
-#   ./app start            start gateway + ASR/TTS/LLM (+ optional pronunciation) workers, wait until ready, print the URL
+#   ./app setup --api      API mode: gateway environment + web build only, no model downloads (VR_WEB_BASE=/voice/ for a proxy)
+#   ./app doctor [--full]  check hardware, runtimes, model hashes, ports, voices, offline readiness (--api: keys, VAD, build)
+#   ./app start [--api]    start gateway + ASR/TTS/LLM (+ optional pronunciation) workers, wait until ready, print the URL
+#                          (--api or VR_MODE=api: hosted providers, no workers; needs OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY)
 #   ./app stop             stop gracefully (jobs cancelled, workers stopped), clean up leftovers
 #   ./app benchmark [...]  run benchmarks/run.sh
 set -euo pipefail
@@ -32,9 +34,46 @@ pid_is() {
   pid_alive "$pid" && ps -o command= -p "$pid" 2>/dev/null | grep -q -- "$pattern"
 }
 
+find_npm() {
+  if ! command -v npm >/dev/null && [ -s "$HOME/.nvm/nvm.sh" ]; then
+    # shellcheck disable=SC1091
+    set +u; . "$HOME/.nvm/nvm.sh" >/dev/null; set -u
+  fi
+  command -v npm >/dev/null || die "npm not found (install Node.js 22)"
+}
+
+cmd_setup_api() {
+  local yes=$1
+  cat <<EOF
+./app setup --api will:
+  1. create the gateway Python environment with uv from its lock file (services/gateway)
+  2. install and build the web app (npm ci && npm run build in apps/web), base path ${VR_WEB_BASE:-/}
+It downloads no model files: the only local model is Silero VAD (2.2 MB), already in services/gateway/assets.
+At runtime, learners' voice and conversation text are sent to OpenAI, OpenRouter and Deepgram (US) - see README "Privacy".
+This uses the network (PyPI, npm) and well under 1 GB of disk.
+EOF
+  if [ "$yes" -ne 1 ]; then
+    [ -t 0 ] || die "no terminal to ask for consent; re-run with --yes to agree non-interactively"
+    read -r -p "Continue? [y/N] " answer
+    case "$answer" in y|Y|yes|YES) ;; *) say "Cancelled. Nothing was installed."; exit 1 ;; esac
+  fi
+  command -v uv >/dev/null || die "uv not found (install: https://docs.astral.sh/uv/)"
+  find_npm
+  say "== [1/2] Gateway environment (uv sync --frozen)"
+  (cd "$ROOT/services/gateway" && uv sync --frozen)
+  say "== [2/2] Web app"
+  (cd "$ROOT/apps/web" && npm ci && VR_WEB_BASE="${VR_WEB_BASE:-/}" npm run build)
+  say ""
+  say "Setup complete. Next: export the three API keys, then ./app doctor --api and ./app start --api"
+}
+
 cmd_setup() {
-  local yes=0
-  [ "${1:-}" = "--yes" ] && yes=1
+  local yes=0 api=0
+  for arg in "$@"; do
+    case "$arg" in --yes) yes=1 ;; --api) api=1 ;; *) die "unknown option: $arg" ;; esac
+  done
+  [ "${VR_MODE:-}" = "api" ] && api=1
+  if [ $api -eq 1 ]; then cmd_setup_api "$yes"; return; fi
   cat <<'EOF'
 ./app setup will:
   1. create Python environments with uv from the lock files (services/gateway, workers/asr, workers/tts,
@@ -57,11 +96,7 @@ EOF
   command -v uv >/dev/null || die "uv not found (install: https://docs.astral.sh/uv/)"
   command -v git >/dev/null || die "git not found"
   command -v llama-server >/dev/null || die "llama-server not found (brew install llama.cpp)"
-  if ! command -v npm >/dev/null && [ -s "$HOME/.nvm/nvm.sh" ]; then
-    # shellcheck disable=SC1091
-    set +u; . "$HOME/.nvm/nvm.sh" >/dev/null; set -u
-  fi
-  command -v npm >/dev/null || die "npm not found (install Node.js 22)"
+  find_npm
 
   say "== [1/4] Python environments (uv sync --frozen)"
   (cd "$ROOT/services/gateway" && uv sync --frozen)
@@ -86,6 +121,9 @@ cmd_doctor() {
 
 cmd_start() {
   local pid
+  for arg in "$@"; do
+    case "$arg" in --api) export VR_MODE=api ;; *) die "unknown option: $arg" ;; esac
+  done
   pid=$(read_pid gateway)
   if pid_is "$pid" vr_gateway; then
     say "Already running (pid $pid): $URL"
@@ -96,7 +134,11 @@ cmd_start() {
     die "cannot start (fix the items above; run ./app setup for missing files, ./app stop for a previous run)"
   fi
   mkdir -p "$RUN_DIR" "$LOG_DIR"
-  say "Starting gateway and workers (logs: var/log/)..."
+  if [ "$("$PYTHON" "$TOOL" mode)" = "api" ]; then
+    say "Starting gateway in API mode (no local model workers; logs: var/log/)..."
+  else
+    say "Starting gateway and workers (logs: var/log/)..."
+  fi
   (cd "$ROOT/services/gateway" && exec nohup "$GATEWAY_PY" -m vr_gateway --manage-workers \
       >>"$LOG_DIR/gateway.log" 2>&1 </dev/null) &
   pid=$!
@@ -110,7 +152,7 @@ cmd_start() {
   fi
   trap - INT TERM
   say ""
-  say "Ready: $URL"
+  say "Ready: $URL${VR_PATH_PREFIX:+ (behind a proxy: <public origin>${VR_PATH_PREFIX%/}/)}"
 }
 
 stop_worker() {
@@ -157,5 +199,5 @@ case "${1:-}" in
   start) shift; cmd_start "$@" ;;
   stop) shift; cmd_stop "$@" ;;
   benchmark) shift; cmd_benchmark "$@" ;;
-  *) sed -n '2,8p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
+  *) sed -n '2,10p' "$0" | sed 's/^# \{0,1\}//'; exit 2 ;;
 esac

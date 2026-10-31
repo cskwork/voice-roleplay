@@ -1,4 +1,14 @@
-"""Gateway configuration loaded from services/gateway/config.toml plus env overrides."""
+"""Gateway configuration loaded from services/gateway/config.toml plus env overrides.
+
+Two independent switches (PROTOCOL §1, §7):
+- `mode`: "local" (default, the four local model workers) or "api" (hosted providers through adapters in
+  `vr_gateway.adapters`; only Silero VAD runs locally). API keys come only from environment variables and are never
+  written to disk or logged.
+- `shared`: many learners on one gateway (sessions per `vr_sid` cookie, a concurrency cap, a maximum session length,
+  history and review storage off). Independent of `mode`.
+`public_origins` and `path_prefix` let a reverse proxy on another origin (e.g. Content Forge at `/voice/`) forward
+HTTP and WebSocket requests with its own Host/Origin headers.
+"""
 
 from __future__ import annotations
 
@@ -13,6 +23,9 @@ REPO_ROOT = GATEWAY_DIR.parents[1]
 ASSETS_DIR = GATEWAY_DIR / "assets"
 
 MIB = 1024 * 1024
+MODES = ("local", "api")
+# Environment variables holding provider keys in API mode (PROTOCOL §1). Only presence is ever reported.
+API_KEY_ENV = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY", "deepgram": "DEEPGRAM_API_KEY"}
 # Port overrides for a machine where a default port is taken: gateway env var -> (worker env var it sets).
 WORKER_PORT_ENV = {"asr": ("VR_ASR_PORT", "ASR_PORT"), "tts": ("VR_TTS_PORT", "VR_TTS_PORT"), "llm": ("VR_LLM_PORT", None),
                    "pron": ("VR_PRON_PORT", "VR_PRON_PORT")}
@@ -26,6 +39,35 @@ class WorkerProcess:
     health_url: str
     env: dict[str, str] = field(default_factory=dict)  # values may use ${VR_WORKER_TOKEN}
     optional: bool = False  # not installed -> skipped at start instead of failing the stack (pronunciation worker)
+
+
+@dataclass
+class ApiConfig:
+    """Hosted providers used in API mode (PROTOCOL §1). Keys are read from the environment, never from files."""
+
+    llm_base_url: str = "https://openrouter.ai/api/v1"
+    llm_model: str = "openai/gpt-4.1-mini"
+    # OpenRouter provider routing: only these upstreams, no fallbacks, zero data retention, no data collection.
+    llm_providers: list[str] = field(default_factory=lambda: ["openai", "azure"])
+    llm_timeout_s: float = 60.0
+    asr_url: str = "wss://api.openai.com/v1/realtime?intent=transcription"
+    asr_model: str = "gpt-live-transcribe"
+    tts_url: str = "wss://api.deepgram.com/v1/speak"
+    tts_rest_url: str = "https://api.deepgram.com/v1/speak"
+    voices: Path = REPO_ROOT / "config/voices.api.json"
+    # The optional local pronunciation worker stays off in API mode unless turned on here (needs its local models).
+    pronunciation: bool = False
+    keys: dict[str, str] = field(default_factory=dict, repr=False)
+
+    def key(self, provider: str) -> str:
+        return self.keys.get(provider, "")
+
+    def key_presence(self) -> dict[str, bool]:
+        return {name: bool(self.keys.get(name)) for name in API_KEY_ENV}
+
+
+def read_api_keys(environ=os.environ) -> dict[str, str]:
+    return {name: environ.get(var, "").strip() for name, var in API_KEY_ENV.items()}
 
 
 @dataclass
@@ -49,8 +91,21 @@ class Config:
     # Guide content (PA-8) and the CMUdict file used to link a word to guide entries in timing_only mode.
     pron_guide: Path = REPO_ROOT / "content/pronunciation/guide.json"
     pron_lexicon: Path = REPO_ROOT / "models/cmudict/cmudict.dict"
-    worker_token: str = ""
+    worker_token: str = field(default="", repr=False)
     processes: list[WorkerProcess] = field(default_factory=list)
+    mode: str = "local"  # local | api
+    api: ApiConfig = field(default_factory=ApiConfig)
+
+    # Reverse proxy support: extra allowed origins (scheme://host[:port]) whose hosts are also allowed as Host, and a
+    # path prefix (e.g. "/voice") that is stripped before routing.
+    public_origins: list[str] = field(default_factory=list)
+    path_prefix: str = ""
+
+    # Shared mode (several learners on one gateway).
+    shared: bool = False
+    max_sessions: int = 35  # live realtime sessions across all learners
+    max_session_s: float = 1800.0  # a realtime session is ended after this long (0 = no limit)
+    job_concurrency: int = 1  # recorded-practice jobs processed at the same time
 
     # Limits (PROTOCOL §6-§7)
     max_wav_bytes: int = 32 * MIB
@@ -68,11 +123,45 @@ class Config:
 
     @property
     def allowed_origins(self) -> set[str]:
-        return {f"http://127.0.0.1:{self.port}", f"http://localhost:{self.port}"}
+        return {f"http://127.0.0.1:{self.port}", f"http://localhost:{self.port}", *self.public_origins}
 
     @property
     def allowed_hosts(self) -> set[str]:
-        return {f"127.0.0.1:{self.port}", f"localhost:{self.port}"}
+        return {f"127.0.0.1:{self.port}", f"localhost:{self.port}", *(origin_host(o) for o in self.public_origins)}
+
+    @property
+    def history_enabled(self) -> bool:
+        """History and spaced review are stored only for a single local learner (off in shared mode)."""
+        return not self.shared
+
+
+def origin_host(origin: str) -> str:
+    """'https://example.com' -> 'example.com'; 'http://host:8080' -> 'host:8080' (the Host header form)."""
+    return origin.split("://", 1)[-1].rstrip("/")
+
+
+def normalize_prefix(prefix: str) -> str:
+    """'' or '/' -> ''; 'voice/' -> '/voice'. Only [A-Za-z0-9_-] path segments are accepted."""
+    parts = [p for p in prefix.strip().split("/") if p]
+    for part in parts:
+        if not all(c.isalnum() or c in "-_" for c in part):
+            raise ValueError(f"invalid path_prefix: {prefix!r}")
+    return "/" + "/".join(parts) if parts else ""
+
+
+def normalize_origin(origin: str) -> str:
+    origin = origin.strip().rstrip("/")
+    scheme, sep, rest = origin.partition("://")
+    if not sep or scheme not in ("http", "https") or not rest or "/" in rest:
+        raise ValueError(f"invalid public origin (expected scheme://host[:port]): {origin!r}")
+    return f"{scheme}://{rest.lower()}"
+
+
+def _env_bool(name: str) -> bool | None:
+    value = os.environ.get(name)
+    if value is None or value.strip() == "":
+        return None
+    return value.strip().lower() in ("1", "true", "yes", "on")
 
 
 def _repo_path(value: str) -> Path:
@@ -102,6 +191,7 @@ def load_config(path: Path | None = None) -> Config:
     cfg.llm_url = wk.get("llm_url", cfg.llm_url)
     cfg.pron_url = wk.get("pron_url", cfg.pron_url)
     cfg.worker_token = os.environ.get("VR_WORKER_TOKEN", "")
+    _load_modes(cfg, gw, raw.get("api", {}), raw.get("shared", {}))
     for name, spec in raw.get("supervisor", {}).items():
         env: dict[str, str] = {}
         if "server_json" in spec:
@@ -132,4 +222,47 @@ def load_config(path: Path | None = None) -> Config:
     for name, (gw_var, _) in WORKER_PORT_ENV.items():  # also without a supervisor entry
         if os.environ.get(gw_var) and (name != "pron" or cfg.pron_url):
             setattr(cfg, f"{name}_url", f"http://127.0.0.1:{int(os.environ[gw_var])}")
+    if cfg.mode == "api":
+        # No local ASR/TTS/LLM processes; the optional pronunciation worker only when turned on.
+        cfg.processes = [p for p in cfg.processes if p.name == "pron" and cfg.api.pronunciation]
+        if not cfg.api.pronunciation:
+            cfg.pron_url = ""
     return cfg
+
+
+def _load_modes(cfg: Config, gw: dict, api: dict, shared: dict) -> None:
+    """mode / api / shared / proxy settings: config.toml first, then VR_* environment overrides."""
+    cfg.mode = os.environ.get("VR_MODE", "").strip().lower() or gw.get("mode", cfg.mode)
+    if cfg.mode not in MODES:
+        raise ValueError(f"mode must be one of {MODES}, got {cfg.mode!r}")
+    a = cfg.api
+    for key in ("llm_base_url", "llm_model", "asr_url", "asr_model", "tts_url", "tts_rest_url"):
+        if key in api:
+            setattr(a, key, str(api[key]))
+    if "llm_providers" in api:
+        a.llm_providers = [str(p) for p in api["llm_providers"]]
+    if "llm_timeout_s" in api:
+        a.llm_timeout_s = float(api["llm_timeout_s"])
+    if "voices" in api:
+        a.voices = _repo_path(api["voices"])
+    a.pronunciation = bool(api.get("pronunciation", a.pronunciation))
+    a.llm_model = os.environ.get("VR_API_LLM_MODEL", "").strip() or a.llm_model
+    a.keys = read_api_keys()
+    if cfg.mode == "api":
+        cfg.llm_model_revision = f"openrouter:{a.llm_model}"
+
+    origins = os.environ.get("VR_PUBLIC_ORIGINS")
+    raw_origins = [o for o in origins.split(",") if o.strip()] if origins is not None else gw.get("public_origins", [])
+    cfg.public_origins = [normalize_origin(o) for o in raw_origins]
+    prefix = os.environ.get("VR_PATH_PREFIX")
+    cfg.path_prefix = normalize_prefix(prefix if prefix is not None else gw.get("path_prefix", ""))
+
+    env_shared = _env_bool("VR_SHARED")
+    cfg.shared = env_shared if env_shared is not None else bool(shared.get("enabled", cfg.shared))
+    cfg.max_sessions = int(os.environ.get("VR_MAX_SESSIONS") or shared.get("max_sessions", cfg.max_sessions))
+    cfg.max_session_s = float(os.environ.get("VR_MAX_SESSION_S") or shared.get("max_session_s", cfg.max_session_s))
+    if cfg.shared:
+        cfg.job_concurrency = int(os.environ.get("VR_JOB_CONCURRENCY") or shared.get("job_concurrency", 4))
+        cfg.job_queue_capacity = int(shared.get("job_queue_capacity", max(cfg.job_queue_capacity, cfg.max_sessions)))
+    if cfg.max_sessions < 1 or cfg.job_concurrency < 1:
+        raise ValueError("max_sessions and job_concurrency must be at least 1")
