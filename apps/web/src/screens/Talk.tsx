@@ -18,7 +18,7 @@ const STATE_TEXT: Record<ServerState, [string, IconName, string]> = {
   RESPONDING: ['AI 응답 중', 'speaker', 'speak'],
   INTERRUPTING: ['끊는 중', 'stop', 'think'],
   PAUSED: ['일시정지', 'pause', 'neutral'],
-  RECOVERABLE_ERROR: ['오류 — 다시 시도 가능', 'alert', 'warn'],
+  RECOVERABLE_ERROR: ['오류, 다시 시도할 수 있어요', 'alert', 'warn'],
   CLOSED: ['종료됨', 'close', 'neutral'],
 }
 
@@ -91,7 +91,7 @@ function MicStatus({ s, onToggleMute, onPtt }: { s: Snapshot; onToggleMute(): vo
   )
 }
 
-function CaptionList({ captions }: { captions: Caption[] }) {
+function CaptionList({ captions, aiRole, meRole }: { captions: Caption[]; aiRole: string; meRole: string }) {
   const box = useRef<HTMLDivElement>(null)
   const pinned = useRef(true)
   const [unseen, setUnseen] = useState(false)
@@ -130,17 +130,30 @@ function CaptionList({ captions }: { captions: Caption[] }) {
         {captions.map((c) => {
           if (c.kind === 'user') {
             return (
-              <div key={c.turn_id} className={`bubble user ${c.final ? 'final' : 'partial'}`}>
-                <span className="who">{c.final ? '나' : '나 · 인식 중'}</span>
+              <div key={c.turn_id} className={`bubble user ${c.final ? 'final' : 'partial is-speaking'}`}>
+                <span className="who">
+                  <span className="tally" aria-hidden="true" />
+                  <span>
+                    나<span className="who-role"> · {meRole}</span>
+                    {!c.final && <span className="who-note"> · 인식 중</span>}
+                  </span>
+                </span>
                 <p lang="en">{c.text || '…'}</p>
               </div>
             )
           }
           const shown = c.segments.filter((x) => x.status !== 'dropped')
           const stopAt = shown.findIndex((x) => x.status === 'interrupted')
+          const speaking = shown.some((x) => x.status === 'playing')
           return (
-            <div key={c.response_id} className={`bubble ai ${c.state === 'cancelled' ? 'cancelled' : ''}`}>
-              <span className="who">AI{c.state === 'cancelled' ? ' · 말하다 멈춤' : ''}</span>
+            <div key={c.response_id} className={`bubble ai ${c.state === 'cancelled' ? 'cancelled' : ''} ${speaking ? 'is-speaking' : ''}`}>
+              <span className="who">
+                <span className="tally" aria-hidden="true" />
+                <span>
+                  AI<span className="who-role"> · {aiRole}</span>
+                  {c.state === 'cancelled' && <span className="who-note"> · 말하다 멈춤</span>}
+                </span>
+              </span>
               <p lang="en">
                 {shown.map((x, i) => (
                   <span key={x.segment_id} className={`seg-${x.status}`}>
@@ -600,7 +613,7 @@ export function LiveTalk({
               </button>
             </Notice>
           )}
-          <CaptionList captions={s.captions} />
+          <CaptionList captions={s.captions} aiRole={sc.ai_role_ko} meRole={sc.user_role_ko} />
           {shownHint && (
             <HintPanel
               hint={shownHint}
