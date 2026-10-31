@@ -1,9 +1,11 @@
 """Realtime engine end to end over the API-mode ASR and TTS adapters, against the FAKE provider servers of
-test_api_adapters.py (OpenAI realtime transcription, Deepgram /v1/speak). FakeLlm from conftest writes the reply.
+test_api_adapters.py (OpenAI realtime transcription, Deepgram /v1/speak) and test_api_tts_openrouter.py (OpenRouter
+/audio/speech, the default speech path). FakeLlm from conftest writes the reply.
 
 Checks the wiring the unit tests cannot: partials reach the browser as replacing `asr.partial` events, the
-adapter's final becomes `asr.final`, Deepgram audio streams as output frames, and a barge-in cancels the Deepgram
-request (Clear) with no stale frames afterwards (PROTOCOL §6.3).
+adapter's final becomes `asr.final`, provider audio streams as output frames, and a barge-in cancels the provider
+request (Deepgram: Clear; OpenRouter: the HTTP response is closed) with no stale frames afterwards (PROTOCOL §6.3).
+The Deepgram tests inject `DeepgramTts` directly (the opt-in `tts_provider = "deepgram"` fallback).
 """
 
 from __future__ import annotations
@@ -15,11 +17,14 @@ import numpy as np
 import pytest
 from conftest import Gateway, silence, tone
 from test_api_adapters import VOICES, FakeDeepgram, FakeOpenAiRealtime
+from test_api_tts_openrouter import VOICES as OR_VOICES
+from test_api_tts_openrouter import FakeOpenRouterSpeech
 from test_realtime import speak_turn, start
 from websockets.asyncio.server import serve
 
 from vr_gateway.adapters.asr_openai import OpenAiAsr
 from vr_gateway.adapters.tts_deepgram import DeepgramTts
+from vr_gateway.adapters.tts_openrouter import OpenRouterTts
 
 pytestmark = pytest.mark.asyncio
 
@@ -87,4 +92,60 @@ async def test_barge_in_over_deepgram_has_no_stale_frames(api_gw):
     assert [x for k, x in after if x.get("response_id") == resp["response_id"] and x.get("type") != "error"] == []
     assert all(x["epoch"] == 1 for k, x in after if k == "frame")
     assert any({"type": "Clear"} in c["messages"] for c in g.dg.connections)  # the provider was told to stop
+    await rt.ws.close()
+
+
+# ---------------------------------------------------------------- default speech path: Aura-2 through OpenRouter
+
+
+@pytest.fixture
+async def or_gw(tmp_path):
+    oa, speech = FakeOpenAiRealtime(), FakeOpenRouterSpeech()
+    server = await asyncio.start_server(speech.handler, "127.0.0.1", speech.port)
+    async with server, serve(oa.handler, "127.0.0.1", oa.port, max_size=2**24):
+        g = await asyncio.to_thread(Gateway, tmp_path, mode="api", shared=True)
+        g.svc.asr = OpenAiAsr("sk-test", url=f"ws://127.0.0.1:{oa.port}/v1/realtime?intent=transcription")
+        g.svc.tts = OpenRouterTts("or-test", OR_VOICES, base_url=speech.base_url)
+        g.oa, g.speech = oa, speech
+        try:
+            yield g
+        finally:
+            await asyncio.to_thread(g.stop)
+            await g.svc.tts.aclose()
+
+
+async def test_turn_over_openrouter_tts(or_gw):
+    g = or_gw
+    g.speech.delay = 0.0
+    session, rt = await start(g)
+    await speak_turn(rt, ms=800)
+    resp = await rt.until("response.started", timeout=5)
+    await rt.until("response.done", response_id=resp["response_id"], timeout=10)
+    frames = [h for h, _ in rt.frames if h["response_id"] == resp["response_id"]]
+    assert frames and all(h["sample_rate"] == 24000 and h["sample_count"] <= 2400 for h in frames)
+    assert g.speech.requests
+    assert all(r["json"]["provider"] == {"zdr": True, "data_collection": "deny"} for r in g.speech.requests)
+    await rt.ws.close()
+
+
+async def test_barge_in_over_openrouter_tts_has_no_stale_frames(or_gw):
+    g = or_gw
+    session, rt = await start(g)
+    g.speech.chunks, g.speech.delay = 30, 0.03
+    await speak_turn(rt, ms=800)
+    resp = await rt.until("response.started", timeout=5)
+    while not any(h["response_id"] == resp["response_id"] for h, _ in rt.frames):
+        await rt.recv(5)
+    await rt.event("playback.started", response_id=resp["response_id"], segment_id=0)
+    await rt.audio(np.concatenate([silence(64), tone(700), silence(1100)]))
+    cancelled = await rt.until("response.cancelled", response_id=resp["response_id"], timeout=5)
+    assert cancelled["epoch"] == 1
+    idx = next(i for i, (k, x) in enumerate(rt.log) if k == "event" and x["type"] == "response.cancelled")
+    new = await rt.until("response.started", timeout=10)
+    await rt.until("response.done", response_id=new["response_id"], timeout=15)
+    after = rt.log[idx + 1 :]
+    assert [x for k, x in after if x.get("response_id") == resp["response_id"] and x.get("type") != "error"] == []
+    assert all(x["epoch"] == 1 for k, x in after if k == "frame")
+    # The provider request of the interrupted reply was closed before it finished.
+    assert any(r["closed"].is_set() and r["sent"] < 30 for r in g.speech.requests)
     await rt.ws.close()
