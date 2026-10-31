@@ -107,6 +107,38 @@ cd voice-roleplay
 These launcher commands were not re-run for this README: setup downloads about 19 GiB of models. The tests
 below were run.
 
+### API mode (no model downloads)
+
+The same gateway and web app, with the three heavy models replaced by hosted APIs: OpenRouter
+(`openai/gpt-4.1-mini`) for the conversation and feedback, OpenAI `gpt-live-transcribe` for live captions and
+transcripts, and Deepgram Aura-2 for the voice. The only local model is Silero VAD (2.2 MB, already in the repo).
+Needs uv, Node.js 22+ and well under 1 GB of disk; no llama.cpp. Tested only on macOS (Apple Silicon)
+so far. Contract: [`contracts/PROTOCOL.md`](contracts/PROTOCOL.md) §1.1.
+
+```sh
+./app setup --api                      # gateway env + web build only, downloads no models
+export OPENROUTER_API_KEY=... OPENAI_API_KEY=... DEEPGRAM_API_KEY=...   # environment only, never written to disk
+./app doctor --api                     # env, web build, VAD hash, keys set/missing (values are never printed)
+./app start --api
+```
+
+For a class on one machine behind a reverse proxy at `https://<site>/voice/`, add shared mode (sessions per
+browser, at most 35 live sessions, 30-minute limit, history off) and build the web app for the prefix:
+
+```sh
+VR_WEB_BASE=/voice/ ./app setup --api
+VR_MODE=api VR_SHARED=1 VR_PUBLIC_ORIGINS=https://<site> VR_PATH_PREFIX=/voice ./app start
+```
+
+**Privacy in API mode.** The "nothing leaves your Mac" promise does not hold in API mode. Learners' voice is
+sent to OpenAI, the conversation text to OpenRouter and its OpenAI/Azure upstreams, and the AI's reply text to
+Deepgram, all in the US. Requests ask for no retention where the provider allows it (OpenRouter `zdr: true`,
+`data_collection: "deny"`; Deepgram `mip_opt_out=true`); OpenAI keeps realtime abuse-monitoring logs for 30 days
+unless zero data retention is approved for the account. The gateway still writes no audio to disk and logs no
+transcripts, prompts or replies, and shared mode stores no history. Provider calls are billed (estimate in the
+review that planned this mode: about 0.22 USD per 10-minute session, list prices 2026-10-31; not measured yet:
+run `benchmarks/api/bench_api.py` with keys). Pronunciation analysis is off in API mode.
+
 ## Testing
 
 These tests need no model files. CI ([`.github/workflows/ci.yml`](.github/workflows/ci.yml)) runs them on

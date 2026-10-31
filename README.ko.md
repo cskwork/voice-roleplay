@@ -4,6 +4,8 @@
 
 내 컴퓨터에서만 돌아가는 영어 말하기 연습 서비스입니다. 브라우저에서 AI와 영어로 역할극 대화를 하거나(실시간 모드), 문장 읽기·따라 말하기·자유 답변을 녹음해 전사와 텍스트 피드백을 받습니다(녹음형 모드). 음성 인식(Qwen3-ASR-0.6B), 음성 합성(Fun-CosyVoice3-0.5B-2512), 대화 모델(Qwen3-4B-Instruct-2507, llama.cpp)이 모두 로컬에서 실행되고, 설치가 끝난 뒤에는 인터넷 연결 없이 동작합니다.
 
+**API 모드**(`./app setup --api`, `./app start --api`)는 모델을 받지 않고 OpenRouter(대화)·OpenAI `gpt-live-transcribe`(음성 인식)·Deepgram Aura-2(목소리)를 씁니다. 로컬 모델은 Silero VAD(2.2 MB) 하나뿐입니다. 이 모드에서는 학습자 음성과 대화 글이 미국의 OpenAI·OpenRouter·Deepgram으로 전송됩니다. 키는 환경 변수(`OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `DEEPGRAM_API_KEY`)로만 받습니다. 자세한 내용은 영어 README의 "API mode"와 `contracts/PROTOCOL.md` §1.1에 있습니다.
+
 제품 요구사항은 `docs/PRD.md`, 컴포넌트 간 계약은 `contracts/PROTOCOL.md`에 있습니다.
 
 | 학습 홈 | 실시간 회화 | 모바일 |

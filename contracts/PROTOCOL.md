@@ -36,6 +36,26 @@ Workers never download anything at runtime (`HF_HUB_OFFLINE=1`, `TRANSFORMERS_OF
 The TTS worker may offer more than one backend (env `VR_TTS_BACKEND`, owned by `workers/tts`); its CLI stays
 `workers/tts/.venv/bin/python -m tts_worker` and its HTTP/WS contract (§4) does not depend on the backend.
 
+### 1.1 API mode (`mode = "api"`, env `VR_MODE=api`)
+Only the gateway runs (port 8710, `services/gateway/.venv`). The four model processes above are not started and their model
+files are not needed; the only local model is Silero VAD (`services/gateway/assets/silero_vad.onnx`, 2.2 MB, MIT). The gateway
+calls hosted providers through adapters with the same interfaces as the worker clients (§3.1, §4.1, §5.1):
+
+| Component | Provider, model | Adapter | Key (environment only) |
+|---|---|---|---|
+| ASR (live captions + final transcripts, recorded practice) | OpenAI realtime transcription, `gpt-live-transcribe` | `vr_gateway/adapters/asr_openai.py` | `OPENAI_API_KEY` |
+| TTS | Deepgram Aura-2 (`config/voices.api.json`) | `vr_gateway/adapters/tts_deepgram.py` | `DEEPGRAM_API_KEY` |
+| LLM (roleplay + background JSON) | OpenRouter, `openai/gpt-4.1-mini` (`VR_API_LLM_MODEL` overrides) | `vr_feedback/llm.py` `LlmClient.openrouter` | `OPENROUTER_API_KEY` |
+| Pronunciation | off (`[api] pronunciation = false`); §12.1 still forbids cloud pronunciation APIs | — | — |
+
+- Keys are read from the environment at start, never from files, never written to disk, never logged or returned. `/api/health`
+  reports only whether each is set (§6.2). A missing key makes that component "not ready" (the gateway still starts).
+- Data leaves the machine: learners' voice goes to OpenAI, conversation text to OpenRouter and its OpenAI/Azure upstreams,
+  AI reply text to Deepgram (all US). OpenRouter requests carry `provider: {order: ["openai","azure"], allow_fallbacks: false,
+  zdr: true, data_collection: "deny", require_parameters: true}`; every Deepgram request carries `mip_opt_out=true`.
+- The browser ⇄ gateway contract (§6) is unchanged; output audio stays PCM16 24 kHz in ≤ 100 ms frames.
+- Worker auth (below) does not apply to providers; each adapter sends only its provider's `Authorization` header.
+
 ### Worker auth
 Gateway generates a random internal token at start and passes it to workers via env `VR_WORKER_TOKEN`.
 Every worker request, **including `GET /health`**, must carry header `X-Worker-Token: <token>` (WS: same header on
@@ -79,6 +99,18 @@ Audio in: PCM signed 16-bit little-endian, mono, 16 000 Hz (gateway resamples be
   - Cancel/close frees the buffer immediately.
 - Concurrency: one model instance; decodes are serialized with an asyncio lock; final decodes take priority over partials.
 
+### 3.1 API-mode ASR adapter (in-process, `adapters/asr_openai.py`)
+Same calls as the worker client: `open_stream(on_partial) -> AsrStream{send_audio, commit, cancel, close}` and
+`transcribe(pcm16, context)`. One OpenAI transcription session per utterance: WebSocket
+`wss://api.openai.com/v1/realtime?intent=transcription`, then `session.update` with `session.type: "transcription"`,
+`audio.input.format: {type: "audio/pcm", rate: 24000}`, `transcription: {model: "gpt-live-transcribe", languages: ["en"]}`
+(plus `prompt` = the scenario context for recorded practice; never the target sentence, §7) and `turn_detection: null`: the
+gateway's VAD decides when a turn ends and sends `input_audio_buffer.commit`. PCM16 16 kHz is resampled to 24 kHz (soxr HQ,
+streaming) and sent as base64 `input_audio_buffer.append`. `...input_audio_transcription.delta` texts are appended and the
+whole text so far is passed to `on_partial` (replaces previous partial); `...transcription.completed` `transcript` is the final.
+A stream over 45.5 s, an `error` / `...transcription.failed` event or a dropped connection ends it with `ASR_FAILED`;
+`transcribe` (≤ 120 s) raises `WORKER_FAILED` so the job retries once. `cancel` sends `input_audio_buffer.clear` and closes.
+
 ## 4. TTS worker — `http://127.0.0.1:8712`
 
 - `GET /health` → `{"ready", "model_id", "revision", "device", "sample_rate": int, "voices": [{"voice_id","label","license_note"}]}`
@@ -102,6 +134,20 @@ Audio in: PCM signed 16-bit little-endian, mono, 16 000 Hz (gateway resamples be
   `libritts_r_4992_f` and `libritts_r_1188_m` (LibriTTS-R, CC BY 4.0; the attribution text is in SOURCE.md and `license_note`).
 - Text normalization before synthesis: expand prices/numbers/dates/times only where needed for correct reading; never pass markup, JSON, or Korean.
 
+### 4.1 API-mode TTS adapter (in-process, `adapters/tts_deepgram.py`)
+Same calls as the worker client: `health()`, `synthesize_wav(voice_id, text, speed)`, `stream_session()` whose
+`synthesize(request_id, voice_id, text, speed)` yields `("start", 24000)`, `("audio", bytes)`…, then `("done", info)` or
+`("cancelled", None)`, plus `cancel(request_id)` and `close()`.
+- Streaming: one Deepgram WebSocket per realtime session, `wss://api.deepgram.com/v1/speak?model=<aura-2 model>&encoding=linear16&sample_rate=24000&speed=<s>&mip_opt_out=true`;
+  per request `{"type":"Speak","text"}` + `{"type":"Flush"}`, ended by `Flushed`. Voice and speed are fixed per connection on
+  Deepgram, so a change reopens it. `speed` is clamped to 0.7–1.5 (Aura-2's range; `slow` = 0.85 is inside it).
+- Cancel: `{"type":"Clear"}`, then `cancelled` once `Cleared` arrives (or after 2 s, dropping the connection). No audio frame is
+  yielded after `cancel`, and a late `Flushed` of a cleared request cannot end the next request.
+- `synthesize_wav`: `POST https://api.deepgram.com/v1/speak` with the same parameters and `container=none`, wrapped as WAV locally.
+- Voices: `config/voices.api.json` (`aura2_thalia_f` = `aura-2-thalia-en`, `aura2_apollo_m` = `aura-2-apollo-en`); `aliases` map
+  the scenarios' local voice ids to them. Provider errors and connection loss map to `TTS_FAILED`.
+- The reviewed-text cache lives in `var/cache/tts-api/` and warms only the opening lines (each synthesis is billed).
+
 ## 5. LLM — llama-server `http://127.0.0.1:8713`
 
 Start (the gateway supervisor reads `config/llm/server.json`, verified with Homebrew llama-server 0.5.0 build 11146):
@@ -121,6 +167,16 @@ cache hits; per-turn state (goals, rolling summary, learner facts) goes into the
 **At most one question per reply.** The system prompt asks for it, and the gateway enforces it: once a streamed segment ends in `?`
 the LLM stream is closed (llama-server stops generating) and nothing after it is spoken or added to history.
 
+### 5.1 API mode (OpenRouter)
+`LlmClient.openrouter(key, model)` calls `POST https://openrouter.ai/api/v1/chat/completions` with the same bodies minus the
+llama-only fields (`id_slot`, `cache_prompt`, `top_k`, `min_p`), plus `model` and the pinned `provider` object (§1.1). There are no
+slots: one client serves roleplay and background work, and the provider's automatic prompt caching replaces the slot-0 prefix
+cache (the byte-stable prefix rule above still helps it). `warm` and `health` make no request (health = key present). Closing the
+stream after the first question, or on barge-in, closes the HTTP request, which stops generation and billing for OpenAI/Azure
+upstreams. `: OPENROUTER PROCESSING` comment lines are ignored; a mid-stream chunk with `error` (or a 200 JSON body with only an
+`error`) raises `provider_error`. JSON calls keep `response_format: json_schema` with `strict: true`; every schema in
+`vr_feedback` is strict-compatible (a test checks it).
+
 **Rolling summary (PRD §11).** The prompt keeps the last 6 turns verbatim. When the history grows past that window, the gateway
 folds the older entries into a summary (≤ 400 chars) with a background call on slot 1 after a reply is generated; a reply never waits
 for it and uses whatever summary exists. The same call returns details the learner stated (`learner_facts`: name, value, and an
@@ -134,6 +190,12 @@ Origin: `http://127.0.0.1:8710` or `http://localhost:8710` (allowlist). Web buil
 
 ### 6.1 Local auth
 - `GET /` sets cookie `vr_sid` (random, HttpOnly, SameSite=Strict, Path=/) if absent.
+- Allowed Host / Origin: `127.0.0.1:<port>` and `localhost:<port>` (http), plus each `public_origins` entry (env
+  `VR_PUBLIC_ORIGINS`, comma-separated `scheme://host[:port]`; its host is accepted as Host).
+- Reverse proxy (`path_prefix`, env `VR_PATH_PREFIX`, e.g. `/voice`): the proxy forwards `/voice/...` HTTP and WebSocket
+  requests unchanged (prefix kept, original `Host` and `Origin` kept). The gateway strips the prefix before auth and routing,
+  redirects `/voice` to `/voice/`, and scopes the cookie to it (`Path=/voice/`). Same origin, so `SameSite=Strict` holds. The web
+  app is built with the same base (`VR_WEB_BASE=/voice/`) and calls `/voice/api/...` and `wss://<host>/voice/api/sessions/{id}/realtime`.
 - `GET /api/bootstrap` (requires `vr_sid`) → `{"csrf_token", "protocol_version": 1}`.
 - All non-GET HTTP requests require `vr_sid` cookie + header `X-VR-CSRF: <csrf_token>` + allowed `Origin`. WS upgrade requires `vr_sid` + allowed `Origin`.
 - Tokens never in URLs or logs. Missing/invalid → 401/403 with `{"error":{"code","message_ko"}}`.
@@ -148,8 +210,13 @@ As PRD §13.1 (route list with request fields: `services/gateway/README.md`). Er
 | `AUDIO_TOO_LONG`, `AUDIO_TOO_LARGE`, `BODY_TOO_LARGE` | 413 | | `AUTH_REQUIRED` | 401 |
 | `AUDIO_INVALID`, `INVALID_REQUEST` | 422 | | `ORIGIN_DENIED`, `CSRF_INVALID` | 403 |
 | `AUDIO_EXPIRED` | 410 | | `IDEMPOTENCY_CONFLICT`, `INVALID_STATE`, `LOCAL_BUSY` | 409 |
-| `QUEUE_FULL` | 429 | | `MODEL_NOT_READY`, `OUT_OF_MEMORY` | 503 |
+| `QUEUE_FULL` | 429 | | `MODEL_NOT_READY`, `OUT_OF_MEMORY`, `CAPACITY_FULL` (shared mode, §7) | 503 |
 | `WORKER_FAILED` | 502 | | | |
+
+`GET /api/health` (public) adds to its existing fields `mode` (`"local"` or `"api"`) and `shared` (bool); in API mode
+`api_keys: {"openrouter": bool, "openai": bool, "deepgram": bool}` (presence only, never values); in shared mode
+`sessions: {"live", "max", "max_session_s"}`. In API mode `workers.asr|tts|llm.ready` means "key set" (no provider call is made
+for health), and `modes.*.reason_ko` names the missing key variable.
 
 `LOCAL_BUSY` (409) is no longer the answer to "a realtime session is active" (PRD §7, v0.2.1): starting new work ends that
 session instead (§7). It is returned only when the previous realtime session could not be stopped within 5 s, so two
@@ -272,7 +339,17 @@ common `PAUSED, RECOVERABLE_ERROR, CLOSED`. Input and output sub-states tracked 
 - Stale output: client drops any output audio/text whose `epoch` ≠ current epoch or whose `response_id` was cancelled.
 
 ## 7. Non-realtime jobs
-- One job slot, queue capacity 2, audio kept in memory only, TTL 5 min while queued.
+- One job slot, queue capacity 2, audio kept in memory only, TTL 5 min while queued. Shared mode: `job_concurrency` slots
+  (default 4) and a queue as large as `max_sessions`.
+- **Shared mode** (`[shared] enabled`, env `VR_SHARED=1`; for a class on one gateway, normally with API mode): everything in this
+  section applies **per learner**, where a learner is a `vr_sid` cookie. One learner's new work ends only that learner's realtime
+  session; sessions, attempts and jobs of another `vr_sid` answer `404 NOT_FOUND` (WebSocket: close `4404`). At most
+  `max_sessions` (env `VR_MAX_SESSIONS`, default 35) realtime sessions are live across all learners; a new one beyond that gets
+  `503 CAPACITY_FULL` (the learner's own previous session is ended first, so it never counts against them). A realtime session
+  ends after `max_session_s` (env `VR_MAX_SESSION_S`, default 1800 s) through the normal end path, socket close `4000` reason
+  `session_time_limit`. History and review storage are off: `history_opt_in` is always false, nothing about learners is written
+  to SQLite, settings live in memory per `vr_sid`, `/api/history` and `/api/review/due` answer empty, `POST /api/review` 409.
+  `/api/health` `modes.realtime.session_active` stays false (others' sessions never block anyone).
 - At most one realtime session is active, and it never runs next to new recorded work (PRD §7, v0.2.1). `POST /api/attempts`,
   `PUT /api/attempts/{id}/audio`, `POST /api/attempts/{id}/submit`, `PATCH /api/attempts/{id}/transcript` and
   `POST /api/sessions` (`mode: realtime`) first end every realtime session that has not ended, connected or waiting for a
@@ -326,6 +403,11 @@ by file name) any file that fails the schema or does not have exactly 3 goals. F
   `http://127.0.0.1:8710`.
 - `stop` — SIGTERM to the gateway (cancels jobs, closes sessions, stops workers), then kills leftover workers from their pidfiles.
 - `benchmark` — runs `benchmarks/run.sh`.
+- API mode (`--api`, or `VR_MODE=api`): `setup --api` runs `uv sync --frozen` for the gateway and the web build only
+  (`VR_WEB_BASE` sets the build base) and downloads **no model files**; `doctor --api` checks the gateway environment, the web
+  build (and its base when `VR_PATH_PREFIX` is set), the Silero VAD hash, and that `OPENROUTER_API_KEY`, `OPENAI_API_KEY`,
+  `DEEPGRAM_API_KEY` are set (printing only set/missing); `start --api` needs no model files, starts no workers and waits for
+  `/api/health` as usual. `benchmarks/api/bench_api.py` measures the providers when keys are set (exit 2 without keys).
 
 ## 12. Pronunciation (PRD §8.4, v0.2)
 
@@ -341,7 +423,8 @@ Plain-language explanation for learners and reviewers: `docs/pronunciation.md`. 
 - Recorded practice only. The gateway never calls the pronunciation worker while a realtime session is active, and realtime
   turns / session summaries keep `pronunciation_status: "assessment_unavailable"`.
 - Local only: no cloud pronunciation API, no automatic fallback. The worker is optional; without it recorded practice works as
-  before with `pronunciation.status: "unavailable"` (AT-18).
+  before with `pronunciation.status: "unavailable"` (AT-18). API mode (§1.1) turns it off by default (`[api] pronunciation =
+  false`): attempts report `unavailable` unless the local worker and its models are installed and that switch is set.
 - Licences: Qwen3-ForcedAligner-0.6B Apache-2.0, wav2vec2-lv-60-espeak-cv-ft Apache-2.0, pyworld MIT. GPL-3.0 packages
   (Parselmouth, espeak-ng, phonemizer) are not added without a recorded licence decision; this applies to the text → expected-phone
   (G2P) step as well.
