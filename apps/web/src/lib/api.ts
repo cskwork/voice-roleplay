@@ -182,6 +182,8 @@ export function normalizeHealth(raw: unknown): Health {
   }
   return {
     ready: (['asr', 'tts', 'llm', 'vad'] as const).every((k) => components[k]?.ready),
+    api: b.mode === 'api',
+    shared: b.shared === true,
     components,
     modes: { realtime: mode('realtime'), recorded: mode('recorded') },
     benchmark: (b.benchmark as Health['benchmark']) ?? null,
