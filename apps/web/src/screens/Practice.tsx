@@ -249,7 +249,7 @@ export function Practice({ parts }: { parts: string[] }) {
         )}
         {runner.endState && runner.endState !== 'completed' && (
           <Notice tone="warn" icon="alert">
-            분석 {JOB_LABEL[runner.endState]}. {runner.endState === 'cancelled' ? '녹음 데이터는 서버에서 지워졌어요.' : '다시 녹음해서 제출해 주세요.'}
+            분석 {JOB_LABEL[runner.endState]}. {runner.endState === 'cancelled' ? '다시 녹음해서 제출할 수 있어요.' : '다시 녹음해서 제출해 주세요.'}
           </Notice>
         )}
         {(runner.error ?? sessionError) && <Notice tone="danger" icon="alert">{runner.error ?? sessionError}</Notice>}

@@ -1,12 +1,12 @@
 {
   "scenario_id": "cafe_order",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "title_ko": "카페에서 주문하기",
   "title_en": "Ordering at a Cafe",
   "ai_role": "barista",
   "ai_role_ko": "바리스타",
   "user_role_ko": "손님",
-  "setting_ko": "오전 9시, 동네 카페 '메이플 스트리트 커피' 계산대 앞에 섰습니다. 음료를 주문하고 옵션을 바꾼 뒤 가격을 확인해 보세요.",
+  "setting_ko": "동네 카페 '메이플 스트리트 커피'에서 주문해요. 음료와 크기를 고르고, 원하는 옵션과 가격을 물어보세요.",
   "default_voice_id": "libritts_r_4992_f",
   "facts": {
     "cafe_name": "Maple Street Coffee",
@@ -95,7 +95,7 @@
     }
   ],
   "model_expressions": [
-    { "text_id": "cafe_order_expr_01", "goal_id": "order_drink", "en": "Could I get a large iced tea, please?", "ko": "라지 사이즈 아이스티 한 잔 주시겠어요?" },
+    { "text_id": "cafe_order_expr_01", "goal_id": "order_drink", "en": "Could I get a small latte, please?", "ko": "스몰 라테 한 잔 주시겠어요?" },
     { "text_id": "cafe_order_expr_02", "goal_id": "order_drink", "en": "I'd like a small latte for here, please.", "ko": "스몰 라테 한 잔 주세요. 매장에서 마실게요." },
     { "text_id": "cafe_order_expr_03", "goal_id": "customize", "en": "Can I get that with oat milk instead?", "ko": "그거 오트 밀크로 바꿔 주실 수 있나요?" },
     { "text_id": "cafe_order_expr_04", "goal_id": "customize", "en": "Could you add an extra shot of espresso?", "ko": "에스프레소 샷 하나 추가해 주시겠어요?" },
