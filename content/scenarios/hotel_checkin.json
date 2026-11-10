@@ -1,12 +1,12 @@
 {
   "scenario_id": "hotel_checkin",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "title_ko": "호텔 체크인",
   "title_en": "Hotel Check-in",
   "ai_role": "front desk clerk",
   "ai_role_ko": "프런트 직원",
   "user_role_ko": "투숙객",
-  "setting_ko": "저녁 8시쯤 하버뷰 호텔 로비에 도착했습니다. 김민준(Minjun Kim) 이름으로 퀸 룸 3박(목요일~일요일)을 예약했고, 예약 번호는 HV-48213입니다.",
+  "setting_ko": "저녁 8시, 하버뷰 호텔에 도착했어요. 김민준(Minjun Kim) 이름으로 퀸 룸 3박(목요일~일요일)을 예약했어요. 예약 번호는 HV-48213이에요.",
   "default_voice_id": "libritts_r_1188_m",
   "facts": {
     "hotel_name": "The Harborview Hotel",
@@ -95,10 +95,10 @@
     }
   ],
   "model_expressions": [
-    { "text_id": "hotel_checkin_expr_01", "goal_id": "confirm_reservation", "en": "Hi, I'm checking in. The reservation is under Minjun Kim.", "ko": "안녕하세요, 체크인하려고요. 김민준 이름으로 예약했어요." },
+    { "text_id": "hotel_checkin_expr_01", "goal_id": "confirm_reservation", "en": "I have a reservation under Minjun Kim.", "ko": "김민준 이름으로 예약했어요." },
     { "text_id": "hotel_checkin_expr_02", "goal_id": "confirm_reservation", "en": "My confirmation number is HV-48213.", "ko": "제 예약 번호는 HV-48213이에요." },
     { "text_id": "hotel_checkin_expr_03", "goal_id": "confirm_reservation", "en": "Just to confirm, that's three nights, checking out on Sunday?", "ko": "확인차 여쭤볼게요, 3박이고 일요일에 체크아웃 맞죠?" },
-    { "text_id": "hotel_checkin_expr_04", "goal_id": "make_request", "en": "Would it be possible to have a room away from the elevator?", "ko": "엘리베이터에서 떨어진 방으로 받을 수 있을까요?" },
+    { "text_id": "hotel_checkin_expr_04", "goal_id": "make_request", "en": "Could I have a room away from the elevator?", "ko": "엘리베이터에서 떨어진 방으로 받을 수 있을까요?" },
     { "text_id": "hotel_checkin_expr_05", "goal_id": "make_request", "en": "Could I get a couple of extra towels sent up?", "ko": "수건 몇 장 더 올려 보내 주실 수 있나요?" },
     { "text_id": "hotel_checkin_expr_06", "goal_id": "make_request", "en": "Is late check-out available on Sunday?", "ko": "일요일에 늦은 체크아웃이 가능한가요?" },
     { "text_id": "hotel_checkin_expr_07", "goal_id": "ask_facility", "en": "Is breakfast included in my rate?", "ko": "조식이 요금에 포함되어 있나요?" },

@@ -15,12 +15,19 @@ ROOT = Path(__file__).resolve().parents[2]
 SCHEMA_PATH = ROOT / "contracts" / "scenario.schema.json"
 SCENARIO_DIR = ROOT / "content" / "scenarios"
 
-EXPECTED_IDS = {"cafe_order", "hotel_checkin", "directions", "job_interview"}
+EXPECTED_IDS = {
+    "cafe_order", "hotel_checkin", "directions", "job_interview",
+    "friend_intro", "snack_choice", "weekend_plan", "lost_and_found",
+}
 EXPECTED_VOICES = {
     "cafe_order": "libritts_r_4992_f",
     "directions": "libritts_r_4992_f",
     "hotel_checkin": "libritts_r_1188_m",
     "job_interview": "libritts_r_1188_m",
+    "friend_intro": "libritts_r_4992_f",
+    "snack_choice": "libritts_r_4992_f",
+    "weekend_plan": "libritts_r_1188_m",
+    "lost_and_found": "libritts_r_1188_m",
 }
 DEFAULT_SILENCE_MS = {"easy": 1200, "normal": 900, "hard": 700}
 

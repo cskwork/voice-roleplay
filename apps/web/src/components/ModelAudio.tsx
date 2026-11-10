@@ -3,10 +3,10 @@ import { useModelAudio, type ModelAudioSource } from '../hooks/audio'
 import { Icon } from './Icon'
 
 /** 모범 음성: normal and slow playback of reviewed/model sentences (never the learner's audio). */
-export function ModelAudio({ voiceId, source, ttsReady, label = '모범 음성', hideLabel = false }: { voiceId: string; source: ModelAudioSource; ttsReady: boolean; label?: string; hideLabel?: boolean }) {
+export function ModelAudio({ voiceId, source, ttsReady, label = '모범 음성', hideLabel = false, disabledReason }: { voiceId: string; source: ModelAudioSource; ttsReady: boolean; label?: string; hideLabel?: boolean; disabledReason?: string | null }) {
   const { play, busy, error } = useModelAudio(voiceId)
   const id = useId()
-  const reason = !ttsReady ? '음성 합성 모델이 준비되지 않았어요' : !voiceId ? '사용할 음성이 없어요' : busy ? '불러오는 중…' : null
+  const reason = disabledReason || (!ttsReady ? '음성 합성 모델이 준비되지 않았어요' : !voiceId ? '사용할 음성이 없어요' : busy ? '불러오는 중…' : null)
   return (
     <div className="model-audio" role="group" aria-label={label}>
       {!hideLabel && <span className="model-audio-label">{label}</span>}

@@ -48,6 +48,7 @@ interface AppState {
   refreshHealth(): Promise<void>
   scenarios: Scenario[]
   scenariosError: ApiError | null
+  scenariosLoading: boolean
   scenario(id: string | undefined): Scenario | undefined
   settings: Settings
   saveSettings(patch: Partial<Settings>): Promise<void>
@@ -66,6 +67,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [healthError, setHealthError] = useState<ApiError | null>(null)
   const [scenarios, setScenarios] = useState<Scenario[]>([])
   const [scenariosError, setScenariosError] = useState<ApiError | null>(null)
+  const [scenariosLoading, setScenariosLoading] = useState(true)
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS)
   const [micDeviceId, setMic] = useState(() => localStorage.getItem(MIC_KEY) ?? '')
   const [results, setResults] = useState(() => new Map<string, StoredResult>())
@@ -82,7 +84,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     void refreshHealth()
-    api.scenarios().then(setScenarios, (e: unknown) => setScenariosError(toApiError(e)))
+    api.scenarios().then(setScenarios, (e: unknown) => setScenariosError(toApiError(e))).finally(() => setScenariosLoading(false))
     api.settings().then((s) => setSettings({ ...DEFAULT_SETTINGS, ...s }), () => {})
   }, [refreshHealth])
 
@@ -93,6 +95,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       refreshHealth,
       scenarios,
       scenariosError,
+      scenariosLoading,
       scenario: (id) => scenarios.find((s) => s.scenario_id === id),
       settings,
       saveSettings: async (patch) => {
@@ -109,7 +112,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       lastSession,
       setLastSession,
     }),
-    [health, healthError, refreshHealth, scenarios, scenariosError, settings, micDeviceId, results, lastSession],
+    [health, healthError, refreshHealth, scenarios, scenariosError, scenariosLoading, settings, micDeviceId, results, lastSession],
   )
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>
 }
