@@ -1,0 +1,197 @@
+{
+  "scenario_id": "friend_intro",
+  "version": "1.0.0",
+  "title_ko": "새 친구와 인사하기",
+  "title_en": "Meeting a New Friend",
+  "ai_role": "new classmate",
+  "ai_role_ko": "새 친구",
+  "user_role_ko": "같은 반 친구",
+  "setting_ko": "쉬는 시간에 새 친구 제이를 만났어요. 이름과 좋아하는 것을 말하고 친구에게도 물어보세요. 이름은 지어내도 좋아요.",
+  "default_voice_id": "libritts_r_4992_f",
+  "facts": {
+    "place": "An imaginary classroom during break time",
+    "friend": "Jay is a new classmate who enjoys drawing and badminton",
+    "activity": "The class has an art club after school on Wednesdays",
+    "names": "The learner may use any made-up name; never ask for a full real name, address, contact details, or school name"
+  },
+  "opening_line": {
+    "text_id": "friend_intro_opening",
+    "en": "Hi, I'm Jay. What's your name?",
+    "ko": "안녕, 나는 제이야. 이름이 뭐야?"
+  },
+  "goals": [
+    {
+      "goal_id": "say_hello",
+      "en": "Introduce yourself to a new friend",
+      "ko": "친구에게 인사하고 내 이름 말하기"
+    },
+    {
+      "goal_id": "share_interest",
+      "en": "Say what you enjoy doing",
+      "ko": "좋아하는 것 말하기"
+    },
+    {
+      "goal_id": "ask_friend",
+      "en": "Ask what your friend likes",
+      "ko": "친구가 좋아하는 것 묻기"
+    }
+  ],
+  "allowed_flow": [
+    "Greet the learner as a new classmate and ask what name they would like to use.",
+    "Respond warmly to their introduction; share one of Jay's interests from the facts.",
+    "Invite the learner to share an interest, accepting different interests without judging them.",
+    "Answer their question about your interests and suggest a shared activity only when it fits.",
+    "Do not turn the chat into a test or ask a series of personal questions."
+  ],
+  "difficulty": {
+    "easy": {
+      "guidance_en": "Use one short sentence at a time and familiar words. Ask one simple question, then give the learner time to answer. Accept a short phrase when its meaning is clear.",
+      "silence_ms": 1200
+    },
+    "normal": {
+      "guidance_en": "Speak like a friendly classmate or helpful school staff member. React to the learner before asking one natural follow-up question.",
+      "silence_ms": 900
+    },
+    "hard": {
+      "guidance_en": "Use natural contractions and ask one follow-up that invites a reason or another option. Keep the conversation friendly and in the scene.",
+      "silence_ms": 700
+    }
+  },
+  "hints": [
+    {
+      "hint_id": "friend_intro_hint_01",
+      "goal_id": "say_hello",
+      "ko": "인사하고 쓸 이름을 말해 보세요. 가명을 써도 괜찮아요.",
+      "keywords": [
+        "Hi",
+        "I'm",
+        "Nice to meet you"
+      ],
+      "example_en": "Hi, I'm Minji. Nice to meet you!"
+    },
+    {
+      "hint_id": "friend_intro_hint_02",
+      "goal_id": "share_interest",
+      "ko": "즐겨 하는 일 앞에 I like를 붙여 보세요.",
+      "keywords": [
+        "I like",
+        "drawing"
+      ],
+      "example_en": "I like drawing."
+    },
+    {
+      "hint_id": "friend_intro_hint_03",
+      "goal_id": "ask_friend",
+      "ko": "친구가 좋아하는 일을 물어보세요.",
+      "keywords": [
+        "What",
+        "like",
+        "doing"
+      ],
+      "example_en": "What do you like doing?"
+    },
+    {
+      "hint_id": "friend_intro_hint_04",
+      "goal_id": "ask_friend",
+      "ko": "같은 취미가 있는지도 물어볼 수 있어요.",
+      "keywords": [
+        "Do you like",
+        "too"
+      ],
+      "example_en": "Do you like drawing, too?"
+    }
+  ],
+  "model_expressions": [
+    {
+      "text_id": "friend_intro_expr_01",
+      "goal_id": "say_hello",
+      "en": "Hi, I'm Minji. Nice to meet you!",
+      "ko": "안녕, 나는 민지야. 만나서 반가워!"
+    },
+    {
+      "text_id": "friend_intro_expr_02",
+      "goal_id": "say_hello",
+      "en": "You can call me Minji.",
+      "ko": "민지라고 불러 줘."
+    },
+    {
+      "text_id": "friend_intro_expr_03",
+      "goal_id": "share_interest",
+      "en": "I like drawing.",
+      "ko": "나는 그림 그리는 걸 좋아해."
+    },
+    {
+      "text_id": "friend_intro_expr_04",
+      "goal_id": "share_interest",
+      "en": "I enjoy playing badminton.",
+      "ko": "나는 배드민턴 치는 걸 좋아해."
+    },
+    {
+      "text_id": "friend_intro_expr_05",
+      "goal_id": "ask_friend",
+      "en": "What do you like doing?",
+      "ko": "너는 뭘 하는 걸 좋아해?"
+    },
+    {
+      "text_id": "friend_intro_expr_06",
+      "goal_id": "ask_friend",
+      "en": "Do you like drawing, too?",
+      "ko": "너도 그림 그리는 걸 좋아해?"
+    }
+  ],
+  "exercises": {
+    "reading": [
+      {
+        "text_id": "friend_intro_read_01",
+        "en": "It's nice to meet you.",
+        "ko": "만나서 반가워."
+      },
+      {
+        "text_id": "friend_intro_read_02",
+        "en": "I like reading comics.",
+        "ko": "나는 만화 읽는 걸 좋아해."
+      },
+      {
+        "text_id": "friend_intro_read_03",
+        "en": "What do you do after school?",
+        "ko": "방과 후에 뭘 해?"
+      },
+      {
+        "text_id": "friend_intro_read_04",
+        "en": "Let's draw together.",
+        "ko": "같이 그림 그리자."
+      }
+    ],
+    "shadowing": [
+      {
+        "text_id": "friend_intro_shadow_01",
+        "en": "Hi, I'm Minji.",
+        "ko": "안녕, 나는 민지야."
+      },
+      {
+        "text_id": "friend_intro_shadow_02",
+        "en": "I like drawing animals.",
+        "ko": "나는 동물 그리는 걸 좋아해."
+      },
+      {
+        "text_id": "friend_intro_shadow_03",
+        "en": "What do you like doing?",
+        "ko": "너는 뭘 하는 걸 좋아해?"
+      }
+    ],
+    "free_answer": [
+      {
+        "exercise_id": "friend_intro_free_01",
+        "question_en": "Introduce yourself to a new classmate using a made-up name.",
+        "question_ko": "지어낸 이름으로 새 친구에게 자신을 소개해 보세요.",
+        "sample_answer_en": "Hi, I'm Minji. I like drawing and reading comics. Nice to meet you!"
+      },
+      {
+        "exercise_id": "friend_intro_free_02",
+        "question_en": "What would you like to do with a new friend?",
+        "question_ko": "새 친구와 무엇을 하고 싶은지 말해 보세요.",
+        "sample_answer_en": "I'd like to draw with my new friend. We can draw our favorite animals."
+      }
+    ]
+  }
+}

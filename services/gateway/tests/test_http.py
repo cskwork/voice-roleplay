@@ -212,6 +212,7 @@ def test_saved_voice_that_no_longer_exists_falls_back_to_scenario_default(gw):
 def test_scenarios_listed(gw):
     body = gw.http.get("/api/scenarios").json()
     assert [s["scenario_id"] for s in body["scenarios"]] == ["cafe_order"]
+    assert body["capabilities"] == {"guided_lessons": True}
     assert gw.http.get("/api/scenarios/cafe_order").json()["ai_role"] == "barista"
     assert gw.http.get("/api/scenarios/zzz").status_code == 404
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, useSyncExternalStore } from 'react'
+import { ModelAudio } from '../components/ModelAudio'
 import { Icon, type IconName } from '../components/Icon'
 import { ActionButton, Badge, LevelMeter, Notice } from '../components/ui'
 import { api } from '../lib/api'
@@ -7,7 +8,7 @@ import { toApiError } from '../lib/errors'
 import { ENDED_NOTICE, guardSessionEnd, type LeaveGuard } from '../lib/sessionEnd'
 import type { Difficulty, Scenario } from '../lib/types'
 import { RealtimeSession, type HintView, type ServerState, type Snapshot } from '../session/realtimeSession'
-import { navigate, useApp } from '../state'
+import { navigate, useApp, useVoiceId } from '../state'
 import { DIFFICULTY_LABEL } from './Home'
 
 const STATE_TEXT: Record<ServerState, [string, IconName, string]> = {
@@ -126,7 +127,7 @@ function CaptionList({ captions, aiRole, meRole }: { captions: Caption[]; aiRole
   return (
     <div className="captions-wrap">
       <div ref={box} className="captions" role="region" aria-label="대화 자막" onScroll={onScroll} tabIndex={0}>
-        {captions.length === 0 && <p className="muted center captions-empty">AI가 먼저 말을 걸어요. 편하게 대답해 보세요.</p>}
+        {captions.length === 0 && <p className="muted center captions-empty">AI가 먼저 말을 걸어요. 짧은 한마디로 대답해 보세요. 막히면 아래 [힌트]를 눌러 주세요.</p>}
         {captions.map((c) => {
           if (c.kind === 'user') {
             return (
@@ -274,6 +275,7 @@ function localHint(sc: Scenario, s: Snapshot, level: 1 | 2 | 3, responseId?: str
 export function Talk({ scenarioId, opts }: { scenarioId: string; opts: string }) {
   const app = useApp()
   const sc = app.scenario(scenarioId)
+  const voiceId = useVoiceId(sc)
   const [difficultyRaw, optRaw] = (opts ?? '').split(':')
   const difficulty = (['easy', 'normal', 'hard'].includes(difficultyRaw ?? '') ? difficultyRaw : app.settings.difficulty) as Difficulty
   const historyOptIn = optRaw ? optRaw === '1' : app.settings.history_opt_in
@@ -353,15 +355,23 @@ export function Talk({ scenarioId, opts }: { scenarioId: string; opts: string })
   if (!session) {
     const rt = app.health?.modes.realtime
     return (
-      <main className="page narrow" aria-labelledby="talk-title">
+      <main className="page narrow talk-welcome" aria-labelledby="talk-title">
         <header className="page-head">
           <h1 id="talk-title">{sc.title_ko}</h1>
           <p className="page-meta">
-            <Badge tone="brand">실시간 회화</Badge> <Badge>난이도 {DIFFICULTY_LABEL[difficulty]}</Badge> <Badge>{historyOptIn ? '기록 저장' : '기록 저장 안 함'}</Badge>
+            <Badge tone="brand">자유 대화</Badge> <Badge>난이도 {DIFFICULTY_LABEL[difficulty]}</Badge> <Badge>{historyOptIn ? '기록 저장' : '기록 저장 안 함'}</Badge>
           </p>
           <p className="lead">{sc.setting_ko}</p>
         </header>
-        <RoleCard sc={sc} goals={[]} />
+        <section className="talk-scene" aria-label="대화 미리보기">
+          <Roles sc={sc} />
+          <div className="learning-partner"><span className="partner-symbol" aria-hidden="true"><Icon name="hand" size={24} /></span><span>{sc.ai_role_ko}가 먼저 말해요</span></div>
+          <p className="talk-opening" lang="en">{sc.opening_line.en}</p>
+          <p className="muted">{sc.opening_line.ko}</p>
+          <ModelAudio voiceId={voiceId} source={{ textId: sc.opening_line.text_id, text: sc.opening_line.en }} ttsReady={app.health?.components.tts?.ready ?? false} label="첫마디 미리 듣기" />
+          <details className="talk-plan"><summary>이번 대화에서 해볼 말 {sc.goals.length}개</summary><GoalList sc={sc} goals={[]} /></details>
+        </section>
+        <p className="talk-help-first">첫마디가 떠오르지 않으면 AI가 묻는 말을 들어 보세요. 대화 중 [힌트]를 누르면 뜻 → 핵심 단어 → 예시 문장 순서로 도와줘요.</p>
         <Notice icon="headset">헤드셋을 쓰면 AI 목소리가 마이크로 다시 들어가지 않아 더 자연스럽게 대화할 수 있어요.</Notice>
         {startError && <Notice tone="danger" icon="alert">{startError}</Notice>}
         <div className="page-actions">
@@ -371,7 +381,7 @@ export function Talk({ scenarioId, opts }: { scenarioId: string; opts: string })
             onClick={() => void begin()}
             disabledReason={starting ? '연결하는 중…' : rt && !rt.available ? rt.reason_ko ?? '실시간 회화를 지금 사용할 수 없어요' : !app.health ? '모델 상태를 확인하는 중이에요' : null}
           >
-            대화 시작
+            자유 대화 시작하기
           </ActionButton>
           <a className="btn btn-ghost" href="#/home">
             돌아가기
@@ -503,6 +513,7 @@ export function LiveTalk({
   }, [s.hint, lastAi])
 
   const nextHint = () => {
+    setHintOpen(true)
     const level = Math.min(3, hintLevel + 1) as 1 | 2 | 3
     setHintLevel(level)
     const local = localHint(sc, s, level, lastAi)

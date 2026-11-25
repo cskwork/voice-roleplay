@@ -362,7 +362,7 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     @app.get("/api/scenarios")
     async def scenarios():
-        return {"scenarios": svc.scenarios.summaries()}
+        return {"scenarios": svc.scenarios.summaries(), "capabilities": {"guided_lessons": True}}
 
     @app.get("/api/scenarios/{scenario_id}")
     async def scenario(scenario_id: str):

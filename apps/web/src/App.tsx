@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { Icon } from './components/Icon'
 import { Home } from './screens/Home'
+import { Lesson } from './screens/Lesson'
 import { Practice } from './screens/Practice'
 import { Result } from './screens/Result'
 import { Review } from './screens/Review'
@@ -22,6 +23,8 @@ function Screen({ route }: { route: string[] }) {
   switch (name) {
     case 'home':
       return <Home />
+    case 'lesson':
+      return <Lesson scenarioId={rest[0] ?? ''} opts={rest[1] ?? ''} />
     case 'talk':
       return <Talk scenarioId={rest[0] ?? ''} opts={rest[1] ?? ''} />
     case 'summary':
@@ -44,6 +47,8 @@ export function App() {
   const { health } = useApp()
   const current = route[0] ?? 'setup'
   const inTalk = current === 'talk'
+  const inLesson = current === 'lesson'
+  const learning = inTalk || inLesson || current === 'home'
   const routeKey = route.join('/')
   // A new screen starts at its top, not at the previous screen's scroll position.
   useEffect(() => {
@@ -51,7 +56,7 @@ export function App() {
     document.getElementById('main-content')?.scrollTo(0, 0)
   }, [routeKey])
   return (
-    <div className={`shell ${inTalk ? 'shell-fixed' : ''}`}>
+    <div className={`shell ${learning ? 'shell-learning' : ''} ${inTalk ? 'shell-fixed' : ''}`} >
       <a className="skip" href="#main-content" onClick={(e) => { e.preventDefault(); document.getElementById('main-content')?.focus() }}>
         본문으로 건너뛰기
       </a>
@@ -62,7 +67,7 @@ export function App() {
           </span>
           말하기 연습
         </a>
-        {!inTalk && (
+        {!inTalk && !inLesson && (
           <nav aria-label="주요 메뉴">
             {NAV.map(([id, label]) => (
               <a key={id} href={`#/${id}`} aria-current={current === id ? 'page' : undefined}>
@@ -73,7 +78,7 @@ export function App() {
         )}
         <span className={`health-dot ${health?.ready ? 'ok' : 'wait'}`}>
           <Icon name={health?.ready ? 'check' : 'circle'} size={14} />
-          {health?.ready ? '모델 준비됨' : '모델 준비 중'}
+          {health?.ready ? '연습 준비됨' : '준비 확인 중'}
         </span>
       </header>
       <div id="main-content" tabIndex={-1}>

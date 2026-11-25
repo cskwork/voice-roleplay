@@ -7,8 +7,10 @@ import { TERMINAL_JOB_STATES, type Job } from '../lib/types'
 
 // --- model audio (TTS WAV from the gateway) ----------------------------------------
 let current: HTMLAudioElement | null = null
+let modelGeneration = 0
 
 export function stopModelAudio(): void {
+  modelGeneration++
   if (current) {
     current.pause()
     URL.revokeObjectURL(current.src)
@@ -36,9 +38,13 @@ const SLOW_SPEED = 0.85 // same as the gateway's slow style
 export function useModelAudio(voiceId: string) {
   const [busy, setBusy] = useState<'normal' | 'slow' | null>(null)
   const [error, setError] = useState<string | null>(null)
-  useEffect(() => stopModelAudio, [])
+  const playbackGeneration = useRef(0)
+  useEffect(() => () => { playbackGeneration.current++; stopModelAudio() }, [])
   const play = useCallback(
     async (src: ModelAudioSource, slow: boolean) => {
+      const generation = ++playbackGeneration.current
+      stopModelAudio()
+      const audioGeneration = modelGeneration
       setBusy(slow ? 'slow' : 'normal')
       setError(null)
       try {
@@ -48,11 +54,12 @@ export function useModelAudio(voiceId: string) {
             : src.textId
               ? await api.cachedTts(voiceId, src.textId, slow)
               : await api.tts(voiceId, src.text, slow ? SLOW_SPEED : 1.0)
+        if (generation !== playbackGeneration.current || audioGeneration !== modelGeneration) return
         await playWav(wav)
       } catch (e) {
-        setError(toApiError(e).messageKo)
+        if (generation === playbackGeneration.current) setError(toApiError(e).messageKo)
       } finally {
-        setBusy(null)
+        if (generation === playbackGeneration.current) setBusy(null)
       }
     },
     [voiceId],
@@ -83,6 +90,8 @@ export function useRecorder(deviceId: string, maxMs: number) {
   const chunks = useRef<Int16Array[]>([])
   const samples = useRef(0)
   const stopRef = useRef<() => void>(() => {})
+  const captureGeneration = useRef(0)
+  const opening = useRef(false)
 
   const discard = useCallback(() => {
     setTake((t) => {
@@ -94,6 +103,7 @@ export function useRecorder(deviceId: string, maxMs: number) {
   const stop = useCallback(() => {
     const m = mic.current
     if (!m) return
+    captureGeneration.current++
     m.close()
     mic.current = null
     setRecording(false)
@@ -110,6 +120,10 @@ export function useRecorder(deviceId: string, maxMs: number) {
   stopRef.current = stop
 
   const start = useCallback(async () => {
+    if (opening.current || mic.current) return
+    opening.current = true
+    const generation = ++captureGeneration.current
+    stopModelAudio()
     discard()
     setError(null)
     setExpired(false)
@@ -117,16 +131,21 @@ export function useRecorder(deviceId: string, maxMs: number) {
     samples.current = 0
     setElapsed(0)
     try {
-      mic.current = await MicCapture.open(deviceId || undefined, (pcm) => {
+      const opened = await MicCapture.open(deviceId || undefined, (pcm) => {
+        if (generation !== captureGeneration.current) return
         chunks.current.push(pcm)
         samples.current += pcm.length
         const ms = (samples.current / 16000) * 1000
         if (samples.current % 3200 === 0) setElapsed(ms)
         if (ms >= maxMs) stopRef.current()
       })
+      if (generation !== captureGeneration.current) { opened.close(); return }
+      mic.current = opened
       setRecording(true)
     } catch (e) {
-      setError(toApiError(e).messageKo)
+      if (generation === captureGeneration.current) setError(toApiError(e).messageKo)
+    } finally {
+      opening.current = false
     }
   }, [deviceId, maxMs, discard])
 
@@ -142,6 +161,7 @@ export function useRecorder(deviceId: string, maxMs: number) {
 
   useEffect(
     () => () => {
+      captureGeneration.current++
       mic.current?.close()
       mic.current = null
     },
@@ -159,6 +179,8 @@ export function useJobPoll(jobId: string | null, onDone: (job: Job) => void) {
   const done = useRef(onDone)
   done.current = onDone
   useEffect(() => {
+    setJob(null)
+    setError(null)
     if (!jobId) return
     let alive = true
     let timer = 0

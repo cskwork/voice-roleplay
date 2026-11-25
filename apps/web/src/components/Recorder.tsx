@@ -17,6 +17,8 @@ export function Recorder({
   submitting,
   onSubmit,
   onTakeChange,
+  onRecordingChange,
+  submitLabel = '제출하고 분석받기',
 }: {
   deviceId: string
   minMs: number
@@ -24,9 +26,12 @@ export function Recorder({
   submitDisabledReason?: string | null
   submitting?: boolean
   onSubmit(take: Take): void
+  onRecordingChange?(recording: boolean): void
   onTakeChange?(): void
+  submitLabel?: string
 }) {
   const r = useRecorder(deviceId, maxMs)
+  useEffect(() => onRecordingChange?.(r.recording), [r.recording, onRecordingChange])
   useEffect(() => onTakeChange?.(), [r.take, onTakeChange])
   const tooShort = r.take && r.take.durationMs < minMs
   const box = useRef<HTMLDivElement>(null)
@@ -73,7 +78,7 @@ export function Recorder({
               onClick={() => r.take && onSubmit(r.take)}
               disabledReason={submitting ? '제출 중이에요' : tooShort ? '녹음이 너무 짧아요' : (submitDisabledReason ?? null)}
             >
-              제출하고 분석받기
+              {submitLabel}
             </ActionButton>
             <button type="button" className="btn" onClick={() => void r.start()} disabled={submitting} aria-label="다시 녹음">
               <Icon name="replay" /> 다시 녹음
