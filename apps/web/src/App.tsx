@@ -1,4 +1,6 @@
 import { useEffect } from 'react'
+import { Call } from './call/Call'
+import { CallHome } from './call/CallHome'
 import { Icon } from './components/Icon'
 import { Home } from './screens/Home'
 import { Lesson } from './screens/Lesson'
@@ -12,7 +14,8 @@ import { Talk } from './screens/Talk'
 import { useApp, useRoute } from './state'
 
 const NAV = [
-  ['home', '학습 홈'],
+  ['home', '햄찌 통화'],
+  ['more', '다른 연습'],
   ['review', '복습'],
   ['setup', '장비 점검'],
   ['settings', '설정'],
@@ -22,6 +25,8 @@ function Screen({ route }: { route: string[] }) {
   const [name, ...rest] = route
   switch (name) {
     case 'home':
+      return <CallHome />
+    case 'more':
       return <Home />
     case 'lesson':
       return <Lesson scenarioId={rest[0] ?? ''} opts={rest[1] ?? ''} />
@@ -48,13 +53,15 @@ export function App() {
   const current = route[0] ?? 'setup'
   const inTalk = current === 'talk'
   const inLesson = current === 'lesson'
-  const learning = inTalk || inLesson || current === 'home'
+  const learning = inTalk || inLesson || current === 'home' || current === 'more'
   const routeKey = route.join('/')
   // A new screen starts at its top, not at the previous screen's scroll position.
   useEffect(() => {
     window.scrollTo(0, 0)
     document.getElementById('main-content')?.scrollTo(0, 0)
   }, [routeKey])
+  // A call takes the whole window: no menu around it.
+  if (current === 'call') return <Call key={routeKey} callId={route[1] ?? ''} opts={route[2] ?? ''} />
   return (
     <div className={`shell ${learning ? 'shell-learning' : ''} ${inTalk ? 'shell-fixed' : ''}`} >
       <a className="skip" href="#main-content" onClick={(e) => { e.preventDefault(); document.getElementById('main-content')?.focus() }}>

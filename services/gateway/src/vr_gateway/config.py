@@ -93,6 +93,8 @@ class Config:
     web_dist: Path = REPO_ROOT / "apps/web/dist"
     scenarios_dir: Path = REPO_ROOT / "content/scenarios"
     scenario_schema: Path = REPO_ROOT / "contracts/scenario.schema.json"
+    calls_file: Path = REPO_ROOT / "content/calls/hamzzi.json"
+    call_schema: Path = REPO_ROOT / "contracts/call.schema.json"
     data_dir: Path = REPO_ROOT / "var/data"
     cache_dir: Path = REPO_ROOT / "var/cache"
     log_dir: Path = REPO_ROOT / "var/log"
@@ -193,8 +195,8 @@ def load_config(path: Path | None = None) -> Config:
     cfg = Config()
     cfg.host = gw.get("host", cfg.host)
     cfg.port = int(os.environ.get("VR_GATEWAY_PORT", gw.get("port", cfg.port)))
-    for key in ("web_dist", "scenarios_dir", "scenario_schema", "data_dir", "cache_dir", "log_dir", "run_dir",
-                "pron_guide", "pron_lexicon"):
+    for key in ("web_dist", "scenarios_dir", "scenario_schema", "calls_file", "call_schema", "data_dir", "cache_dir",
+                "log_dir", "run_dir", "pron_guide", "pron_lexicon"):
         if key in gw:
             setattr(cfg, key, _repo_path(gw[key]))
     if os.environ.get("VR_DATA_DIR"):

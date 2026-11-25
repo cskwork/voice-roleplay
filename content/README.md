@@ -21,6 +21,8 @@ and bump `version` if the text changed.
 ## Layout
 
 - `scenarios/<scenario_id>.json` — one roleplay scenario per file, validated by `contracts/scenario.schema.json`.
+- `calls/hamzzi.json` — the calling character (persona, voice, first lines) and its chat topics, validated by
+  `contracts/call.schema.json` (`contracts/PROTOCOL.md` §13). Same review status as the scenarios: pending.
 - `voices/` — TTS reference voices (owned by the TTS worker, see `contracts/PROTOCOL.md` §4).
 
 ## Scenario format

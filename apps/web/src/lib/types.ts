@@ -55,6 +55,24 @@ export interface Scenario {
   }
 }
 
+/** One character video call on offer: a chat topic or a scenario played as a role (PROTOCOL §13). */
+export interface CallInfo {
+  call_id: string
+  kind: 'chat' | 'role'
+  title_ko: string
+  title_en: string
+  teaser_ko: string
+}
+
+/** `scenario.call` of a call session. */
+export interface CallPlan {
+  kind: 'chat' | 'role'
+  name_ko: string
+  voice_pitch: number
+  /** Learner turns until the character says goodbye. */
+  turns: number
+}
+
 export interface Voice {
   voice_id: string
   label: string

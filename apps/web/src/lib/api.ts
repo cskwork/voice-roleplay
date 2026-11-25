@@ -2,6 +2,8 @@ import { withPrefix } from './base'
 import { ApiError, messageFor } from './errors'
 import type {
   AttemptResult,
+  CallInfo,
+  CallPlan,
   Difficulty,
   ExerciseType,
   Feedback,
@@ -103,11 +105,24 @@ const obj = (v: unknown): Obj => (v && typeof v === 'object' ? (v as Obj) : {})
 export const api = {
   health: async () => normalizeHealth(await json<unknown>('GET', '/api/health')),
   scenarios: async () => listOf<Scenario>(await json<unknown>('GET', '/api/scenarios'), 'scenarios'),
+  /** Character video calls (PROTOCOL §13); empty when the gateway offers none. */
+  calls: async () => listOf<CallInfo>(await json<unknown>('GET', '/api/scenarios'), 'calls'),
   settings: () => json<Settings>('GET', '/api/settings'),
   saveSettings: (s: Partial<Settings>) => json<Settings>('PUT', '/api/settings', s),
 
   createSession: (body: { mode: 'realtime' | 'turn_based'; scenario_id: string; difficulty: Difficulty; history_opt_in: boolean; feedback_policy: 'session_end' }) =>
     json<{ session_id: string }>('POST', '/api/sessions', body),
+  createCall: (callId: string, difficulty: Difficulty) =>
+    json<{ session_id: string; scenario: { title_ko: string; title_en: string; call: CallPlan } }>('POST', '/api/sessions', {
+      mode: 'realtime',
+      call: true,
+      scenario_id: callId,
+      difficulty,
+      history_opt_in: false,
+    }),
+  /** Korean meaning of one word of a line said in a call; null = none found. */
+  wordGloss: async (sessionId: string, word: string, turnId: string) =>
+    (await json<{ ko: string | null }>('POST', `/api/sessions/${encodeURIComponent(sessionId)}/word-gloss`, { word, turn_id: turnId })).ko,
   endSession: async (id: string): Promise<SessionSummary> =>
     normalizeSummary(await json<unknown>('POST', `/api/sessions/${encodeURIComponent(id)}/end`, {})),
   /**

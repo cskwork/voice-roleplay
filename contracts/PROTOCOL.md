@@ -541,3 +541,28 @@ PRD §14.2 (the worker must not compete with a realtime session).
   The UI may shorten these but not remove the meaning.
 - **Storage.** With `history_opt_in`, only `words` (without `heard_ipa`) and `calibration_version` may be stored with the attempt;
   pitch contours, phone candidates and audio are never stored.
+
+## 13. Character video calls (2026-11-25)
+
+A call is a short, turn-based realtime session in which one character (`content/calls/hamzzi.json`, `contracts/call.schema.json`) opens
+the talk, reacts to each learner turn and says goodbye by itself. Chat topics come from that file; every scenario (§10) is also offered
+as a role call played by the same character. A call is never graded and never stored.
+
+- **Listing.** `GET /api/scenarios` adds `calls: [{call_id, kind: "chat"|"role", title_ko, title_en, teaser_ko}]` and
+  `capabilities.hamster_calls` (true only when the call content loaded). A role call's `call_id` is its `scenario_id`.
+- **Session.** `POST /api/sessions` with `call: true`, `mode: "realtime"` and `scenario_id` = a `call_id` (unknown id: `NOT_FOUND`).
+  `scenario.call` in the answer holds `{kind, name_en, name_ko, persona_en, voice_pitch, turns, first_question_en?}`. `history_opt_in`
+  is always false, the voice is the character's own (saved and requested voices are ignored), goals are empty, and ending the session
+  runs no LLM summary (`summary.reason: "call"`).
+- **Turns.** The client sends `input.start` / `input.commit` around each learner turn and no audio in between (speech outside a
+  started turn never opens one). `turns` learner turns per call (by difficulty); reply `n` follows a step: `greet` (n = 1), `chat`, `leave` (n = turns − 1), `bye` (n = turns). After `bye`,
+  `input.start` is ignored; the client ends the session once the goodbye has been heard. `response.retry` repeats the same step.
+- **Events.** `response.started` adds `step`, `turn` (n) and `final` (`step == "bye"`). `response.text` of segment 0 may add `act`
+  (`calm|happy|nod|excited|surprised|confused`), the gesture the LLM chose with a leading `[tag]` that is never spoken or shown.
+  `response.gloss {response_id, segment_id, text_ko}` follows when a line's Korean meaning is ready; it may arrive before that line's
+  `response.text`. A `bye` reply never ends in a question: such a sentence is dropped, and a reply left empty becomes a fixed goodbye.
+- **Word meaning.** `POST /api/sessions/{id}/word-gloss {word, turn_id}` → `{ko|null}`. Only for words of a line the character said in
+  that call (`NOT_FOUND` otherwise), by the learner who owns the session, until the session is dropped (15 minutes after it ended).
+  A meaning is looked up once per line and word, at most 200 look-ups per session (`null` beyond that).
+- **Client voice.** The web client raises the voice by `voice_pitch` without changing the tempo, and derives the mouth shapes from the
+  audio it is about to play. The audio on the wire is unchanged.
