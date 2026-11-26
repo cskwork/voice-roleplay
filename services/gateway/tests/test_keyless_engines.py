@@ -6,8 +6,10 @@ The CLIs are replaced by small fake executables on PATH and Kokoro by a fake eng
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import os
+import signal
 import stat
 import sys
 from pathlib import Path
@@ -395,6 +397,10 @@ async def test_cli_json_over_budget_is_truncated(fake_path):
     with pytest.raises(LlmError) as err:  # '{"ok": true}' is 12 characters, the budget 5
         await llm.json_chat([{"role": "user", "content": "x"}], {"type": "object"}, max_tokens=1)
     assert err.value.code == "truncated"
+    llm._failures = 2
+    with pytest.raises(LlmError):
+        await llm.json_chat([{"role": "user", "content": "x"}], {"type": "object"}, max_tokens=1)
+    assert llm._failures == 2  # an over-budget reply neither resets nor adds to the failure count
 
 
 def test_anthropic_thinking_off_only_on_haiku():
@@ -505,3 +511,75 @@ async def test_cli_cancel_while_writing_the_prompt(fake_path):
     cancel.set()
     assert await asyncio.wait_for(task, 5) is None
     assert llm._failures == 0
+
+
+async def test_codex_retry_notice_is_not_a_failure(fake_path):
+    body = FAKE_CODEX.replace('print(json.dumps({"type": "thread.started"}), flush=True)',
+                              'print(json.dumps({"type": "thread.started"}), flush=True)\n'
+                              'print(json.dumps({"type": "error", "message": "Reconnecting... 1/5"}), flush=True)')
+    fake_bin(fake_path, "codex", body)
+    llm = CodexCliLlm("m", pool=0, workdir=fake_path / "work", timeout_s=10)
+    assert "".join([d async for d in llm.stream_chat([{"role": "user", "content": "hi"}])]) == "Hello from codex."
+    assert "project_doc_max_bytes=0" in " ".join(llm.command())
+
+
+async def test_cli_caller_closing_after_text_counts_as_success(fake_path):
+    fake_bin(fake_path, "claude", FAKE_CLAUDE)
+    llm = ClaudeCliLlm("m", pool=0, workdir=fake_path / "work", timeout_s=10)
+    llm._failures = 2
+    gen = llm.stream_chat([{"role": "user", "content": "hi"}]).__aiter__()
+    assert await anext(gen)
+    await gen.aclose()  # realtime keeps the first question and closes the stream
+    assert llm._failures == 0
+
+
+async def test_cli_kill_takes_the_whole_process_group(fake_path):
+    # a wrapper that starts the real CLI as its child (like the codex npm launcher on Node < 22.15). The child holds
+    # the write end of a FIFO: the read end sees EOF once it has exited (no matter who reaps it).
+    fifo = fake_path / "child.fifo"
+    os.mkfifo(fifo)
+    child = f"import os, time; w = open({str(fifo)!r}, 'w'); w.write(str(os.getpid())); w.flush(); time.sleep(60)"
+    fake_bin(fake_path, "claude", "import subprocess, sys, time\n"
+             f"subprocess.Popen([{sys.executable!r}, '-c', {child!r}])\ntime.sleep(60)\n")
+    llm = ClaudeCliLlm("m", pool=0, workdir=fake_path / "work", timeout_s=10)
+    reader = os.open(fifo, os.O_RDONLY | os.O_NONBLOCK)
+    proc = None
+    child_pid = None
+    eof = False
+    try:
+        proc = await llm._spawn()
+        got = b""
+        for _ in range(200):  # the child is running and wrote its pid
+            with contextlib.suppress(BlockingIOError):
+                got += os.read(reader, 64)
+            if got:
+                break
+            await asyncio.sleep(0.05)
+        child_pid = int(got)
+        # the CLI got its own group (start_new_session) and the child is in it
+        assert os.getpgid(proc.proc.pid) == proc.proc.pid == os.getpgid(child_pid)
+        await proc.kill()
+        for _ in range(200):  # the child's write end closed: it has exited
+            try:
+                if os.read(reader, 64) == b"":
+                    eof = True
+                    break
+            except BlockingIOError:
+                pass
+            await asyncio.sleep(0.05)
+        assert eof
+    finally:
+        # also when an assertion failed, and never at a process already known to be gone: the wrapper's group only
+        # while the wrapper is not reaped (then the id is surely ours; it holds the child too, even before its pid
+        # arrived), the child by pid only while its FIFO end is still open
+        if proc is not None and proc.proc.returncode is None:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(proc.proc.pid, signal.SIGKILL)
+            with contextlib.suppress(ProcessLookupError):
+                proc.proc.kill()
+            with contextlib.suppress(Exception):
+                await asyncio.wait_for(proc.proc.wait(), 5)
+        if child_pid and not eof:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.kill(child_pid, signal.SIGKILL)
+        os.close(reader)

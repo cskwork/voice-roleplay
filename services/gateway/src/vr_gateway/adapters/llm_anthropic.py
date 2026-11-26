@@ -134,6 +134,9 @@ class AnthropicLlm:
         async def produce() -> None:
             """Opens the stream and feeds the queue; cancelling this task closes the HTTP request at any point
             (also while waiting for the response headers or a retry)."""
+            if cancel.is_set():  # checked in the task, right before the request opens
+                queue.put_nowait(done)
+                return
             try:
                 async with self._client.messages.stream(**self._params(messages, max_tokens)) as stream:
                     async for text in stream.text_stream:

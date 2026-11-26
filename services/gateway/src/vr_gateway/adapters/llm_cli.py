@@ -34,6 +34,7 @@ import logging
 import os
 import re
 import shutil
+import signal
 import time
 from collections.abc import AsyncIterator
 from pathlib import Path
@@ -63,7 +64,9 @@ CHARS_PER_TOKEN = 5  # rough English characters per token, for the max_tokens cu
 RETRY_S = 60.0  # after 3 failed requests in a row, report not ready this long before trying again
 # Codex: no tool at all (shell, apps, browser, web search); the engine prompt as developer instructions.
 CODEX_NO_TOOLS = ("features.shell_tool=false", "features.apps=false", "features.browser_use=false",
-                  "features.in_app_browser=false", "web_search=disabled")
+                  "features.in_app_browser=false", "web_search=disabled",
+                  # no project AGENTS.md: the empty work dir is inside the repository and Codex walks up to .git
+                  "project_doc_max_bytes=0")
 _FENCE = re.compile(r"^```(?:json)?\s*|\s*```$")
 
 
@@ -109,8 +112,14 @@ class _Proc:
     def alive(self) -> bool:
         return self.proc.returncode is None
 
+
     async def kill(self) -> None:
+        """Kill the CLI's whole process group (it was started in its own session): a Node wrapper such as the codex npm
+        launcher may run the native CLI as a child that would otherwise keep generating. Only while the leader is not
+        reaped: then its id still names this group (after that the id may belong to an unrelated new group)."""
         if self.proc.returncode is None:
+            with contextlib.suppress(ProcessLookupError, PermissionError):
+                os.killpg(self.proc.pid, signal.SIGKILL)
             with contextlib.suppress(ProcessLookupError):
                 self.proc.kill()
         with contextlib.suppress(Exception):
@@ -166,7 +175,8 @@ class CliLlm:
         self.workdir.mkdir(parents=True, exist_ok=True)
         proc = await asyncio.create_subprocess_exec(
             exe, *self.command(), cwd=str(self.workdir), env=self._env(), stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, limit=4 * 1024 * 1024)
+            stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL, limit=4 * 1024 * 1024,
+            start_new_session=True)
         return _Proc(proc)
 
     def _refill(self) -> None:
@@ -256,7 +266,7 @@ class CliLlm:
         """3 failed requests in a row, the last one less than RETRY_S ago: do not start another CLI yet."""
         return self._failures >= 3 and time.monotonic() - self._failed_at <= RETRY_S
 
-    async def _run(self, prompt: str, cancel: asyncio.Event | None) -> AsyncIterator[str]:
+    async def _run(self, prompt: str, cancel: asyncio.Event | None, *, early_close_ok: bool = False) -> AsyncIterator[str]:
         """Yield the CLI's text. Outcome for the failure count: "ok" = the CLI finished, "fail" = it failed (also after
         some text), anything else (cancel event, task cancelled, the caller closed the generator) counts as neither."""
         if self.cooling():  # also for requests of sessions that were already open (no new CLI while it keeps failing)
@@ -273,7 +283,11 @@ class CliLlm:
             cancel_wait = asyncio.ensure_future(cancel.wait())
             step: asyncio.Future | None = None
             try:
-                step = asyncio.ensure_future(self.send(proc, prompt))
+                async def send_unless_cancelled() -> None:
+                    if not cancel.is_set():  # checked in the task, right before the write
+                        await self.send(proc, prompt)
+
+                step = asyncio.ensure_future(send_unless_cancelled())
                 done, _ = await asyncio.wait({step, cancel_wait}, timeout=max(0.0, deadline - time.monotonic()),
                                              return_when=asyncio.FIRST_COMPLETED)
                 if cancel.is_set():
@@ -309,6 +323,12 @@ class CliLlm:
         except LlmError:
             outcome = "fail"
             raise
+        except GeneratorExit:
+            # the caller had what it needed (realtime keeps the first question; the max_tokens cut): the CLI worked.
+            # json_chat closing on a reply over budget passes early_close_ok=False: neither success nor failure
+            if early_close_ok and first is not None and not cancel.is_set():
+                outcome = "ok"
+            raise
         finally:
             if outcome == "ok":
                 self._failures = 0
@@ -324,12 +344,14 @@ class CliLlm:
         """The CLI has no per-request token limit: the reply is cut after about `max_tokens` tokens of text
         (CHARS_PER_TOKEN characters each) and the process is killed, like a hosted stream stopping at max_tokens."""
         budget = max(1, int(max_tokens)) * CHARS_PER_TOKEN
-        async for delta in self._run(render(messages), cancel):
-            if delta:
-                yield delta[:budget]
-                budget -= len(delta)
-                if budget <= 0:
-                    return
+        # aclosing: when the caller stops early the CLI is killed (and its outcome counted) now, not at garbage collection
+        async with contextlib.aclosing(self._run(render(messages), cancel, early_close_ok=True)) as run:
+            async for delta in run:
+                if delta:
+                    yield delta[:budget]
+                    budget -= len(delta)
+                    if budget <= 0:
+                        return
 
     async def json_chat(self, messages: list[dict], schema: dict, *, max_tokens: int = 768,
                         slot_id: int | None = None) -> dict:
@@ -339,11 +361,12 @@ class CliLlm:
         budget = max(1, int(max_tokens)) * CHARS_PER_TOKEN
         parts: list[str] = []
         size = 0
-        async for delta in self._run(prompt, None):
-            parts.append(delta)
-            size += len(delta)
-            if size > budget:
-                raise LlmError("truncated")
+        async with contextlib.aclosing(self._run(prompt, None)) as run:
+            async for delta in run:
+                parts.append(delta)
+                size += len(delta)
+                if size > budget:
+                    raise LlmError("truncated")
         return parse_json("".join(parts), schema)
 
 
@@ -424,7 +447,7 @@ class CodexCliLlm(CliLlm):
             item = ev.get("item") or {}
             if kind == "item.completed" and item.get("type") == "agent_message" and item.get("text"):
                 yield item["text"]
-            elif kind in ("turn.failed", "error"):
+            elif kind == "turn.failed":  # "error" alone is a retry notice; Codex goes on (EOF/timeout still fail)
                 raise LlmError("provider_error")
             elif kind == "turn.completed":
                 return

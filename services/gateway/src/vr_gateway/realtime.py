@@ -725,9 +725,9 @@ class RealtimeEngine:
             if resp.cancelled or resp.playback_finished():
                 return
             resp.cancelled = True
+            resp.cancel_event.set()  # before the send: the producer may close the stream while this waits
             self.s.epoch += 1
             await self._send_locked("response.cancelled", None, response_id=resp.response_id, reason=reason)
-        resp.cancel_event.set()
         for seg in resp.segments.values():
             if seg.status in ("pending", "sent"):
                 seg.status = "interrupted"

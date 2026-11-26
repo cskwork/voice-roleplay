@@ -149,14 +149,18 @@ def sha256(path: Path) -> str:
     return h.hexdigest()
 
 
-def check_models(full: bool, hash_files: bool = True) -> list[tuple[str, str, str]]:
+def check_models(full: bool, hash_files: bool = True, only: set[str] | None = None) -> list[tuple[str, str, str]]:
     """Rows (name, status, detail). status: ok | missing | size | hash | optional-missing | feature-missing.
 
     `feature-missing`: a file of an optional feature (model entry with `optional_feature`, e.g. pronunciation) that
     setup downloads but start does not require. Hashes are cached in var/cache/model_hashes.json keyed by size and mtime; `full` re-hashes everything."""
-    cache = {} if full or not HASH_CACHE.exists() else json.loads(HASH_CACHE.read_text())
+    cache = {} if (full and only is None) or not HASH_CACHE.exists() else json.loads(HASH_CACHE.read_text())
+    if full and only is not None:
+        cache = {rel: v for rel, v in cache.items() if not any(rel.startswith(d + "/") for d in only)}
     rows = []
     for model in lock_models():
+        if only is not None and model["local_dir"] not in only:  # `--only`: never touch the other models' files
+            continue
         for f in model["files"]:
             rel = f"{model['local_dir']}/{f['path']}"
             path = ROOT / rel
@@ -186,9 +190,7 @@ def check_models(full: bool, hash_files: bool = True) -> list[tuple[str, str, st
 
 
 def cmd_verify(args: list[str], only: set[str] | None = None) -> int:
-    rows = check_models(full="--full" in args)
-    if only is not None:  # `download --only`: check just the models it fetched
-        rows = [r for r in rows if any(r[0].startswith(d + "/") for d in only)]
+    rows = check_models(full="--full" in args, only=only)  # `download --only`: just the models it fetched
     bad = [r for r in rows if r[1] not in ("ok", "optional-missing", "feature-missing")]
     for name, status, detail in rows:
         if status != "ok" or "--verbose" in args:
@@ -203,7 +205,7 @@ def cmd_download(args: list[str]) -> int:
     only = None
     if "--only" in args:
         only = {d.strip().rstrip("/") for d in args[args.index("--only") + 1].split(",") if d.strip()}
-    todo = {(r[0]) for r in check_models(full=False) if r[1] in ("missing", "size", "hash", "feature-missing")}
+    todo = {(r[0]) for r in check_models(full=False, only=only) if r[1] in ("missing", "size", "hash", "feature-missing")}
     for model in lock_models():
         if only is not None and model["local_dir"] not in only:
             continue
