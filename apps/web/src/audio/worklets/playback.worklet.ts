@@ -1,6 +1,7 @@
 /**
  * Plays queued Float32 chunks (already at the context rate) and reports per-segment
- * started / completed / stopped with the number of samples actually rendered.
+ * started / completed / stopped with the number of samples actually rendered. With `watch` on it also reports
+ * the playing position several times a second (lip sync).
  */
 type Item =
   | { kind: 'audio'; key: string; seg: string; data: Float32Array; pos: number }
@@ -10,10 +11,15 @@ type Msg =
   | { type: 'push'; key: string; seg: string; data: Float32Array }
   | { type: 'end'; key: string; seg: string }
   | { type: 'flush' }
+  | { type: 'watch'; on: boolean }
+
+const POS_BLOCKS = 12 // position report every 12 render blocks (32 ms at 48 kHz)
 
 class PlaybackProcessor extends AudioWorkletProcessor {
   private queue: Item[] = []
   private current: { key: string; seg: string; played: number } | null = null
+  private watch = false
+  private block = 0
 
   constructor() {
     super()
@@ -21,6 +27,7 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       const m = e.data
       if (m.type === 'push') this.queue.push({ kind: 'audio', key: m.key, seg: m.seg, data: m.data, pos: 0 })
       else if (m.type === 'end') this.queue.push({ kind: 'end', key: m.key, seg: m.seg })
+      else if (m.type === 'watch') this.watch = m.on
       else this.flush()
     }
   }
@@ -61,6 +68,10 @@ class PlaybackProcessor extends AudioWorkletProcessor {
       i += n
       this.current.played += n
       if (item.pos >= item.data.length) this.queue.shift()
+    }
+    if (this.watch && this.current && i > 0 && this.block++ % POS_BLOCKS === 0) {
+      const c = this.current
+      this.port.postMessage({ type: 'pos', key: c.key, seg: c.seg, playedMs: (c.played / sampleRate) * 1000, at: currentTime + i / sampleRate })
     }
     left.fill(0, i)
     for (let c = 1; c < out.length; c++) out[c]!.set(left)

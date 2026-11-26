@@ -37,28 +37,44 @@ The TTS worker may offer more than one backend (env `VR_TTS_BACKEND`, owned by `
 `workers/tts/.venv/bin/python -m tts_worker` and its HTTP/WS contract (§4) does not depend on the backend.
 
 ### 1.1 API mode (`mode = "api"`, env `VR_MODE=api`)
-Only the gateway runs (port 8710, `services/gateway/.venv`). The four model processes above are not started and their model
-files are not needed; the only local model is Silero VAD (`services/gateway/assets/silero_vad.onnx`, 2.2 MB, MIT). The gateway
-calls hosted providers through adapters with the same interfaces as the worker clients (§3.1, §4.1, §5.1):
+The gateway runs (port 8710, `services/gateway/.venv`) without the TTS worker and llama-server. Each part picks its engine
+(`vr_gateway/engines.py`: `[api] llm_provider` / `asr_provider` / `tts_provider`, env `VR_API_LLM_PROVIDER` /
+`VR_API_ASR_PROVIDER` / `VR_API_TTS_PROVIDER`). Silero VAD (`services/gateway/assets/silero_vad.onnx`, 2.2 MB, MIT) is always local.
+Every engine has the same interface as the worker client it replaces (§3.1, §4.1, §5.1):
 
-| Component | Provider, model | Adapter | Key (environment only) |
+| Part | Engine (setting) | Adapter | Needs |
 |---|---|---|---|
-| ASR (live captions + final transcripts, recorded practice) | OpenAI realtime transcription, `gpt-live-transcribe` | `vr_gateway/adapters/asr_openai.py` | `OPENAI_API_KEY` |
-| TTS (default, `[api] tts_provider = "openrouter"`) | Deepgram Aura-2 through OpenRouter `/audio/speech`, `deepgram/aura-2` (`config/voices.openrouter.json`) | `vr_gateway/adapters/tts_openrouter.py` | `OPENROUTER_API_KEY` |
-| TTS (opt-in fallback, `tts_provider = "deepgram"` or env `VR_API_TTS_PROVIDER=deepgram`) | Deepgram Aura-2 directly (`config/voices.api.json`) | `vr_gateway/adapters/tts_deepgram.py` | `DEEPGRAM_API_KEY` |
-| LLM (roleplay + background JSON) | OpenRouter, `openai/gpt-4.1-mini` (`VR_API_LLM_MODEL` overrides) | `vr_feedback/llm.py` `LlmClient.openrouter` | `OPENROUTER_API_KEY` |
+| LLM (roleplay + background JSON) | Claude Code CLI, `claude-haiku-4-5`, thinking off (`claude-cli`, default) | `vr_gateway/adapters/llm_cli.py` `ClaudeCliLlm` | `claude` on PATH, logged in |
+| | Codex CLI, `gpt-6-luna`, reasoning effort none (`codex-cli`) | `llm_cli.py` `CodexCliLlm` | `codex` on PATH, logged in |
+| | Claude API, `claude-haiku-5-5`, thinking off, effort low (`anthropic`) | `vr_gateway/adapters/llm_anthropic.py` | `ANTHROPIC_API_KEY` |
+| | OpenRouter, `openai/gpt-4.1-mini` (`openrouter`; `VR_API_LLM_MODEL` overrides) | `vr_feedback/llm.py` `LlmClient.openrouter` | `OPENROUTER_API_KEY` |
+| ASR | `auto` (default): `openai` with `OPENAI_API_KEY`, else `local` | | |
+| | OpenAI realtime transcription, `gpt-live-transcribe` (`openai`) | `vr_gateway/adapters/asr_openai.py` | `OPENAI_API_KEY` |
+| | the Qwen3-ASR worker of §3 (`local`; the supervisor starts only this worker) | `vr_gateway/workers.py` `AsrClient` | `models/Qwen3-ASR-0.6B`, `workers/asr/.venv` |
+| TTS | `auto` (default): `openrouter` with `OPENROUTER_API_KEY`, else `kokoro` | | |
+| | Kokoro-82M v1.0 ONNX int8 in the gateway process, CPU (`kokoro`; `config/voices.kokoro.json`) | `vr_gateway/adapters/tts_kokoro.py` | `models/kokoro` |
+| | Deepgram Aura-2 through OpenRouter `/audio/speech`, `deepgram/aura-2` (`openrouter`; `config/voices.openrouter.json`) | `vr_gateway/adapters/tts_openrouter.py` | `OPENROUTER_API_KEY` |
+| | Deepgram Aura-2 directly (`deepgram`, opt-in; `config/voices.api.json`) | `vr_gateway/adapters/tts_deepgram.py` | `DEEPGRAM_API_KEY` |
 | Pronunciation | off (`[api] pronunciation = false`); §12.1 still forbids cloud pronunciation APIs | — | — |
 
-- By default two providers and two keys: OpenRouter (LLM and TTS) and OpenAI (ASR; OpenRouter has no streaming speech-to-text).
 - Keys are read from the environment at start, never from files, never written to disk, never logged or returned. `/api/health`
-  reports only whether each key in use is set (§6.2). A missing key makes that component "not ready" (the gateway still starts).
-- Data leaves the machine: learners' voice goes to OpenAI and conversation text to OpenRouter (both US). OpenRouter passes the
-  conversation on to its OpenAI/Azure upstreams and the AI reply text to Deepgram. OpenRouter chat requests carry
+  reports `engines` (`{llm, asr, tts}`) and, in `api_keys`, only whether each key the chosen engines need is set (§6.2). A missing
+  key makes that component "not ready"; a CLI that is not installed or whose last 3 requests failed makes the LLM "not ready"
+  (the gateway still starts).
+- CLI engines: every request runs in its own CLI process (no tools, no MCP, no user settings or hooks, no saved session, an empty
+  working directory, and from the gateway's environment only login location, locale, temp dir, TLS roots and proxy, so API
+  keys, endpoint/platform switches and telemetry exporters set in the server shell do not reach it; machine-wide managed
+  Claude Code settings installed by the server PC's administrator still apply and are the operator's responsibility; the
+  Codex CLI also sends the server account's own `~/.codex/AGENTS.md` with every request (Codex 0.172 has no switch for it; the
+  Claude CLI's `--system-prompt` replaces its user memory), so keep that file free of anything not meant for OpenAI); `cli_pool` (default 2) started processes
+  wait on stdin so the CLI's start-up is not on the learner's turn. Cancel kills the process.
+- Data leaving the machine depends on the engines (README "Privacy in API mode"): CLI engines send the text to Anthropic or OpenAI
+  under the logged-in account's terms (no zero data retention for a consumer account). OpenRouter chat requests carry
   `provider: {order: ["openai","azure"], allow_fallbacks: false, zdr: true, data_collection: "deny", require_parameters: true}`,
-  speech requests `provider: {zdr: true, data_collection: "deny"}`. With the Deepgram fallback the reply text goes to Deepgram
-  directly and every request carries `mip_opt_out=true`.
+  speech requests `provider: {zdr: true, data_collection: "deny"}`; Deepgram direct carries `mip_opt_out=true`. The local ASR
+  worker and Kokoro keep the voice on this machine.
 - The browser ⇄ gateway contract (§6) is unchanged; output audio stays PCM16 24 kHz in ≤ 100 ms frames.
-- Worker auth (below) does not apply to providers; each adapter sends only its provider's `Authorization` header.
+- Worker auth (below) applies to the local ASR worker; hosted adapters send only their provider's `Authorization` header.
 
 ### Worker auth
 Gateway generates a random internal token at start and passes it to workers via env `VR_WORKER_TOKEN`.
@@ -541,3 +557,28 @@ PRD §14.2 (the worker must not compete with a realtime session).
   The UI may shorten these but not remove the meaning.
 - **Storage.** With `history_opt_in`, only `words` (without `heard_ipa`) and `calibration_version` may be stored with the attempt;
   pitch contours, phone candidates and audio are never stored.
+
+## 13. Character video calls (2026-11-25)
+
+A call is a short, turn-based realtime session in which one character (`content/calls/hamzzi.json`, `contracts/call.schema.json`) opens
+the talk, reacts to each learner turn and says goodbye by itself. Chat topics come from that file; every scenario (§10) is also offered
+as a role call played by the same character. A call is never graded and never stored.
+
+- **Listing.** `GET /api/scenarios` adds `calls: [{call_id, kind: "chat"|"role", title_ko, title_en, teaser_ko}]` and
+  `capabilities.hamster_calls` (true only when the call content loaded). A role call's `call_id` is its `scenario_id`.
+- **Session.** `POST /api/sessions` with `call: true`, `mode: "realtime"` and `scenario_id` = a `call_id` (unknown id: `NOT_FOUND`).
+  `scenario.call` in the answer holds `{kind, name_en, name_ko, persona_en, voice_pitch, turns, first_question_en?}`. `history_opt_in`
+  is always false, the voice is the character's own (saved and requested voices are ignored), goals are empty, and ending the session
+  runs no LLM summary (`summary.reason: "call"`).
+- **Turns.** The client sends `input.start` / `input.commit` around each learner turn and no audio in between (speech outside a
+  started turn never opens one). `turns` learner turns per call (by difficulty); reply `n` follows a step: `greet` (n = 1), `chat`, `leave` (n = turns − 1), `bye` (n = turns). After `bye`,
+  `input.start` is ignored; the client ends the session once the goodbye has been heard. `response.retry` repeats the same step.
+- **Events.** `response.started` adds `step`, `turn` (n) and `final` (`step == "bye"`). `response.text` of segment 0 may add `act`
+  (`calm|happy|nod|excited|surprised|confused`), the gesture the LLM chose with a leading `[tag]` that is never spoken or shown.
+  `response.gloss {response_id, segment_id, text_ko}` follows when a line's Korean meaning is ready; it may arrive before that line's
+  `response.text`. A `bye` reply never ends in a question: such a sentence is dropped, and a reply left empty becomes a fixed goodbye.
+- **Word meaning.** `POST /api/sessions/{id}/word-gloss {word, turn_id}` → `{ko|null}`. Only for words of a line the character said in
+  that call (`NOT_FOUND` otherwise), by the learner who owns the session, until the session is dropped (15 minutes after it ended).
+  A meaning is looked up once per line and word, at most 200 look-ups per session (`null` beyond that).
+- **Client voice.** The web client raises the voice by `voice_pitch` without changing the tempo, and derives the mouth shapes from the
+  audio it is about to play. The audio on the wire is unchanged.

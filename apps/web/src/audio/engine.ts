@@ -88,6 +88,14 @@ export type PlaybackEvent =
   | { type: 'stopped'; key: string; seg: string; playedMs: number }
   | { type: 'flushed' }
 
+/** Where the playing segment is: `playedMs` of it had been rendered at context time `at`. */
+export interface PlaybackPosition {
+  key: string
+  seg: string
+  playedMs: number
+  at: number
+}
+
 /** AudioWorklet playback queue; audio pushed here must already be at `rate`. */
 export class Player implements PlaybackSink {
   private constructor(
@@ -96,14 +104,24 @@ export class Player implements PlaybackSink {
   ) {}
 
   onEvent: (e: PlaybackEvent) => void = () => {}
+  private onPosition: ((p: PlaybackPosition) => void) | null = null
 
   static async create(): Promise<Player> {
     const ctx = await audioContext()
     const node = new AudioWorkletNode(ctx, 'vr-playback', { numberOfInputs: 0, numberOfOutputs: 1, outputChannelCount: [2] })
     node.connect(ctx.destination)
     const p = new Player(node, ctx.sampleRate)
-    node.port.onmessage = (e: MessageEvent<PlaybackEvent>) => p.onEvent(e.data)
+    node.port.onmessage = (e: MessageEvent<PlaybackEvent | ({ type: 'pos' } & PlaybackPosition)>) => {
+      if (e.data.type === 'pos') p.onPosition?.(e.data)
+      else p.onEvent(e.data)
+    }
     return p
+  }
+
+  /** Report the playing position several times a second (lip sync). */
+  watch(onPosition: (p: PlaybackPosition) => void): void {
+    this.onPosition = onPosition
+    this.node.port.postMessage({ type: 'watch', on: true })
   }
 
   push(key: string, seg: string, samples: Float32Array): void {

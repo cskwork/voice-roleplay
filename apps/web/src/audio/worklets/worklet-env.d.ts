@@ -1,5 +1,6 @@
 // Globals of AudioWorkletGlobalScope (not part of lib.dom).
 declare const sampleRate: number
+declare const currentTime: number
 declare abstract class AudioWorkletProcessor {
   readonly port: MessagePort
   constructor()

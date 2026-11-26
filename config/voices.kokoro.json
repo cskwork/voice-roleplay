@@ -1,0 +1,25 @@
+{
+  "provider": "kokoro",
+  "model": "Kokoro-82M v1.0 (ONNX int8)",
+  "sample_rate": 24000,
+  "voices": [
+    {
+      "voice_id": "kokoro_heart_f",
+      "voice": "af_heart",
+      "label": "여성 · 미국 영어 (Kokoro Heart)",
+      "license_note": "Kokoro-82M v1.0 voice af_heart (hexgrad/Kokoro-82M, Apache-2.0), ONNX export from thewh1teagle/kokoro-onnx model-files-v1.0; runs on this machine."
+    },
+    {
+      "voice_id": "kokoro_michael_m",
+      "voice": "am_michael",
+      "label": "남성 · 미국 영어 (Kokoro Michael)",
+      "license_note": "Kokoro-82M v1.0 voice am_michael (hexgrad/Kokoro-82M, Apache-2.0), ONNX export from thewh1teagle/kokoro-onnx model-files-v1.0; runs on this machine."
+    }
+  ],
+  "aliases": {
+    "libritts_r_4992_f": "kokoro_heart_f",
+    "libritts_r_1188_m": "kokoro_michael_m",
+    "aura2_thalia_f": "kokoro_heart_f",
+    "aura2_apollo_m": "kokoro_michael_m"
+  }
+}

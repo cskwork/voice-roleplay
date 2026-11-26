@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 import httpx
 import pytest
@@ -66,26 +67,58 @@ def test_config_env_overrides(tmp_path, monkeypatch):
     monkeypatch.setenv("VR_MAX_SESSIONS", "30")
     monkeypatch.setenv("VR_PUBLIC_ORIGINS", "https://Content-Forge.example/, http://localhost:5173")
     monkeypatch.setenv("VR_PATH_PREFIX", "/voice/")
-    monkeypatch.delenv("VR_API_TTS_PROVIDER", raising=False)
+    for var in ("VR_API_TTS_PROVIDER", "VR_API_ASR_PROVIDER", "VR_API_LLM_PROVIDER"):
+        monkeypatch.delenv(var, raising=False)
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret-value")
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-secret-value")
     monkeypatch.setenv("DEEPGRAM_API_KEY", "dg-secret-value")
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     cfg = load_config(cfg_file)
     assert cfg.mode == "api" and cfg.shared and cfg.max_sessions == 30 and cfg.max_session_s == 1800
-    assert cfg.processes == [] and cfg.pron_url == ""  # no local workers; pronunciation off by default
-    assert cfg.llm_model_revision == "openrouter:openai/gpt-4.1-mini"
+    # Both voice keys set: hosted transcription and speech, so no local workers; pronunciation off by default.
+    assert cfg.api.engines() == {"llm": "claude-cli", "asr": "openai", "tts": "openrouter"}
+    assert cfg.processes == [] and cfg.pron_url == ""
+    assert cfg.llm_model_revision == "claude-cli:claude-haiku-4-5"
     assert cfg.api.asr_model == "gpt-live-transcribe" and cfg.api.llm_providers == ["openai", "azure"]
     assert cfg.public_origins == ["https://content-forge.example", "http://localhost:5173"]
     assert cfg.path_prefix == "/voice"
     assert {"content-forge.example", "localhost:5173"} <= cfg.allowed_hosts
     assert "https://content-forge.example" in cfg.allowed_origins
-    # Two providers by default: speech goes through OpenRouter, so a Deepgram key is neither needed nor reported.
+    # Speech goes through OpenRouter, so a Deepgram key is neither needed nor reported; the CLI needs no key.
     assert cfg.api.tts_provider == "openrouter" and cfg.api.tts_model == "deepgram/aura-2"
     assert cfg.api.tts_base_url == "https://openrouter.ai/api/v1"
     assert cfg.api.voices_path() == REPO / "config/voices.openrouter.json"
-    assert cfg.api.key_presence() == {"openrouter": True, "openai": False}
+    assert cfg.api.key_presence() == {"openrouter": True, "openai": True}
     assert "secret" not in repr(cfg) and cfg.history_enabled is False
     assert cfg.job_concurrency == 4 and cfg.job_queue_capacity >= 30
+    # The LLM through OpenRouter (the previous default) records the OpenRouter model.
+    monkeypatch.setenv("VR_API_LLM_PROVIDER", "openrouter")
+    cfg = load_config(cfg_file)
+    assert cfg.llm_model_revision == "openrouter:openai/gpt-4.1-mini"
+    monkeypatch.setenv("VR_API_LLM_PROVIDER", "anthropic")
+    cfg = load_config(cfg_file)
+    assert cfg.llm_model_revision == "anthropic:claude-haiku-5-5"
+    assert cfg.api.key_presence() == {"openrouter": True, "openai": True, "anthropic": False}
+
+
+def test_config_without_keys_runs_voice_here(tmp_path, monkeypatch):
+    """No key at all (2026-11-26 default): text through the Claude CLI, transcription and speech on this machine."""
+    cfg_file = tmp_path / "config.toml"
+    cfg_file.write_text((REPO / "services/gateway/config.toml").read_text())
+    monkeypatch.setenv("VR_MODE", "api")
+    for var in ("VR_API_TTS_PROVIDER", "VR_API_ASR_PROVIDER", "VR_API_LLM_PROVIDER", "OPENROUTER_API_KEY",
+                "OPENAI_API_KEY", "DEEPGRAM_API_KEY", "ANTHROPIC_API_KEY"):
+        monkeypatch.delenv(var, raising=False)
+    cfg = load_config(cfg_file)
+    assert cfg.api.engines() == {"llm": "claude-cli", "asr": "local", "tts": "kokoro"}
+    assert [p.name for p in cfg.processes] == ["asr"]  # the local Qwen3-ASR worker, nothing else
+    assert cfg.api.key_presence() == {} and cfg.api.voices_path() == REPO / "config/voices.kokoro.json"
+    assert cfg.llm_model_revision == "claude-cli:claude-haiku-4-5"
+    monkeypatch.setenv("VR_API_LLM_PROVIDER", "codex-cli")
+    assert load_config(cfg_file).llm_model_revision == "codex-cli:gpt-6-luna"
+    monkeypatch.setenv("VR_API_LLM_PROVIDER", "llama")
+    with pytest.raises(ValueError):
+        load_config(cfg_file)
 
 
 def test_config_deepgram_tts_is_opt_in(tmp_path, monkeypatch):
@@ -93,16 +126,17 @@ def test_config_deepgram_tts_is_opt_in(tmp_path, monkeypatch):
     cfg_file.write_text((REPO / "services/gateway/config.toml").read_text())
     monkeypatch.setenv("VR_MODE", "api")
     monkeypatch.setenv("VR_API_TTS_PROVIDER", "deepgram")
+    monkeypatch.setenv("VR_API_LLM_PROVIDER", "openrouter")
     monkeypatch.setenv("OPENROUTER_API_KEY", "or-secret-value")
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("DEEPGRAM_API_KEY", "dg-secret-value")
     cfg = load_config(cfg_file)
     assert cfg.api.tts_provider == "deepgram" and cfg.api.voices_path() == REPO / "config/voices.api.json"
-    assert cfg.api.key_presence() == {"openrouter": True, "openai": False, "deepgram": True}
+    assert cfg.api.key_presence() == {"openrouter": True, "deepgram": True}  # transcription runs here (no key)
     assert "secret" not in repr(cfg)
     # The same switch in config.toml; an unknown provider is refused.
     monkeypatch.delenv("VR_API_TTS_PROVIDER")
-    cfg_file.write_text(cfg_file.read_text().replace('tts_provider = "openrouter"', 'tts_provider = "deepgram"'))
+    cfg_file.write_text(cfg_file.read_text().replace('tts_provider = "auto"', 'tts_provider = "deepgram"'))
     assert load_config(cfg_file).api.tts_provider == "deepgram"
     monkeypatch.setenv("VR_API_TTS_PROVIDER", "elevenlabs")
     with pytest.raises(ValueError):
@@ -129,17 +163,37 @@ def test_config_rejects_bad_values():
 
 
 def test_api_mode_builds_adapters_without_network(tmp_path, monkeypatch):
-    for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "DEEPGRAM_API_KEY"):
+    for var in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "DEEPGRAM_API_KEY", "ANTHROPIC_API_KEY"):
         monkeypatch.delenv(var, raising=False)
     cfg = Config(mode="api", data_dir=tmp_path / "data", cache_dir=tmp_path / "cache", scenarios_dir=tmp_path,
-                 scenario_schema=tmp_path / "none.json")
-    svc = build_services(cfg)
+                 scenario_schema=tmp_path / "none.json", run_dir=tmp_path / "run")
     from vr_feedback.llm import LlmClient
 
     from vr_gateway.adapters.asr_openai import OpenAiAsr
+    from vr_gateway.adapters.llm_anthropic import AnthropicLlm
+    from vr_gateway.adapters.llm_cli import ClaudeCliLlm, CodexCliLlm
     from vr_gateway.adapters.tts_deepgram import DeepgramTts
+    from vr_gateway.adapters.tts_kokoro import KokoroTts
     from vr_gateway.adapters.tts_openrouter import OpenRouterTts
+    from vr_gateway.workers import AsrClient
 
+    # Default engines (no key): Claude CLI, the local ASR worker, Kokoro. Nothing is started or called here.
+    svc = build_services(cfg)
+    assert isinstance(svc.asr, AsrClient) and isinstance(svc.tts, KokoroTts) and isinstance(svc.llm, ClaudeCliLlm)
+    assert svc.llm.model == "claude-haiku-4-5" and svc.llm_bg is svc.llm and str(svc.tts_cache.dir).endswith("tts-kokoro")
+    assert svc.tts.voice_for("libritts_r_4992_f") == "af_heart"
+    svc.db.close()
+    cfg.api.llm_provider = "codex-cli"
+    svc = build_services(cfg)
+    assert isinstance(svc.llm, CodexCliLlm) and svc.llm.model == "gpt-6-luna"
+    svc.db.close()
+    cfg.api.llm_provider = "anthropic"
+    svc = build_services(cfg)
+    assert isinstance(svc.llm, AnthropicLlm) and svc.llm.model == "claude-haiku-5-5"
+    svc.db.close()
+    # Hosted engines (the previous API mode).
+    cfg.api.llm_provider, cfg.api.asr_provider, cfg.api.tts_provider = "openrouter", "openai", "openrouter"
+    svc = build_services(cfg)
     assert isinstance(svc.asr, OpenAiAsr) and isinstance(svc.tts, OpenRouterTts)
     assert svc.tts.url == "https://openrouter.ai/api/v1/audio/speech" and svc.tts.model == "deepgram/aura-2"
     assert svc.tts.voice_for("libritts_r_4992_f") == "aura-2-thalia-en"
@@ -163,7 +217,12 @@ def test_health_api_mode_shape_and_key_presence(tmp_path):
         body = g.http.get("/api/health").json()
         assert {"gateway", "workers", "modes", "benchmark", "pronunciation_assessment", "tts_cache"} <= set(body)
         assert body["mode"] == "api" and body["shared"] is False
-        # Content Forge shows these: only the providers in use, so no Deepgram key by default.
+        # Default engines need no key at all.
+        assert body["api_keys"] == {} and body["engines"] == {"llm": "claude-cli", "asr": "local", "tts": "kokoro"}
+        # Content Forge shows these: only the providers in use, so no Deepgram key with hosted speech.
+        api = g.svc.config.api
+        api.llm_provider, api.asr_provider, api.tts_provider = "openrouter", "openai", "openrouter"
+        body = g.http.get("/api/health").json()
         assert body["api_keys"] == {"openrouter": True, "openai": False}
         assert body["workers"]["asr"]["ready"] and body["modes"]["realtime"]["available"]  # fakes injected
         g.svc.config.api.tts_provider = "deepgram"
@@ -181,7 +240,16 @@ def test_health_local_mode_has_no_api_fields(gw):
 def test_health_names_missing_keys_in_api_mode(tmp_path):
     g = Gateway(tmp_path, mode="api")
     try:
+        # Default engines: what is not ready on this machine, no key names.
+        g.asr.ready, g.llm.ready = False, False
+        body = g.http.get("/api/health").json()
+        assert body["modes"]["realtime"]["reason_ko"] == \
+            "준비되지 않음: 이 PC 음성 인식 모델(Qwen3-ASR), Claude CLI(이 PC 로그인)"
+        g.asr.ready, g.llm.ready = True, True
+        api = g.svc.config.api
+        api.llm_provider, api.asr_provider, api.tts_provider = "openrouter", "openai", "openrouter"
         g.asr.ready = False
+        g.svc.health._snapshot = None
         body = g.http.get("/api/health").json()
         assert body["modes"]["realtime"]["available"] is False
         assert body["modes"]["realtime"]["reason_ko"] == "API 키가 설정되지 않음: OPENAI_API_KEY"
@@ -370,7 +438,8 @@ def test_local_mode_still_supersedes_across_browsers(gw):
 
 def run_tool(*args, env_extra: dict) -> subprocess.CompletedProcess:
     env = {k: v for k, v in os.environ.items() if k not in ("OPENROUTER_API_KEY", "OPENAI_API_KEY", "DEEPGRAM_API_KEY",
-                                                            "VR_API_TTS_PROVIDER")}
+                                                            "ANTHROPIC_API_KEY", "VR_API_TTS_PROVIDER",
+                                                            "VR_API_ASR_PROVIDER", "VR_API_LLM_PROVIDER")}
     env.update(env_extra)
     return subprocess.run([sys.executable, str(REPO / "scripts/app_tool.py"), *args], capture_output=True, text=True,
                           env=env, timeout=60)
@@ -381,21 +450,39 @@ def test_doctor_api_reports_keys_without_printing_them():
     text = out.stdout + out.stderr
     assert "SECRET" not in text
     assert "key OPENROUTER_API_KEY" in text and "key OPENAI_API_KEY" in text and "set (value not shown)" in text
-    # Two keys by default: speech goes through OpenRouter, Deepgram's key is not asked for.
-    assert "DEEPGRAM" not in text and "Deepgram Aura-2 TTS via OpenRouter" in text
+    # With both voice keys: speech goes through OpenRouter, Deepgram's key is not asked for; text via the Claude CLI.
+    assert "DEEPGRAM" not in text and "TTS Deepgram Aura-2 via OpenRouter" in text and "LLM Claude CLI" in text
     assert "model silero-vad" in text and "sha256 ok" in text
-    pre = run_tool("preflight", "--api", env_extra={})
+    hosted = {"VR_API_LLM_PROVIDER": "openrouter", "VR_API_ASR_PROVIDER": "openai", "VR_API_TTS_PROVIDER": "openrouter"}
+    pre = run_tool("preflight", "--api", env_extra=hosted)
     assert pre.returncode == 1 and "API key(s) not set in the environment: OPENROUTER_API_KEY, OPENAI_API_KEY\n" in pre.stdout
+    # Without keys the default engines ask for no key at all.
+    pre = run_tool("preflight", "--api", env_extra={})
+    assert "API key(s) not set" not in pre.stdout
     # Deepgram directly (opt-in) asks for its key too.
-    dg = run_tool("doctor", "--api", env_extra={"VR_API_TTS_PROVIDER": "deepgram", "OPENROUTER_API_KEY": "or-SECRET-123",
-                                                "OPENAI_API_KEY": "sk-SECRET-456"})
+    dg = run_tool("doctor", "--api", env_extra={**hosted, "VR_API_TTS_PROVIDER": "deepgram",
+                                                "OPENROUTER_API_KEY": "or-SECRET-123", "OPENAI_API_KEY": "sk-SECRET-456"})
     text = dg.stdout + dg.stderr
-    assert "SECRET" not in text and "Deepgram Aura-2 TTS direct" in text
+    assert "SECRET" not in text and "Deepgram Aura-2 direct" in text
     assert "key DEEPGRAM_API_KEY" in text and "missing" in text and dg.returncode == 1
-    pre = run_tool("preflight", "--api", env_extra={"VR_API_TTS_PROVIDER": "deepgram"})
+    pre = run_tool("preflight", "--api", env_extra={**hosted, "VR_API_TTS_PROVIDER": "deepgram"})
     assert "OPENROUTER_API_KEY, OPENAI_API_KEY, DEEPGRAM_API_KEY" in pre.stdout
+    # The launcher reads config.toml like the gateway (single quotes are valid TOML too).
+    sys.path.insert(0, str(REPO / "scripts"))
+    import app_tool
+
+    cfg = REPO / "services/gateway/config.toml"
+    saved = app_tool.GATEWAY_CONFIG
+    try:
+        tmp = Path(os.environ.get("TMPDIR", "/tmp")) / f"vr-cfg-{os.getpid()}.toml"
+        tmp.write_text(cfg.read_text().replace('llm_provider = "claude-cli"', "llm_provider = 'openrouter'"))
+        app_tool.GATEWAY_CONFIG = tmp
+        assert app_tool.api_table()["llm_provider"] == "openrouter"
+    finally:
+        app_tool.GATEWAY_CONFIG = saved
+        tmp.unlink(missing_ok=True)
     pre = run_tool("preflight", "--api", env_extra={"VR_API_TTS_PROVIDER": "elevenlabs"})
-    assert pre.returncode == 1 and "unknown TTS provider 'elevenlabs'" in pre.stdout
+    assert pre.returncode == 1 and "tts_provider must be one of" in pre.stdout and "'elevenlabs'" in pre.stdout
     assert run_tool("mode", env_extra={"VR_MODE": "api"}).stdout.strip() == "api"
 
 

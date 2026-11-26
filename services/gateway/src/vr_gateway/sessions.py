@@ -69,6 +69,13 @@ class Session:
     stopped: asyncio.Event = field(default_factory=asyncio.Event)  # set once the engine stopped and the socket closed
     owner: str | None = None  # shared mode: the learner's vr_sid; None in single-learner mode
     time_limit: asyncio.TimerHandle | None = None  # shared mode: ends the realtime session after max_session_s
+    word_glosses: dict[tuple[str, str], str] = field(default_factory=dict)  # character call: meanings already looked up
+    word_gloss_calls: int = 0
+
+    @property
+    def call(self) -> dict | None:
+        """The call plan of a character video call (PROTOCOL §13); None for a roleplay session."""
+        return self.scenario.get("call")
 
     def next_turn_index(self) -> int:
         self.turn_counter += 1
@@ -131,12 +138,17 @@ class SessionManager:
         mode = body.get("mode")
         if mode not in MODES:
             raise ApiError("UNSUPPORTED_MODE")
-        scenario = self.services.scenarios.get(body.get("scenario_id", ""))
-        if scenario is None:
-            raise ApiError("NOT_FOUND")
         difficulty = body.get("difficulty") or settings.get("difficulty", "normal")
         if difficulty not in DIFFICULTIES:
             raise ApiError("INVALID_REQUEST")
+        if body.get("call"):
+            if mode != "realtime":
+                raise ApiError("UNSUPPORTED_MODE")
+            scenario = self.services.calls.get(body.get("scenario_id", ""), difficulty)
+        else:
+            scenario = self.services.scenarios.get(body.get("scenario_id", ""))
+        if scenario is None:
+            raise ApiError("NOT_FOUND")
         policy = body.get("feedback_policy", "session_end")
         if policy not in ("session_end", "per_turn"):
             raise ApiError("INVALID_REQUEST")
@@ -171,9 +183,11 @@ class SessionManager:
             scenario=scenario,
             difficulty=difficulty,
             history_opt_in=bool(body.get("history_opt_in", settings.get("history_opt_in", False)))
-            and self.services.config.history_enabled,
+            and self.services.config.history_enabled and not scenario.get("call"),
             feedback_policy=policy,
-            voice_id=self.services.voice_for(scenario, body.get("voice_id") or settings.get("voice_id")),
+            # A calling character always speaks with its own voice.
+            voice_id=self.services.voice_for(scenario, None if scenario.get("call")
+                                             else body.get("voice_id") or settings.get("voice_id")),
             silence_ms=max(700, min(1400, int(silence))),
             goals=[{"goal_id": g["goal_id"], "status": "pending"} for g in scenario.get("goals", [])],
             owner=owner,
@@ -271,7 +285,9 @@ class SessionManager:
         svc = self.services
         turns = session.user_turns()
         await svc.health.snapshot()
-        if turns and svc.health.llm_ready():
+        if session.call:  # a call is never graded: the transcript is the whole review
+            result = {"items": [], "goals": [], "status": "held", "reason": "call"}
+        elif turns and svc.health.llm_ready():
             try:
                 result = await svc.brain.session_summary(
                     svc.llm, turns=turns, scenario=session.scenario, model_revision=svc.config.llm_model_revision

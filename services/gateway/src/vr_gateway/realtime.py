@@ -49,6 +49,8 @@ FILLERS = ("um", "uh", "and", "but", "because", "so", "or", "the", "a", "to", "l
 HISTORY_WINDOW = 12  # history entries the roleplay prompt keeps verbatim (vr_feedback.prompts: 6 turns)
 MAX_LEARNER_FACTS = 8
 
+CALL_BYE_FALLBACK = "Bye-bye! See you soon!"
+
 COMMIT = object()
 CANCEL = object()
 
@@ -119,6 +121,8 @@ class Response:
     folded: bool = False
     failed: bool = False
     asked: bool = False  # a segment ended in "?": the rest of the reply is not generated or spoken
+    act: str | None = None  # character call: the gesture that goes with this reply
+    step: str | None = None  # character call: greet | chat | leave | bye
     tts_request: str | None = None
     tts_error_sent: bool = False
     task: asyncio.Task | None = None
@@ -175,6 +179,7 @@ class RealtimeEngine:
         self.goals_task: asyncio.Task | None = None
         self.goals_due: Response | None = None  # latest reply whose turn still needs a goal check
         self.summary_task: asyncio.Task | None = None
+        self.call_turns = 0  # character call: learner turns answered so far
 
     # ------------------------------------------------------------------ sending
 
@@ -319,7 +324,9 @@ class RealtimeEngine:
     async def _on_window(self, prob: float, window: np.ndarray) -> None:
         utt = self.utt
         if utt is None:
-            if prob >= SPEECH_ON:
+            # A character call has no turns of its own accord (PROTOCOL §13): frames still on their way after a turn
+            # ended, or sent after the goodbye, never open one.
+            if prob >= SPEECH_ON and not self.s.call:
                 utt = self._open_utterance(manual=False)
             else:
                 self._push_preroll(window)
@@ -548,17 +555,26 @@ class RealtimeEngine:
         history = list(self.s.history)
         if retry and history and history[-1]["role"] == "user":
             history.pop()
-        messages = self.brain.build_roleplay_messages(
-            self.s.scenario, self.s.difficulty, self.s.goals, history, user_text,
-            summary=self.s.context_summary, learner_facts=list(self.s.learner_facts.values()),
-        )
+        call = self.s.call
+        step = None
+        if call:
+            if not retry:
+                self.call_turns += 1
+            step = self.brain.call_step(self.call_turns, call["turns"])
+            messages = self.brain.build_call_messages(self.s.scenario, self.s.difficulty, history, user_text, step)
+        else:
+            messages = self.brain.build_roleplay_messages(
+                self.s.scenario, self.s.difficulty, self.s.goals, history, user_text,
+                summary=self.s.context_summary, learner_facts=list(self.s.learner_facts.values()),
+            )
         if not retry:
             self.s.history.append({"role": "user", "text": user_text})
-        resp = Response(response_id="r_" + uuid.uuid4().hex[:12], epoch=self.epoch, turn_id=turn_id)
+        resp = Response(response_id="r_" + uuid.uuid4().hex[:12], epoch=self.epoch, turn_id=turn_id, step=step)
         self.response = resp
         self.responses.append(resp)
         await self._set_state(state="RESPONDING", output_state="generating")
-        await self.send("response.started", resp, epoch=resp.epoch, turn_id=turn_id)
+        extra = {"step": step, "turn": self.call_turns, "final": step == "bye"} if call else {}
+        await self.send("response.started", resp, epoch=resp.epoch, turn_id=turn_id, **extra)
         resp.task = self._spawn(self._run_response(resp, messages))
 
     async def _run_response(self, resp: Response, messages: list[dict]) -> None:
@@ -611,32 +627,55 @@ class RealtimeEngine:
         """Stream the reply into segments. At most one question per reply (the system prompt asks for it):
         once a segment ends in "?", the LLM stream is closed and nothing after it is spoken."""
         segmenter = self.brain.segmenter_factory()
+        tag = self.brain.act_tag_factory() if resp.step else None
+        spoken: list[str] = []
+
+        def accept(segs: list[str]) -> bool:
+            """Queue segments for speech up to the reply's one question; True once it has been reached."""
+            for seg in segs:
+                question = ends_with_question(seg)
+                if question and resp.step == "bye":
+                    return True  # nobody will answer: a goodbye never ends in a question
+                if tag:
+                    resp.act = tag.act
+                spoken.append(seg)
+                queue.put_nowait(seg)
+                if question:
+                    return True
+            return False
+
         stream = self.svc.llm.stream_chat(messages, max_tokens=128, slot_id=0, cancel=resp.cancel_event)
         try:
             async with aclosing(stream):
                 async for delta in stream:
                     if resp.cancelled:
                         break
-                    for seg in segmenter.feed(delta):
-                        queue.put_nowait(seg)
-                        if ends_with_question(seg):
-                            resp.asked = True
-                            break
+                    resp.asked = accept(segmenter.feed(tag.feed(delta) if tag else delta))
                     if resp.asked:
                         break  # closing the stream makes llama-server stop generating
             if not resp.cancelled and not resp.asked:
-                for seg in segmenter.flush():
-                    queue.put_nowait(seg)
-                    if ends_with_question(seg):
-                        break
+                if not (tag and accept(segmenter.feed(tag.flush()))):
+                    accept(segmenter.flush())
+            if resp.step == "bye" and not spoken and not resp.cancelled:
+                accept([CALL_BYE_FALLBACK])
         finally:
             queue.put_nowait(None)
+        if resp.step and spoken and not resp.cancelled:
+            for i, seg in enumerate(spoken):
+                self._spawn(self._gloss(resp, i, seg))
+
+    async def _gloss(self, resp: Response, seg_id: int, text: str) -> None:
+        """Character call: Korean meaning of one spoken line, sent when ready (the caption never waits for it)."""
+        ko = await self.brain.translate_line(self.svc.llm_bg, text, polite=self.s.call["kind"] == "role")
+        if ko:
+            await self.send("response.gloss", response_id=resp.response_id, segment_id=seg_id, text_ko=ko)
 
     async def _speak(self, resp: Response, seg_id: int, text: str) -> bool:
         """Show the segment text and stream its audio. Returns True if any audio frame was sent."""
         seg = Segment(text=text)
         resp.segments[seg_id] = seg
-        if not await self.send("response.text", resp, segment_id=seg_id, text=text):
+        extra = {"act": resp.act} if resp.act and seg_id == 0 else {}
+        if not await self.send("response.text", resp, segment_id=seg_id, text=text, **extra):
             return False
         spoken = self.brain.normalize_for_tts(text)
         if not spoken.strip():
@@ -686,9 +725,9 @@ class RealtimeEngine:
             if resp.cancelled or resp.playback_finished():
                 return
             resp.cancelled = True
+            resp.cancel_event.set()  # before the send: the producer may close the stream while this waits
             self.s.epoch += 1
             await self._send_locked("response.cancelled", None, response_id=resp.response_id, reason=reason)
-        resp.cancel_event.set()
         for seg in resp.segments.values():
             if seg.status in ("pending", "sent"):
                 seg.status = "interrupted"
@@ -713,7 +752,7 @@ class RealtimeEngine:
         """Background LLM work (llama-server slot 1) starts once the reply is generated, while it plays:
         goal tracking (it reads the learner's turns only) and optional per-turn feedback. The rolling summary
         starts when a reply enters history (_fold). None of it blocks a reply."""
-        if resp.turn_id is None or resp.turn_id == "opening":
+        if resp.turn_id is None or resp.turn_id == "opening" or self.s.call:
             return
         if any(g["status"] != "done" for g in self.s.goals):
             self.goals_due = resp
@@ -752,7 +791,7 @@ class RealtimeEngine:
         summary. The reply always uses whatever summary exists; this never waits on the LLM. Runs when a reply
         enters history, so the cutoff matches the verbatim window of the next prompt. Entries older than the
         window with no learner line (only the opening, which the prompt prefix already has) are not summarized."""
-        if self.closed:
+        if self.closed or self.s.call:  # a call is short enough to keep whole
             return
         cutoff = len(self.s.history) - HISTORY_WINDOW
         older = self.s.history[self.s.summarized_upto:max(cutoff, 0)]
@@ -826,7 +865,8 @@ class RealtimeEngine:
     async def _warm_llm(self) -> None:
         started = time.perf_counter()
         try:
-            await self.svc.llm.warm(self.brain.build_opening_warmup(self.s.scenario, self.s.difficulty), slot_id=0)
+            warmup = self.brain.build_call_warmup if self.s.call else self.brain.build_opening_warmup
+            await self.svc.llm.warm(warmup(self.s.scenario, self.s.difficulty), slot_id=0)
             log.info("llm_warm session=%s ms=%d", self.s.session_id, int((time.perf_counter() - started) * 1000))
         except Exception as exc:
             log.warning("llm_warm_failed session=%s error=%s", self.s.session_id, type(exc).__name__)
@@ -851,6 +891,8 @@ class RealtimeEngine:
             raise ValueError("turn_id")
         if self.utt is not None and self.utt.announced:
             return
+        if self.s.call and self.call_turns >= self.s.call["turns"]:
+            return  # the character has said goodbye
         if self.response is not None and not self.response.playback_finished():
             await self._cancel_response(self.response, "input_start")
         utt = self.utt or self._open_utterance(manual=True)

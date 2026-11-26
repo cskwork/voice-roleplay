@@ -23,6 +23,7 @@ from . import review as reviewmod
 from .audio import parse_wav
 from .auth import LocalAuth, LocalAuthMiddleware, PathPrefixMiddleware, cookie_sid
 from .brain import Brain
+from .calls import CallStore
 from .config import Config, origin_host
 from .db import Database
 from .errors import ApiError, error_response
@@ -37,6 +38,7 @@ from .tts_cache import VOICE_RE, TtsCache
 log = logging.getLogger("vr_gateway")
 
 ENGLISH_TEXT = re.compile(r"^[\x20-\x7E‘’“”–—…\n]+$")
+MAX_WORD_GLOSSES = 200  # look-ups per character call (PROTOCOL §13)
 DEFAULT_SETTINGS = {
     "difficulty": "normal",
     "silence_ms": None,
@@ -72,6 +74,8 @@ class Services:
     # Background LLM work during a realtime session (goals, hints, per-turn feedback, rolling summary) is
     # pinned to llama-server slot 1 so it never evicts the roleplay prefix cached in slot 0 (PROTOCOL §5).
     llm_bg: Any = None
+    # Character video calls (PROTOCOL §13).
+    calls: CallStore = None
     # Optional pronunciation worker client (PROTOCOL §12); None when not configured.
     pron: Any = None
     pron_guide: GuideIndex = None
@@ -145,6 +149,12 @@ class SessionIn(Strict):
     history_opt_in: bool | None = None
     feedback_policy: Literal["session_end", "per_turn"] = "session_end"
     voice_id: str | None = Field(None, pattern=VOICE_RE.pattern)
+    call: bool = False  # character video call: `scenario_id` is a call_id from GET /api/scenarios `calls`
+
+
+class WordGlossIn(Strict):
+    word: str = Field(min_length=1, max_length=40)
+    turn_id: str = Field(max_length=64)
 
 
 class AttemptIn(Strict):
@@ -258,9 +268,10 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None,
         from .vad import SileroModel
 
         vad_model = SileroModel(config.vad_model)
+    scenarios = ScenarioStore.load(config.scenarios_dir, config.scenario_schema)
     svc = Services(
-        config=config, db=Database(config.db_path),
-        scenarios=ScenarioStore.load(config.scenarios_dir, config.scenario_schema),
+        config=config, db=Database(config.db_path), scenarios=scenarios,
+        calls=CallStore.load(config.calls_file, config.call_schema, scenarios),
         brain=brain, asr=asr, tts=tts, llm=llm, llm_bg=llm_bg or llm, vad_model=vad_model, pron=pron,
         pron_guide=GuideIndex(config.pron_guide, config.pron_lexicon),
     )
@@ -269,7 +280,9 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None,
     svc.sessions = SessionManager(svc)
     svc.jobs = JobManager(svc)
     # API voices are different audio: keep their cache apart from the local voices' cache.
-    svc.tts_cache = TtsCache(svc, config.cache_dir / ("tts-api" if config.mode == "api" else "tts"))
+    # Kokoro on this machine is different audio again.
+    cache = "tts" if config.mode != "api" else ("tts-kokoro" if config.api.tts_provider == "kokoro" else "tts-api")
+    svc.tts_cache = TtsCache(svc, config.cache_dir / cache)
     return svc
 
 
@@ -294,8 +307,9 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         if warm_cache:
             task = asyncio.create_task(_warm_tts_cache(svc))
             svc.background.add(task)
-        log.info("gateway_started port=%d scenarios=%d mode=%s shared=%s prefix=%s", config.port,
-                 len(svc.scenarios.scenarios), config.mode, config.shared, config.path_prefix or "-")
+        log.info("gateway_started port=%d scenarios=%d mode=%s shared=%s prefix=%s engines=%s", config.port,
+                 len(svc.scenarios.scenarios), config.mode, config.shared, config.path_prefix or "-",
+                 ",".join(f"{k}:{v}" for k, v in config.api.engines().items()) if config.mode == "api" else "-")
         try:
             yield
         finally:
@@ -362,7 +376,8 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
 
     @app.get("/api/scenarios")
     async def scenarios():
-        return {"scenarios": svc.scenarios.summaries(), "capabilities": {"guided_lessons": True}}
+        return {"scenarios": svc.scenarios.summaries(), "calls": svc.calls.summaries(),
+                "capabilities": {"guided_lessons": True, "hamster_calls": svc.calls.available}}
 
     @app.get("/api/scenarios/{scenario_id}")
     async def scenario(scenario_id: str):
@@ -409,6 +424,25 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
     async def end_session(session_id: str, request: Request):
         session = svc.sessions.get(session_id, owner=svc.owner_of(request.scope["headers"]))
         return await svc.sessions.end(session)
+
+    @app.post("/api/sessions/{session_id}/word-gloss")
+    async def word_gloss(session_id: str, request: Request):
+        """Korean meaning of one word of a line the character said in this call (review screen)."""
+        session = svc.sessions.get(session_id, owner=svc.owner_of(request.scope["headers"]))
+        body = await read_model(request, WordGlossIn, svc)
+        # Only words of this call's own lines: the endpoint cannot be used as a general LLM proxy.
+        # A line cut off by hanging up was still shown in full, so its words come from the segments.
+        turn = next((t for t in session.turns if t["turn_id"] == body.turn_id and t["role"] == "assistant"), None)
+        line = " ".join(s["text"] for s in turn.get("spoken_segments") or []) or turn["text"] if turn else ""
+        word = body.word.lower()
+        if not session.call or word not in re.findall(r"[a-z']+", line.lower().replace("’", "'")):
+            raise ApiError("NOT_FOUND")
+        key = (body.turn_id, word)
+        if key not in session.word_glosses and session.word_gloss_calls < MAX_WORD_GLOSSES:
+            session.word_gloss_calls += 1
+            if ko := await svc.brain.word_gloss(svc.llm_bg, body.word, line):
+                session.word_glosses[key] = ko
+        return {"ko": session.word_glosses.get(key)}
 
     @app.websocket("/api/sessions/{session_id}/realtime")
     async def realtime(ws: WebSocket, session_id: str):

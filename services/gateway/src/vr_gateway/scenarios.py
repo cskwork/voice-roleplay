@@ -15,7 +15,11 @@ class ScenarioStore:
         self._texts: dict[str, dict] = {}
         for sc in scenarios.values():
             for entry in text_entries(sc):
-                self._texts[entry["text_id"]] = {**entry, "scenario_id": sc["scenario_id"]}
+                self.add_text(entry, scenario_id=sc["scenario_id"])
+
+    def add_text(self, entry: dict, *, scenario_id: str) -> None:
+        """Register a reviewed line so the TTS cache can find it by text_id."""
+        self._texts[entry["text_id"]] = {**entry, "scenario_id": scenario_id}
 
     @classmethod
     def load(cls, directory: Path, schema_path: Path | None = None) -> ScenarioStore:

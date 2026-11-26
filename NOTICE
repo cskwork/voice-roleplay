@@ -7,7 +7,14 @@ Model weights are NOT included in this repository. `./app setup` downloads them
 from their publishers at pinned revisions; each keeps its own license
 (see models.lock.json): Qwen3-ASR-0.6B, Qwen3-ForcedAligner-0.6B,
 Qwen3-4B-Instruct-2507 (Apache-2.0), Fun-CosyVoice3-0.5B-2512 and its MLX
-conversion, facebook/wav2vec2-lv-60-espeak-cv-ft (Apache-2.0), CMUdict.
+conversion, facebook/wav2vec2-lv-60-espeak-cv-ft (Apache-2.0), CMUdict, and for
+API mode without a speech key Kokoro-82M v1.0 (hexgrad, Apache-2.0) as the ONNX
+int8 export published by thewh1teagle/kokoro-onnx (MIT).
+
+Runtime dependencies installed by uv (not included in this repository) keep their
+own licenses. Note: kokoro-onnx (MIT) uses phonemizer (GPL-3.0) and
+espeakng-loader, which ships an espeak-ng library (GPL-3.0); they are installed
+into services/gateway/.venv and used only when the Kokoro engine runs.
 
 Third-party material included in this repository:
 

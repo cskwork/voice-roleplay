@@ -1,6 +1,6 @@
 {
   "lock_version": 1,
-  "updated": "2026-09-29",
+  "updated": "2026-11-26",
   "description": "Pinned model files, conversion provenance, licenses and runtime versions (PRD §4, §14.3; PROTOCOL §1). `./app setup` downloads exactly the files with required != false at the pinned revision and verifies every sha256; `./app doctor` re-checks them. Models with `optional_feature` are downloaded by setup but not required by `./app start` (a missing file is a doctor warning, a wrong hash is a failure). Hashes were computed with `shasum -a 256` over models/ on the dev machine; for LFS files they equal the Hugging Face LFS sha256 recorded in models/*/.cache/huggingface.",
   "models": [
     {
@@ -460,6 +460,35 @@
           "path": "LICENSE",
           "sha256": "bd4ce8e44170a5f9f481310ca85c51de3c4f851a65e679b40e603b143bd3542a",
           "bytes": 1754
+        }
+      ]
+    },
+    {
+      "id": "tts_kokoro",
+      "name": "Kokoro-82M ONNX int8",
+      "role": "speech in API mode when no OPENROUTER_API_KEY is set (services/gateway adapters/tts_kokoro.py via kokoro-onnx, CPU). API-mode local voice: `./app setup --api` downloads these files; local mode and API mode with a speech key do not use them.",
+      "optional_feature": "api-local-voice",
+      "source": {
+        "hub": "github",
+        "repo": "thewh1teagle/kokoro-onnx",
+        "revision": "model-files-v1.0",
+        "url_template": "https://github.com/{repo}/releases/download/{revision}/{path}"
+      },
+      "local_dir": "models/kokoro",
+      "license": "apache-2.0",
+      "license_evidence": "Weights and voices are Kokoro-82M v1.0 by hexgrad (huggingface.co/hexgrad/Kokoro-82M, license: apache-2.0); the ONNX export and the int8 quantization are published by thewh1teagle/kokoro-onnx (MIT) as release assets of tag model-files-v1.0.",
+      "conversion": "none here (release assets used as downloaded; int8 quantization done upstream)",
+      "hash_evidence": "2026-11-26: sha256 of the downloaded release assets.",
+      "files": [
+        {
+          "path": "kokoro-v1.0.int8.onnx",
+          "sha256": "6e742170d309016e5891a994e1ce1559c702a2ccd0075e67ef7157974f6406cb",
+          "bytes": 92361271
+        },
+        {
+          "path": "voices-v1.0.bin",
+          "sha256": "bca610b8308e8d99f32e6fe4197e7ec01679264efed0cac9140fe9c29f1fbf7d",
+          "bytes": 28214398
         }
       ]
     }
