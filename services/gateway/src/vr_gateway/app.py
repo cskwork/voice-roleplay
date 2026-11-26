@@ -280,7 +280,9 @@ def build_services(config: Config, *, asr=None, tts=None, llm=None, llm_bg=None,
     svc.sessions = SessionManager(svc)
     svc.jobs = JobManager(svc)
     # API voices are different audio: keep their cache apart from the local voices' cache.
-    svc.tts_cache = TtsCache(svc, config.cache_dir / ("tts-api" if config.mode == "api" else "tts"))
+    # Kokoro on this machine is different audio again.
+    cache = "tts" if config.mode != "api" else ("tts-kokoro" if config.api.tts_provider == "kokoro" else "tts-api")
+    svc.tts_cache = TtsCache(svc, config.cache_dir / cache)
     return svc
 
 
@@ -305,8 +307,9 @@ def create_app(config: Config, *, services: Services | None = None, supervisor=N
         if warm_cache:
             task = asyncio.create_task(_warm_tts_cache(svc))
             svc.background.add(task)
-        log.info("gateway_started port=%d scenarios=%d mode=%s shared=%s prefix=%s", config.port,
-                 len(svc.scenarios.scenarios), config.mode, config.shared, config.path_prefix or "-")
+        log.info("gateway_started port=%d scenarios=%d mode=%s shared=%s prefix=%s engines=%s", config.port,
+                 len(svc.scenarios.scenarios), config.mode, config.shared, config.path_prefix or "-",
+                 ",".join(f"{k}:{v}" for k, v in config.api.engines().items()) if config.mode == "api" else "-")
         try:
             yield
         finally:

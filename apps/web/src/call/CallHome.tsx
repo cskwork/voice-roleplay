@@ -7,6 +7,7 @@ import './call.css'
 import { pastCalls, topicOfTheCall, type PastCall } from './history'
 import { Stage } from './stage'
 import { TalkList } from './TalkList'
+import { transferNotice } from '../lib/privacy'
 
 const LEVEL: Record<Difficulty, string> = { easy: '쉬움', normal: '보통', hard: '도전' }
 
@@ -82,9 +83,7 @@ export function CallHome() {
             <span>햄찌에게 전화하기</span>
           </button>
           <p className="hc-privacy">
-            {health?.api
-              ? '말하는 목소리와 대화 글이 OpenAI·OpenRouter(미국)로 전송돼요. OpenRouter는 글을 OpenAI·Azure·Deepgram에 넘겨 처리해요. 대화와 녹음은 저장하지 않아요.'
-              : '말할 때만 마이크를 켜고, 대화와 녹음은 저장하지 않아요.'}
+            {health?.api ? transferNotice(health, '이 앱은 대화와 녹음을 저장하지 않아요.') : '말할 때만 마이크를 켜고, 대화와 녹음은 저장하지 않아요.'}
           </p>
         </div>
       </section>

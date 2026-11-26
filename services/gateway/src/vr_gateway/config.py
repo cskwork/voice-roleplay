@@ -1,9 +1,10 @@
 """Gateway configuration loaded from services/gateway/config.toml plus env overrides.
 
 Two independent switches (PROTOCOL §1, §7):
-- `mode`: "local" (default, the four local model workers) or "api" (hosted providers through adapters in
-  `vr_gateway.adapters`; only Silero VAD runs locally). API keys come only from environment variables and are never
-  written to disk or logged.
+- `mode`: "local" (default, the four local model workers) or "api" (no local LLM/TTS workers; each part picks its
+  engine in `vr_gateway.engines`: a logged-in CLI, a hosted provider, or a small model on this machine, through the
+  adapters in `vr_gateway.adapters`). API keys come only from environment variables and are never written to disk or
+  logged.
 - `shared`: many learners on one gateway (sessions per `vr_sid` cookie, a concurrency cap, a maximum session length,
   history and review storage off). Independent of `mode`.
 `public_origins` and `path_prefix` let a reverse proxy on another origin (e.g. Content Forge at `/voice/`) forward
@@ -18,6 +19,8 @@ import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from . import engines
+
 GATEWAY_DIR = Path(__file__).resolve().parents[2]
 REPO_ROOT = GATEWAY_DIR.parents[1]
 ASSETS_DIR = GATEWAY_DIR / "assets"
@@ -25,10 +28,11 @@ ASSETS_DIR = GATEWAY_DIR / "assets"
 MIB = 1024 * 1024
 MODES = ("local", "api")
 # Environment variables holding provider keys in API mode (PROTOCOL §1). Only presence is ever reported.
-API_KEY_ENV = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY", "deepgram": "DEEPGRAM_API_KEY"}
-# Speech in API mode: Deepgram Aura-2 through OpenRouter (default) or Deepgram directly (opt-in fallback), each with
-# its own voice list.
-TTS_VOICES = {"openrouter": "config/voices.openrouter.json", "deepgram": "config/voices.api.json"}
+API_KEY_ENV = dict(engines.KEY_ENV)
+# Speech in API mode: Deepgram Aura-2 through OpenRouter, Deepgram directly (opt-in) or Kokoro-82M on this machine
+# (when no OpenRouter key is set), each with its own voice list.
+TTS_VOICES = {"openrouter": "config/voices.openrouter.json", "deepgram": "config/voices.api.json",
+              "kokoro": "config/voices.kokoro.json"}
 # Port overrides for a machine where a default port is taken: gateway env var -> (worker env var it sets).
 WORKER_PORT_ENV = {"asr": ("VR_ASR_PORT", "ASR_PORT"), "tts": ("VR_TTS_PORT", "VR_TTS_PORT"), "llm": ("VR_LLM_PORT", None),
                    "pron": ("VR_PRON_PORT", "VR_PRON_PORT")}
@@ -46,8 +50,24 @@ class WorkerProcess:
 
 @dataclass
 class ApiConfig:
-    """Hosted providers used in API mode (PROTOCOL §1). Keys are read from the environment, never from files."""
+    """API mode (PROTOCOL §1): which engine runs each part (`vr_gateway.engines`) and the hosted providers' settings.
+    Keys are read from the environment, never from files."""
 
+    # Resolved engines (engines.resolve): llm claude-cli | codex-cli | anthropic | openrouter, asr openai | local,
+    # tts openrouter | deepgram | kokoro.
+    llm_provider: str = "claude-cli"
+    asr_provider: str = "local"
+    tts_provider: str = "kokoro"
+    # CLI engines: the model each CLI is asked for, and how many idle CLI processes are kept started (each request
+    # takes one, so the CLI's start-up time is not on the learner's turn).
+    claude_cli_model: str = "claude-haiku-4-5"
+    codex_cli_model: str = "gpt-6-luna"
+    cli_pool: int = 2
+    # Claude API engine.
+    anthropic_model: str = "claude-haiku-5-5"
+    # Kokoro-82M on this machine (models.lock.json "Kokoro-82M ONNX int8").
+    kokoro_model: Path = REPO_ROOT / "models/kokoro/kokoro-v1.0.int8.onnx"
+    kokoro_voices: Path = REPO_ROOT / "models/kokoro/voices-v1.0.bin"
     llm_base_url: str = "https://openrouter.ai/api/v1"
     llm_model: str = "openai/gpt-4.1-mini"
     # OpenRouter provider routing: only these upstreams, no fallbacks, zero data retention, no data collection.
@@ -55,8 +75,7 @@ class ApiConfig:
     llm_timeout_s: float = 60.0
     asr_url: str = "wss://api.openai.com/v1/realtime?intent=transcription"
     asr_model: str = "gpt-live-transcribe"
-    tts_provider: str = "openrouter"  # openrouter | deepgram
-    # tts_provider "openrouter" (default): POST {tts_base_url}/audio/speech with tts_model, zero data retention.
+    # tts_provider "openrouter": POST {tts_base_url}/audio/speech with tts_model, zero data retention.
     tts_base_url: str = "https://openrouter.ai/api/v1"
     tts_model: str = "deepgram/aura-2"
     # tts_provider "deepgram" (opt-in fallback): Deepgram's own endpoints, needs DEEPGRAM_API_KEY.
@@ -70,10 +89,12 @@ class ApiConfig:
     def key(self, provider: str) -> str:
         return self.keys.get(provider, "")
 
+    def engines(self) -> dict[str, str]:
+        return {"llm": self.llm_provider, "asr": self.asr_provider, "tts": self.tts_provider}
+
     def providers(self) -> list[str]:
-        """Providers this configuration calls: OpenRouter (LLM, and TTS by default) and OpenAI (ASR); Deepgram only
-        when it is the TTS provider."""
-        return ["openrouter", "openai", *(["deepgram"] if self.tts_provider == "deepgram" else [])]
+        """Hosted providers whose key this configuration needs (none when every part runs here or through a CLI)."""
+        return engines.required_keys(self.engines())
 
     def key_presence(self) -> dict[str, bool]:
         return {name: bool(self.keys.get(name)) for name in self.providers()}
@@ -241,8 +262,12 @@ def load_config(path: Path | None = None) -> Config:
         if os.environ.get(gw_var) and (name != "pron" or cfg.pron_url):
             setattr(cfg, f"{name}_url", f"http://127.0.0.1:{int(os.environ[gw_var])}")
     if cfg.mode == "api":
-        # No local ASR/TTS/LLM processes; the optional pronunciation worker only when turned on.
-        cfg.processes = [p for p in cfg.processes if p.name == "pron" and cfg.api.pronunciation]
+        # No local TTS/LLM processes; the local ASR worker only when no hosted transcription is used, the optional
+        # pronunciation worker only when turned on.
+        keep = {"asr"} if cfg.api.asr_provider == "local" else set()
+        if cfg.api.pronunciation:
+            keep.add("pron")
+        cfg.processes = [p for p in cfg.processes if p.name in keep]
         if not cfg.api.pronunciation:
             cfg.pron_url = ""
     return cfg
@@ -254,13 +279,14 @@ def _load_modes(cfg: Config, gw: dict, api: dict, shared: dict) -> None:
     if cfg.mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}, got {cfg.mode!r}")
     a = cfg.api
-    for key in ("llm_base_url", "llm_model", "asr_url", "asr_model", "tts_provider", "tts_base_url", "tts_model",
-                "tts_url", "tts_rest_url"):
+    for key in ("llm_base_url", "llm_model", "asr_url", "asr_model", "tts_base_url", "tts_model", "tts_url",
+                "tts_rest_url", "claude_cli_model", "codex_cli_model", "anthropic_model"):
         if key in api:
             setattr(a, key, str(api[key]))
-    a.tts_provider = (os.environ.get("VR_API_TTS_PROVIDER", "").strip() or a.tts_provider).lower()
-    if a.tts_provider not in TTS_VOICES:
-        raise ValueError(f"tts_provider must be one of {tuple(TTS_VOICES)}, got {a.tts_provider!r}")
+    if "cli_pool" in api:
+        a.cli_pool = int(api["cli_pool"])
+    resolved = engines.resolve(os.environ, api)
+    a.llm_provider, a.asr_provider, a.tts_provider = resolved["llm"], resolved["asr"], resolved["tts"]
     if "llm_providers" in api:
         a.llm_providers = [str(p) for p in api["llm_providers"]]
     if "llm_timeout_s" in api:
@@ -269,9 +295,14 @@ def _load_modes(cfg: Config, gw: dict, api: dict, shared: dict) -> None:
         a.voices = _repo_path(api["voices"])
     a.pronunciation = bool(api.get("pronunciation", a.pronunciation))
     a.llm_model = os.environ.get("VR_API_LLM_MODEL", "").strip() or a.llm_model
+    a.claude_cli_model = os.environ.get("VR_API_CLAUDE_CLI_MODEL", "").strip() or a.claude_cli_model
+    a.codex_cli_model = os.environ.get("VR_API_CODEX_CLI_MODEL", "").strip() or a.codex_cli_model
+    a.anthropic_model = os.environ.get("VR_API_ANTHROPIC_MODEL", "").strip() or a.anthropic_model
     a.keys = read_api_keys()
     if cfg.mode == "api":
-        cfg.llm_model_revision = f"openrouter:{a.llm_model}"
+        model = {"claude-cli": a.claude_cli_model, "codex-cli": a.codex_cli_model, "anthropic": a.anthropic_model,
+                 "openrouter": a.llm_model}[a.llm_provider]
+        cfg.llm_model_revision = f"{a.llm_provider}:{model}"
 
     origins = os.environ.get("VR_PUBLIC_ORIGINS")
     raw_origins = [o for o in origins.split(",") if o.strip()] if origins is not None else gw.get("public_origins", [])

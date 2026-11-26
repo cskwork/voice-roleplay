@@ -1,17 +1,18 @@
 """Helpers for the ./app launcher (PRD §14.3). Standard library only, except `download` (huggingface_hub).
 
   verify   [--full]            check model files against models.lock.json (size always; sha256, cached by size+mtime)
-  download                     fetch missing/mismatched model files at the pinned revisions (setup only)
+  download [--only DIR,...]    fetch missing/mismatched model files at the pinned revisions (setup only); --only limits
+                               it to models whose local_dir is listed (e.g. models/kokoro,models/Qwen3-ASR-0.6B)
   doctor   [--full]            hardware, runtimes, models, ports, voices, offline readiness as a table
   preflight                    fast checks before `./app start` (no hashing, no network)
   wait-ready PID [TIMEOUT_S]   poll the gateway's /api/health until realtime mode is available
   mode                         print the configured mode (local | api)
 
-API mode (VR_MODE=api, `--api`, or `mode = "api"` in services/gateway/config.toml): doctor and preflight check the
-gateway environment, the web build, the bundled Silero VAD file and that OPENROUTER_API_KEY (LLM and speech) and
-OPENAI_API_KEY (transcription) are set, plus DEEPGRAM_API_KEY only when speech goes to Deepgram directly
-(VR_API_TTS_PROVIDER=deepgram or `tts_provider = "deepgram"` in [api]). Key values are never printed or written
-anywhere; only "set"/"missing" is shown.
+API mode (VR_MODE=api, `--api`, or `mode = "api"` in services/gateway/config.toml): each part picks its engine
+(services/gateway/src/vr_gateway/engines.py; default: Claude CLI for text, local Qwen3-ASR without OPENAI_API_KEY, local
+Kokoro without OPENROUTER_API_KEY). doctor and preflight check the gateway environment, the web build, the bundled
+Silero VAD file, the CLI or the local model files of the engines in use, and only the keys those engines need. Key
+values are never printed or written anywhere; only "set"/"missing" is shown.
 
 Exit code 0 = ok, 1 = a check failed. Nothing here logs transcripts or other user data.
 """
@@ -43,8 +44,21 @@ PIDFILES = ROOT / "var" / "run"
 GATEWAY_CONFIG = ROOT / "services/gateway/config.toml"
 SILERO = ROOT / "services/gateway/assets/silero_vad.onnx"
 SILERO_SHA256 = "1a153a22f4509e292a94e67d6f9b85e8deb25b4988682b7e174c65279d8788e3"  # SILERO_VAD_SOURCE.md
-API_KEY_ENV = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY", "deepgram": "DEEPGRAM_API_KEY"}
-API_TTS_PROVIDERS = ("openrouter", "deepgram")  # speech in API mode: via OpenRouter (default) or Deepgram directly
+
+
+def _load_engines():
+    """vr_gateway/engines.py is standard library only: load it by path (the launcher has no gateway environment)."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("vr_engines", ROOT / "services/gateway/src/vr_gateway/engines.py")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+engines = _load_engines()
+API_KEY_ENV = dict(engines.KEY_ENV)
+LOCAL_MODEL_DIRS = {"local": "models/Qwen3-ASR-0.6B", "kokoro": "models/kokoro"}
 
 
 def configured_mode(args: list[str] | None = None) -> str:
@@ -60,27 +74,64 @@ def configured_mode(args: list[str] | None = None) -> str:
     return m.group(1) if m else "local"
 
 
-def configured_tts_provider() -> str:
-    """VR_API_TTS_PROVIDER, then `tts_provider = "..."` in the [api] table of config.toml (default openrouter)."""
-    env = os.environ.get("VR_API_TTS_PROVIDER", "").strip().lower()
-    if env:
-        return env
+def api_table() -> dict[str, str]:
+    """The `*_provider` settings of the [api] table of config.toml: tomllib like the gateway, or (a launcher Python
+    older than 3.11) a regex that accepts both quote styles."""
     text = GATEWAY_CONFIG.read_text() if GATEWAY_CONFIG.exists() else ""
+    try:
+        import tomllib
+    except ImportError:
+        tomllib = None
+    if tomllib is not None:
+        api = tomllib.loads(text).get("api", {}) if text else {}
+        return {k: str(api[k]) for k in ("llm_provider", "asr_provider", "tts_provider") if k in api}
     api = text.split("\n[api]", 1)[1].split("\n[", 1)[0] if "\n[api]" in text else ""
-    m = re.search(r'^\s*tts_provider\s*=\s*"(\w+)"', api, re.M)
-    return m.group(1).lower() if m else "openrouter"
+    out = {}
+    for key in ("llm_provider", "asr_provider", "tts_provider"):
+        m = re.search(rf'^\s*{key}\s*=\s*["\']([\w-]+)["\']', api, re.M)
+        if m:
+            out[key] = m.group(1)
+    return out
+
+
+def api_engines() -> dict[str, str]:
+    """Resolved engines (raises ValueError for an unknown setting)."""
+    return engines.resolve(os.environ, api_table())
 
 
 def key_rows() -> list[tuple[str, bool]]:
-    """(env var, set?) for each key the configured providers need. Values are never read beyond a presence check."""
-    names = ["openrouter", "openai", *(["deepgram"] if configured_tts_provider() == "deepgram" else [])]
-    return [(API_KEY_ENV[n], bool(os.environ.get(API_KEY_ENV[n], "").strip())) for n in names]
+    """(env var, set?) for each key the chosen engines need. Values are never read beyond a presence check."""
+    return [(API_KEY_ENV[n], bool(os.environ.get(API_KEY_ENV[n], "").strip()))
+            for n in engines.required_keys(api_engines())]
 
 
 def api_mode_summary() -> str:
-    tts = ("Deepgram Aura-2 TTS direct" if configured_tts_provider() == "deepgram"
-           else "Deepgram Aura-2 TTS via OpenRouter")
-    return f"api (OpenRouter LLM, OpenAI realtime transcription, {tts}; Silero VAD local)"
+    return engines.summary(api_engines())
+
+
+def cli_rows(eng: dict[str, str]) -> list[tuple[str, bool, str]]:
+    """(check, ok, detail) for a CLI text engine: installed on PATH (its login is checked by the first request)."""
+    binary = {"claude-cli": "claude", "codex-cli": "codex"}.get(eng["llm"])
+    if not binary:
+        return []
+    path = shutil.which(binary)
+    return [(f"cli {binary}", bool(path), (run([path, "--version"]) or path) if path
+             else f"{binary} not on PATH (install it and log in on this machine)")]
+
+
+def local_model_problems(eng: dict[str, str]) -> list[str]:
+    """Missing local pieces of the API-mode engines: Qwen3-ASR worker env + model, Kokoro model files."""
+    problems = []
+    dirs = {LOCAL_MODEL_DIRS[e] for e in (eng["asr"], eng["tts"]) if e in LOCAL_MODEL_DIRS}
+    if eng["asr"] == "local" and not venv_python("asr").exists():
+        problems.append(f"{VENVS['asr']} missing (local transcription; run ./app setup --api)")
+    bad: dict[str, int] = {}
+    for rel, status, _ in check_models(full=False, hash_files=False):
+        d = next((d for d in dirs if rel.startswith(d + "/")), None)
+        if d and status in ("missing", "size", "hash", "feature-missing"):
+            bad[d] = bad.get(d, 0) + 1
+    problems += [f"{d}: {n} model file(s) missing or wrong size (run ./app setup --api)" for d, n in sorted(bad.items())]
+    return problems
 
 
 # ---------------------------------------------------------------- models
@@ -134,8 +185,10 @@ def check_models(full: bool, hash_files: bool = True) -> list[tuple[str, str, st
     return rows
 
 
-def cmd_verify(args: list[str]) -> int:
+def cmd_verify(args: list[str], only: set[str] | None = None) -> int:
     rows = check_models(full="--full" in args)
+    if only is not None:  # `download --only`: check just the models it fetched
+        rows = [r for r in rows if any(r[0].startswith(d + "/") for d in only)]
     bad = [r for r in rows if r[1] not in ("ok", "optional-missing", "feature-missing")]
     for name, status, detail in rows:
         if status != "ok" or "--verbose" in args:
@@ -147,10 +200,13 @@ def cmd_verify(args: list[str]) -> int:
 
 
 def cmd_download(args: list[str]) -> int:
-    from huggingface_hub import hf_hub_download  # available in workers/asr/.venv
-
+    only = None
+    if "--only" in args:
+        only = {d.strip().rstrip("/") for d in args[args.index("--only") + 1].split(",") if d.strip()}
     todo = {(r[0]) for r in check_models(full=False) if r[1] in ("missing", "size", "hash", "feature-missing")}
     for model in lock_models():
+        if only is not None and model["local_dir"] not in only:
+            continue
         src = model["source"]
         for f in model["files"]:
             rel = f"{model['local_dir']}/{f['path']}"
@@ -164,9 +220,11 @@ def cmd_download(args: list[str]) -> int:
                 with urllib.request.urlopen(url, timeout=120) as resp:
                     (ROOT / rel).write_bytes(resp.read())
                 continue
+            from huggingface_hub import hf_hub_download  # available in workers/asr/.venv
+
             hf_hub_download(repo_id=src["repo"], filename=f["path"], revision=src["revision"],
                             local_dir=str(ROOT / model["local_dir"]))
-    return cmd_verify(["--full"])
+    return cmd_verify(["--full"], only)
 
 
 # ---------------------------------------------------------------- doctor
@@ -321,16 +379,24 @@ def rows_doctor_api() -> list[tuple[str, str, str]]:
     def add(check: str, ok: bool | None, detail: str) -> None:
         rows.append((check, "OK" if ok else ("WARN" if ok is None else "FAIL"), detail))
 
-    provider = configured_tts_provider()
-    add("mode", provider in API_TTS_PROVIDERS,
-        api_mode_summary() if provider in API_TTS_PROVIDERS else
-        f"api: unknown TTS provider {provider!r} (expected {' or '.join(API_TTS_PROVIDERS)})")
+    try:
+        eng = api_engines()
+    except ValueError as exc:
+        add("mode", False, f"api: {exc}")
+        return rows
+    add("mode", True, api_mode_summary())
+    for check, ok, detail in cli_rows(eng):
+        add(check, ok, detail)
+    for problem in local_model_problems(eng):
+        add("local model", False, problem)
     disk = shutil.disk_usage(ROOT).free / 2**30
-    add("disk free", disk >= 1 or None, f"{disk:.0f} GB free (API mode needs well under 1 GB)")
+    add("disk free", disk >= 6 or None, f"{disk:.0f} GB free (API mode with the local voice and transcription needs "
+        "about 6 GB: models ~2 GB, the ASR environment ~3 GB)")
     uv = shutil.which("uv") or str(Path.home() / ".local/bin/uv")
     add("uv", Path(uv).exists(), run([uv, "--version"]) or "not found (https://docs.astral.sh/uv/)")
     add("python (launcher)", sys.version_info >= (3, 10), sys.version.split()[0])
-    v = pkg_versions("gateway", ["onnxruntime", "fastapi", "websockets", "soxr", "vr-feedback"])
+    v = pkg_versions("gateway", ["onnxruntime", "fastapi", "websockets", "soxr", "vr-feedback", "kokoro-onnx",
+                                 "anthropic"])
     add("env gateway", bool(v) and not any(part.endswith(" -") for part in v.split(", ")[1:]),
         v or f"missing {VENVS['gateway']} (run ./app setup --api)")
     dist = ROOT / "apps/web/dist/index.html"
@@ -387,10 +453,17 @@ def preflight_api() -> list[str]:
         problems.append("web build missing (apps/web/dist; run ./app setup --api)")
     if not SILERO.is_file():
         problems.append("services/gateway/assets/silero_vad.onnx missing")
-    provider = configured_tts_provider()
-    if provider not in API_TTS_PROVIDERS:
-        problems.append(f"unknown TTS provider {provider!r} (VR_API_TTS_PROVIDER or [api] tts_provider: "
-                        f"{' or '.join(API_TTS_PROVIDERS)})")
+    try:
+        eng = api_engines()
+    except ValueError as exc:
+        problems.append(f"{exc} (VR_API_*_PROVIDER or [api] *_provider)")
+        return problems
+    problems += [detail for _, ok, detail in cli_rows(eng) if not ok]
+    problems += local_model_problems(eng)
+    if eng["asr"] == "local":
+        owner = port_owner(PORTS["asr"])
+        if owner:
+            problems.append(f"port {PORTS['asr']} (asr) is in use by {owner}")
     missing = [var for var, present in key_rows() if not present]
     if missing:
         problems.append(f"API key(s) not set in the environment: {', '.join(missing)}")
@@ -452,8 +525,15 @@ def cmd_wait_ready(args: list[str]) -> int:
             health = None
         if health:
             workers, cache = health["workers"], health.get("tts_cache") or {}
-            loading = "no key" if health.get("mode") == "api" else "loading"
-            state = " ".join(f"{k}={'ready' if workers[k]['ready'] else loading}" for k in ("asr", "tts", "llm", "vad"))
+            # API mode: a hosted engine that is not ready has no key; a CLI or a model on this machine is loading.
+            eng = health.get("engines") or {}
+
+            def waiting(part: str) -> str:
+                if health.get("mode") != "api":
+                    return "loading"
+                return "no key" if eng.get(part) in engines.NEEDS_KEY or not eng else "loading"
+
+            state = " ".join(f"{k}={'ready' if workers[k]['ready'] else waiting(k)}" for k in ("asr", "tts", "llm", "vad"))
             # Optional pronunciation worker: waited for while its process runs; if it exits, start goes on without it.
             pron_pid = our_worker_pids(("pron",)).get("pron")
             pron_running = pron_pid is not None and alive(pron_pid)

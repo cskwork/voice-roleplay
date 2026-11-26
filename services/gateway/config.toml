@@ -1,9 +1,11 @@
 # Gateway configuration. Paths are relative to the repository root.
 # Environment overrides: VR_GATEWAY_PORT, VR_ASR_PORT, VR_TTS_PORT, VR_LLM_PORT, VR_PRON_PORT (worker ports, e.g. when
 # a default port is taken; also passed to the workers), VR_DATA_DIR, VR_CACHE_DIR, VR_WORKER_TOKEN,
-# VR_MODE (local | api), VR_API_LLM_MODEL, VR_API_TTS_PROVIDER (openrouter | deepgram), VR_PUBLIC_ORIGINS
+# VR_MODE (local | api), VR_API_LLM_PROVIDER, VR_API_ASR_PROVIDER, VR_API_TTS_PROVIDER (see [api]), VR_API_LLM_MODEL,
+# VR_API_CLAUDE_CLI_MODEL, VR_API_CODEX_CLI_MODEL, VR_API_ANTHROPIC_MODEL, VR_PUBLIC_ORIGINS
 # (comma-separated), VR_PATH_PREFIX, VR_SHARED (1/0), VR_MAX_SESSIONS, VR_MAX_SESSION_S, VR_JOB_CONCURRENCY.
-# API mode keys come only from the environment: OPENROUTER_API_KEY (LLM and speech) and OPENAI_API_KEY (transcription);
+# API mode keys come only from the environment and are all optional by default: ANTHROPIC_API_KEY (llm_provider =
+# "anthropic"), OPENROUTER_API_KEY (speech, and llm_provider = "openrouter"), OPENAI_API_KEY (transcription),
 # DEEPGRAM_API_KEY only with tts_provider = "deepgram".
 
 [gateway]
@@ -18,8 +20,8 @@ log_dir = "var/log"
 run_dir = "var/run"
 # Recorded in feedback objects; matches models.lock.json. (API mode records "openrouter:<llm_model>" instead.)
 llm_model_revision = "unsloth/Qwen3-4B-Instruct-2507-GGUF@a06e946bb6b655725eafa393f4a9745d460374c9:Q4_K_M"
-# "local": the ASR/TTS/LLM workers below. "api": hosted providers ([api]); no worker processes, no model files
-# except Silero VAD (services/gateway/assets). See contracts/PROTOCOL.md §1.
+# "local": the ASR/TTS/LLM workers below. "api": no local LLM/TTS workers; each part picks its engine in [api]
+# (a logged-in CLI, a hosted provider, or a small model on this machine). See contracts/PROTOCOL.md §1.
 mode = "local"
 # Reverse proxy (e.g. Content Forge serving this app at https://<site>/voice/): its origins are accepted as Origin and
 # their hosts as Host, and the prefix is stripped before routing. Empty = only http://127.0.0.1:<port> and localhost.
@@ -27,19 +29,37 @@ public_origins = []
 path_prefix = ""
 
 [api]
-# Conversation and background JSON (goals, hints, feedback, summaries) through OpenRouter, pinned to OpenAI/Azure with
-# zero data retention and no data collection.
+# Which engine runs each part (vr_gateway/engines.py; env VR_API_*_PROVIDER wins):
+#   llm_provider: "claude-cli" (default; the Claude Code CLI logged in on this machine, model claude_cli_model, no key),
+#     "codex-cli" (the Codex CLI logged in on this machine, model codex_cli_model), "anthropic" (Claude API,
+#     ANTHROPIC_API_KEY, model anthropic_model) or "openrouter" (OPENROUTER_API_KEY, llm_model below).
+#   asr_provider: "auto" (default) = "openai" when OPENAI_API_KEY is set, else "local" (the Qwen3-ASR worker below).
+#   tts_provider: "auto" (default) = "openrouter" when OPENROUTER_API_KEY is set, else "kokoro" (Kokoro-82M ONNX on
+#     this machine, models/kokoro, voices config/voices.kokoro.json); "deepgram" = explicit opt-in.
+# The CLI engines send the conversation text to Anthropic or OpenAI under the CLI account's own terms (no zero data
+# retention); the hosted engines below keep their routing. Before 2026-11-26 API mode always used OpenRouter for text:
+# to keep that on an existing deployment, set llm_provider = "openrouter" (or VR_API_LLM_PROVIDER=openrouter).
+llm_provider = "claude-cli"
+asr_provider = "auto"
+tts_provider = "auto"
+# claude-haiku-4-5: the CLI cannot turn thinking off on Haiku 5.5, which delays every reply by 1.5-3 s.
+claude_cli_model = "claude-haiku-4-5"
+codex_cli_model = "gpt-6-luna"
+# Idle CLI processes kept started so a turn does not wait for the CLI to boot (each request uses one).
+cli_pool = 2
+anthropic_model = "claude-haiku-5-5"
+# Conversation and background JSON (goals, hints, feedback, summaries) with llm_provider = "openrouter", pinned to
+# OpenAI/Azure with zero data retention and no data collection.
 llm_base_url = "https://openrouter.ai/api/v1"
 llm_model = "openai/gpt-4.1-mini"
 llm_providers = ["openai", "azure"]
 # Live captions and final transcripts: OpenAI realtime transcription session (manual commit, our VAD decides).
 asr_url = "wss://api.openai.com/v1/realtime?intent=transcription"
 asr_model = "gpt-live-transcribe"
-# Speech: "openrouter" (default) = Deepgram Aura-2 through OpenRouter's /audio/speech with the OpenRouter key, raw PCM,
+# Speech with tts_provider "openrouter" = Deepgram Aura-2 through OpenRouter's /audio/speech with the OpenRouter key, raw PCM,
 # every request carries provider {zdr: true, data_collection: "deny"}. Voice list: config/voices.openrouter.json.
 # "deepgram" = opt-in fallback straight to Deepgram (needs DEEPGRAM_API_KEY; every request carries mip_opt_out=true;
 # voice list config/voices.api.json). `voices = "..."` overrides the provider's default voice list.
-tts_provider = "openrouter"
 tts_base_url = "https://openrouter.ai/api/v1"
 tts_model = "deepgram/aura-2"
 tts_url = "wss://api.deepgram.com/v1/speak"

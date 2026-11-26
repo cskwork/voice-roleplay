@@ -1,7 +1,9 @@
 """Aggregated readiness of workers and supported modes (GET /api/health).
 
-In API mode the "workers" are the provider adapters: they report ready when their key is configured, without a
-network call (PROTOCOL §6.2). `mode_info()` adds `mode`, `shared` and, in API mode, `api_keys` (presence only).
+In API mode the "workers" are the engine adapters: a hosted one reports ready when its key is configured and a CLI when
+it is installed, without a network call (PROTOCOL §6.2); Kokoro and the local ASR worker report their model state.
+`mode_info()` adds `mode`, `shared` and, in API mode, `api_keys` (presence only, for the keys the chosen engines need)
+and `engines` (llm / asr / tts).
 """
 
 from __future__ import annotations
@@ -10,6 +12,7 @@ import asyncio
 import time
 
 from .config import API_KEY_ENV
+from .engines import NEEDS_KEY
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -67,15 +70,25 @@ class HealthMonitor:
         rt_missing = [n for n, ok in (("ASR", asr_ready), ("TTS", tts_ready), ("LLM", llm_ok), ("VAD", vad_ready)) if not ok]
         rec_missing = [n for n, ok in (("ASR", asr_ready), ("VAD", vad_ready)) if not ok]
         if self.svc.config.mode == "api":
-            # Name the missing key variable, never its value. TTS uses OpenRouter's key unless Deepgram is configured.
-            env = {"ASR": API_KEY_ENV["openai"], "TTS": API_KEY_ENV[self.svc.config.api.tts_provider],
-                   "LLM": API_KEY_ENV["openrouter"], "VAD": "silero_vad.onnx"}
+            # Per part: a hosted engine names its missing key variable (never the value); a CLI or a model on this
+            # machine says what is not ready.
+            eng = self.svc.config.api.engines()
+            local = {"claude-cli": "Claude CLI(이 PC 로그인)", "codex-cli": "Codex CLI(이 PC 로그인)",
+                     "local": "이 PC 음성 인식 모델(Qwen3-ASR)", "kokoro": "이 PC 목소리 모델(Kokoro)"}
+            part = {"ASR": eng["asr"], "TTS": eng["tts"], "LLM": eng["llm"]}
 
-            def names(missing: list[str]) -> str:
-                return ", ".join(dict.fromkeys(env[n] for n in missing))
+            def why(missing: list[str]) -> str | None:
+                if not missing:
+                    return None
+                keys = [API_KEY_ENV[NEEDS_KEY[part[n]]] for n in missing if n in part and part[n] in NEEDS_KEY]
+                here = [local[part[n]] for n in missing if n in part and part[n] in local]
+                bits = ([f"API 키가 설정되지 않음: {', '.join(dict.fromkeys(keys))}"] if keys else []) + \
+                       ([f"준비되지 않음: {', '.join(dict.fromkeys(here))}"] if here else []) + \
+                       (["준비되지 않은 모델: VAD"] if "VAD" in missing else [])
+                return " · ".join(bits)
 
-            rt_reason = f"API 키가 설정되지 않음: {names(rt_missing)}" if rt_missing else None
-            rec_reason = f"API 키가 설정되지 않음: {names(rec_missing)}" if rec_missing else None
+            rt_reason = why(rt_missing)
+            rec_reason = why(rec_missing)
         else:
             rt_reason = f"준비되지 않은 모델: {', '.join(rt_missing)}" if rt_missing else None
             rec_reason = f"준비되지 않은 모델: {', '.join(rec_missing)}" if rec_missing else None
@@ -115,7 +128,8 @@ class HealthMonitor:
                 if model and model.get("model_id"):
                     seen.append((model["model_id"], model.get("revision"), f"pron:{pron.get('device', '')}"))
         if llm_ok:
-            seen.append(("llm", self.svc.config.llm_model_revision, "llama.cpp"))
+            cfg = self.svc.config
+            seen.append(("llm", cfg.llm_model_revision, cfg.api.llm_provider if cfg.mode == "api" else "llama.cpp"))
         if seen != self._manifest_seen:
             self._manifest_seen = seen
             for row in seen:
@@ -125,7 +139,8 @@ class HealthMonitor:
         cfg = self.svc.config
         info: dict = {"mode": cfg.mode, "shared": cfg.shared}
         if cfg.mode == "api":
-            info["api_keys"] = cfg.api.key_presence()  # booleans only
+            info["api_keys"] = cfg.api.key_presence()  # booleans only, for the keys the chosen engines need
+            info["engines"] = cfg.api.engines()
         if cfg.shared:
             info["sessions"] = {"live": len(self.svc.sessions.live_realtime()), "max": cfg.max_sessions,
                                 "max_session_s": cfg.max_session_s}

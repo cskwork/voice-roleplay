@@ -203,7 +203,17 @@ export function normalizeHealth(raw: unknown): Health {
     modes: { realtime: mode('realtime'), recorded: mode('recorded') },
     benchmark: (b.benchmark as Health['benchmark']) ?? null,
     pronunciation: (['timing_only', 'experimental_banded'] as const).find((s) => s === b.pronunciation_assessment) ?? ('assessment_unavailable' as PronunciationStatusTop),
+    engines: normalizeEngines(b.engines),
   }
+}
+
+/** Only the known values; anything else means "not reported" (the notice then says the older providers). */
+export function normalizeEngines(raw: unknown): Health['engines'] {
+  const e = obj(raw)
+  const llm = (['claude-cli', 'codex-cli', 'anthropic', 'openrouter'] as const).find((v) => v === e.llm)
+  const asr = (['openai', 'local'] as const).find((v) => v === e.asr)
+  const tts = (['openrouter', 'deepgram', 'kokoro'] as const).find((v) => v === e.tts)
+  return llm && asr && tts ? { llm, asr, tts } : null
 }
 
 export function normalizeSummary(raw: unknown): SessionSummary {

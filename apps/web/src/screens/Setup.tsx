@@ -7,6 +7,7 @@ import { toApiError } from '../lib/errors'
 import { decodeWav } from '../lib/wav'
 import type { ComponentHealth } from '../lib/types'
 import { navigate, useApp, useVoiceId } from '../state'
+import { transferNotice } from '../lib/privacy'
 
 // Plain-language roles; model names and devices live in 설정 › 진단 정보.
 const COMPONENTS: { key: 'vad' | 'asr' | 'tts' | 'llm'; label: string; role: string }[] = [
@@ -135,9 +136,7 @@ export function Setup() {
       <header className="page-head">
         <h1 id="setup-title">마이크와 모델을 확인할게요</h1>
         <p className="lead">
-          {health?.api
-            ? '말하는 목소리와 대화 글이 OpenAI·OpenRouter(미국)로 전송돼요. OpenRouter는 글을 OpenAI·Azure·Deepgram에 넘겨 처리해요. 음성은 저장하지 않아요.'
-            : '모든 처리는 이 컴퓨터 안에서만 이뤄져요. 음성은 저장하지 않아요.'}
+          {transferNotice(health, '이 앱은 음성을 저장하지 않아요.')}
         </p>
       </header>
 

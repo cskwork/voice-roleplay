@@ -2,11 +2,13 @@
 # voice-roleplay local launcher (PRD §14.3, PROTOCOL §11).
 #
 #   ./app setup [--yes]    install runtimes, web build and pinned models (asks first; --yes = no prompt)
-#   ./app setup --api      API mode: gateway environment + web build only, no model downloads (VR_WEB_BASE=/voice/ for a proxy)
+#   ./app setup --api      API mode: gateway environment + web build + the small local voice and transcription models
+#                          (Kokoro-82M, Qwen3-ASR-0.6B; --no-local-voice skips them) (VR_WEB_BASE=/voice/ for a proxy)
 #   ./app doctor [--full]  check hardware, runtimes, model hashes, ports, voices, offline readiness (--api: keys, VAD, build)
 #   ./app start [--api]    start gateway + ASR/TTS/LLM (+ optional pronunciation) workers, wait until ready, print the URL
-#                          (--api or VR_MODE=api: hosted providers, no workers; needs OPENROUTER_API_KEY and OPENAI_API_KEY,
-#                          plus DEEPGRAM_API_KEY only with VR_API_TTS_PROVIDER=deepgram)
+#                          (--api or VR_MODE=api: no LLM/TTS workers; text through the Claude CLI logged in here by
+#                          default, transcription/speech on this machine unless OPENAI_API_KEY / OPENROUTER_API_KEY
+#                          are set; see services/gateway/config.toml [api])
 #   ./app stop             stop gracefully (jobs cancelled, workers stopped), clean up leftovers
 #   ./app benchmark [...]  run benchmarks/run.sh
 set -euo pipefail
@@ -44,15 +46,25 @@ find_npm() {
 }
 
 cmd_setup_api() {
-  local yes=$1
+  local yes=$1 local_voice=$2
   cat <<EOF
 ./app setup --api will:
   1. create the gateway Python environment with uv from its lock file (services/gateway)
   2. install and build the web app (npm ci && npm run build in apps/web), base path ${VR_WEB_BASE:-/}
-It downloads no model files: the only local model is Silero VAD (2.2 MB), already in services/gateway/assets.
-At runtime, learners' voice and conversation text are sent to OpenAI and OpenRouter (US); OpenRouter passes the text on
-to OpenAI, Azure and Deepgram - see README "Privacy".
-This uses the network (PyPI, npm) and well under 1 GB of disk.
+EOF
+  if [ "$local_voice" -eq 1 ]; then cat <<EOF
+  3. create the ASR worker environment (workers/asr) and download, at pinned revisions with SHA-256 checks, the local
+     models used when no key is set: Kokoro-82M ONNX int8 (~120 MB, speech) and Qwen3-ASR-0.6B (~1.8 GB, transcription)
+This uses the network (PyPI, npm, GitHub, Hugging Face) and about 6 GB of disk.
+EOF
+  else cat <<EOF
+This uses the network (PyPI, npm) and about 1 GB of disk.
+EOF
+  fi
+  cat <<EOF
+At runtime the conversation text goes through the Claude CLI logged in on this machine (Anthropic, US) by default, or
+the engine chosen in services/gateway/config.toml [api]; voice goes to OpenAI/OpenRouter only when their keys are set
+(or to Deepgram when tts_provider = "deepgram" is chosen), otherwise it stays on this machine - see README "Privacy".
 EOF
   if [ "$yes" -ne 1 ]; then
     [ -t 0 ] || die "no terminal to ask for consent; re-run with --yes to agree non-interactively"
@@ -61,21 +73,28 @@ EOF
   fi
   command -v uv >/dev/null || die "uv not found (install: https://docs.astral.sh/uv/)"
   find_npm
-  say "== [1/2] Gateway environment (uv sync --frozen)"
+  say "== Gateway environment (uv sync --frozen)"
   (cd "$ROOT/services/gateway" && uv sync --frozen)
-  say "== [2/2] Web app"
+  say "== Web app"
   (cd "$ROOT/apps/web" && npm ci && VR_WEB_BASE="${VR_WEB_BASE:-/}" npm run build)
+  if [ "$local_voice" -eq 1 ]; then
+    say "== Local transcription environment (workers/asr, uv sync --frozen)"
+    (cd "$ROOT/workers/asr" && uv sync --frozen)
+    say "== Local models (pinned revisions, then SHA-256 check)"
+    HF_HUB_DISABLE_TELEMETRY=1 "$ROOT/workers/asr/.venv/bin/python" "$TOOL" download \
+      --only models/kokoro,models/Qwen3-ASR-0.6B
+  fi
   say ""
-  say "Setup complete. Next: export the two API keys (OPENROUTER_API_KEY, OPENAI_API_KEY), then ./app doctor --api and ./app start --api"
+  say "Setup complete. Next: ./app doctor --api, then ./app start --api (keys are optional; see config.toml [api])"
 }
 
 cmd_setup() {
-  local yes=0 api=0
+  local yes=0 api=0 local_voice=1
   for arg in "$@"; do
-    case "$arg" in --yes) yes=1 ;; --api) api=1 ;; *) die "unknown option: $arg" ;; esac
+    case "$arg" in --yes) yes=1 ;; --api) api=1 ;; --no-local-voice) local_voice=0 ;; *) die "unknown option: $arg" ;; esac
   done
   [ "${VR_MODE:-}" = "api" ] && api=1
-  if [ $api -eq 1 ]; then cmd_setup_api "$yes"; return; fi
+  if [ $api -eq 1 ]; then cmd_setup_api "$yes" "$local_voice"; return; fi
   cat <<'EOF'
 ./app setup will:
   1. create Python environments with uv from the lock files (services/gateway, workers/asr, workers/tts,
@@ -137,7 +156,7 @@ cmd_start() {
   fi
   mkdir -p "$RUN_DIR" "$LOG_DIR"
   if [ "$("$PYTHON" "$TOOL" mode)" = "api" ]; then
-    say "Starting gateway in API mode (no local model workers; logs: var/log/)..."
+    say "Starting gateway in API mode (no LLM/TTS workers; logs: var/log/)..."
   else
     say "Starting gateway and workers (logs: var/log/)..."
   fi

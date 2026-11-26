@@ -118,6 +118,14 @@ export interface Health {
   pronunciation: PronunciationStatusTop
   modes: Record<Mode, ModeAvailability>
   benchmark?: { status?: string } | null
+  /** API mode: where each part runs (absent on gateways older than 2026-11-26, which always used OpenAI/OpenRouter). */
+  engines?: Engines | null
+}
+
+export interface Engines {
+  llm: 'claude-cli' | 'codex-cli' | 'anthropic' | 'openrouter'
+  asr: 'openai' | 'local'
+  tts: 'openrouter' | 'deepgram' | 'kokoro'
 }
 
 export interface Settings {
